@@ -16,6 +16,18 @@ pub struct MemKey {
     key: SecBytes,
 }
 
+impl Zeroize for MemKey {
+    fn zeroize(&mut self) {
+        self.key.write().zeroize();
+    }
+}
+
+impl Drop for MemKey {
+    fn drop(&mut self) {
+        self.zeroize()
+    }
+}
+
 impl MemKey {
     /// TODO
     pub fn new() -> Self {

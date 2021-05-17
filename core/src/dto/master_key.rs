@@ -1,11 +1,16 @@
 //! TODO
+use getset::Getters;
 use serde::{Deserialize, Serialize};
-
 /// TODO
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Getters)]
 pub struct MasterKey {
+    #[getset(get = "pub")]
     salt: String,
+
+    #[getset(get = "pub")]
     iv: String,
+
+    #[getset(get = "pub")]
     encrypted_key: String,
 }
 
@@ -18,23 +23,5 @@ impl MasterKey {
             iv,
             encrypted_key,
         }
-    }
-
-    /// TODO
-    #[must_use]
-    pub fn get_salt(&self) -> &str {
-        &self.salt
-    }
-
-    /// TODO
-    #[must_use]
-    pub fn get_iv(&self) -> &str {
-        &self.iv
-    }
-
-    /// TODO
-    #[must_use]
-    pub fn get_encrypted_key(&self) -> &str {
-        &self.encrypted_key
     }
 }

@@ -1,6 +1,7 @@
 //! TODO
 use std::{collections::HashMap, path::Path};
 
+use getset::Getters;
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
@@ -13,12 +14,22 @@ use crate::{
 use super::uuid::Uuid;
 
 /// TODO
-#[derive(Debug, Deserialize, Serialize, Zeroize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Zeroize)]
 #[zeroize(drop)]
+#[derive(Getters)]
 pub struct Group {
+    /// TODO
+    #[getset(get = "pub")]
     uuid: Uuid,
+
+    /// TODO
+    #[getset(get = "pub")]
     parent: String,
+
+    /// TODO
+    #[getset(get = "pub")]
     title: String,
+
     #[serde(skip)]
     modified: bool,
 }
@@ -73,7 +84,7 @@ impl Group {
         for dto in dtos {
             //results.push(Self::decrypt(dto, masterkey)?);
             let group = Self::decrypt(dto, masterkey)?;
-            let _ = results.insert(group.get_uuid().as_string(), group);
+            let _ = results.insert(group.uuid().as_string(), group);
         }
 
         Ok(results)
@@ -81,9 +92,9 @@ impl Group {
 
     fn decrypt(dto: crate::dto::group::Group, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
         let decrypted_content = aes_cbc_decrypt(
-            &base64::decode(dto.get_content())?,
+            &base64::decode(dto.content())?,
             masterkey,
-            &base64::decode(dto.get_iv())?,
+            &base64::decode(dto.iv())?,
         )?;
 
         let content = SecString::from_utf8(decrypted_content)?;
@@ -93,7 +104,7 @@ impl Group {
     }
 
     /// TODO
-    pub fn root(path: &Path) -> Self {
+    pub fn create_root_for(path: &Path) -> Self {
         Self {
             uuid: Uuid::new(path),
             parent: String::new(),
@@ -103,18 +114,8 @@ impl Group {
     }
 
     /// TODO
-    pub fn get_uuid(&self) -> &Uuid {
-        &self.uuid
-    }
-
-    /// TODO
-    pub fn get_parent(&self) -> &str {
-        &self.parent
-    }
-
-    /// TODO
-    pub fn get_title(&self) -> &str {
-        &self.title
+    pub fn is_root(&self) -> bool {
+        self.parent.is_empty()
     }
 
     /// TODO

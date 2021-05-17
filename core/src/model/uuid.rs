@@ -7,7 +7,7 @@ use zeroize::Zeroize;
 
 use crate::io::generate_uuid;
 /// TODO
-#[derive(Debug, Deserialize, Serialize, Zeroize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Zeroize)]
 pub struct Uuid {
     id: Vec<u8>,
 }

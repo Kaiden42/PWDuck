@@ -20,6 +20,20 @@ pub enum PWDuckCoreError {
     Utf8(std::string::FromUtf8Error),
 }
 
+impl Clone for PWDuckCoreError {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Argon2(error) => Self::Argon2(error.clone()),
+            Self::AES(error) => Self::AES(error.clone()),
+            Self::Base64(error) => Self::Base64(error.clone()),
+            Self::Error(error) => Self::Error(error.clone()),
+            Self::IO(error) => Self::Error(format!("'Cloned' IO Error: {:?}", error)),
+            Self::Ron(error) => Self::Ron(error.clone()),
+            Self::Utf8(error) => Self::Utf8(error.clone()),
+        }
+    }
+}
+
 impl From<argon2::password_hash::Error> for PWDuckCoreError {
     fn from(error: argon2::password_hash::Error) -> Self {
         Self::Argon2(error)

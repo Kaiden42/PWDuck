@@ -15,19 +15,40 @@ use crate::{
     error::PWDuckCoreError,
     io::{create_new_vault_dir, save_masterkey},
     mem_protection::MemKey,
+    EntryBody,
 };
 
 use super::{entry::EntryHead, group::Group, master_key::MasterKey};
+use getset::{Getters, MutGetters};
 
 /// TODO
-#[derive(Debug)]
+#[derive(Clone, Debug, Getters, MutGetters)]
 pub struct Vault {
+    /// TODO
+    #[getset(get = "pub")]
     masterkey: MasterKey,
+
+    /// TODO
+    #[getset(get = "pub")]
     salt: String,
+
+    /// TODO
+    #[getset(get = "pub")]
     nonce: Vec<u8>,
+
+    /// TODO
+    #[getset(get = "pub")]
     path: PathBuf,
+
+    /// TODO
+    #[getset(get = "pub", get_mut = "pub")]
     groups: HashMap<String, Group>,
+
+    /// TODO
+    #[getset(get = "pub")]
     entries: HashMap<String, EntryHead>,
+
+    unsaved_entry_bodies: HashMap<String, crate::dto::entry::EntryBody>,
 }
 
 impl Vault {
@@ -37,11 +58,12 @@ impl Vault {
         P: Into<PathBuf>,
     {
         let path = path.into();
+        println!("Create vault dir");
         create_new_vault_dir(&path)?;
 
+        println!("Generate password");
         let masterkey_dto = generate_masterkey(password)?;
 
-        //let salt = SaltString::generate(&mut OsRng);
         let salt = generate_argon2_salt();
         let nonce = generate_chacha20_nonce();
 
@@ -51,12 +73,6 @@ impl Vault {
             &derive_key_protection(mem_key, &salt)?,
             &nonce,
         )?;
-        /*let masterkey = MasterKey::load(
-            &path,
-            password,
-            &derive_key_protection(mem_key, salt.as_str())?,
-            &nonce
-        )?;*/
 
         let mut vault = Vault {
             masterkey,
@@ -65,14 +81,13 @@ impl Vault {
             path,
             groups: HashMap::new(),
             entries: HashMap::new(),
+            unsaved_entry_bodies: HashMap::new(),
         };
 
-        let root = Group::root(vault.get_path());
-        let _ = vault
-            .get_groups_mut()
-            .insert(root.get_uuid().as_string(), root);
+        let root = Group::create_root_for(vault.path());
+        let _ = vault.groups_mut().insert(root.uuid().as_string(), root);
 
-        save_masterkey(vault.get_path(), masterkey_dto)?;
+        save_masterkey(vault.path(), masterkey_dto)?;
         vault.save(mem_key)?;
 
         Ok(vault)
@@ -82,10 +97,19 @@ impl Vault {
     pub fn save(&mut self, mem_key: &MemKey) -> Result<(), PWDuckCoreError> {
         let path = self.path.to_owned();
         let mut masterkey = unprotect_masterkey(
-            self.masterkey.get_key(),
+            self.masterkey.key(),
             &derive_key_protection(mem_key, &self.salt)?,
             &self.nonce,
         )?;
+
+        let unsaved_entry_bodies_result: Result<(), PWDuckCoreError> = self
+            .unsaved_entry_bodies
+            .iter()
+            .map(|(uuid, entry_body)| crate::io::save_entry_body(&path, uuid, entry_body))
+            .collect();
+        if unsaved_entry_bodies_result.is_ok() {
+            self.unsaved_entry_bodies.clear()
+        }
 
         let group_result: Result<(), PWDuckCoreError> = self
             .groups
@@ -103,7 +127,7 @@ impl Vault {
 
         masterkey.zeroize();
 
-        group_result.and(entry_result)
+        unsaved_entry_bodies_result.and(group_result.and(entry_result))
     }
 
     /// TODO
@@ -124,7 +148,7 @@ impl Vault {
         )?;
 
         let unprotected_masterkey = unprotect_masterkey(
-            &masterkey.get_key(),
+            &masterkey.key(),
             &derive_key_protection(mem_key, &salt)?,
             &nonce,
         )?;
@@ -139,52 +163,134 @@ impl Vault {
             path,
             groups,
             entries,
+            unsaved_entry_bodies: HashMap::new(),
         };
 
         Ok(vault)
     }
 
     /// TODO
-    pub fn get_masterkey(&self) -> &MasterKey {
-        &self.masterkey
+    pub fn get_name(&self) -> &str {
+        &self
+            .path
+            .file_name()
+            .map(|s| s.to_str())
+            .flatten()
+            .unwrap_or("Name of Vault")
     }
 
     /// TODO
-    pub fn get_salt(&self) -> &str {
-        &self.salt
+    pub fn get_root_uuid(&self) -> Option<String> {
+        //println!("groups: {:?}", self.get_groups());
+        //self.groups.get("").map(|r| r.get_uuid().as_string())
+        self.groups
+            .iter()
+            .find(|(_uuid, group)| group.is_root())
+            .map(|(_uuid, group)| group.uuid().as_string())
     }
 
     /// TODO
-    pub fn get_nonce(&self) -> &[u8] {
-        &self.nonce
+    pub fn add_group(&mut self, group: Group) {
+        let _ = self.groups.insert(group.uuid().as_string(), group);
     }
 
     /// TODO
-    pub fn get_path(&self) -> &Path {
-        &self.path
+    pub fn add_entry(
+        &mut self,
+        entry_head: EntryHead,
+        entry_body: EntryBody,
+        masterkey: &[u8],
+    ) -> Result<(), PWDuckCoreError> {
+        let _ = self
+            .entries
+            .insert(entry_head.uuid().as_string(), entry_head);
+
+        let _ = self.unsaved_entry_bodies.insert(
+            entry_body.uuid().as_string(),
+            entry_body.encrypt(masterkey)?,
+        );
+        drop(entry_body);
+        Ok(())
     }
 
     /// TODO
-    pub fn get_groups(&self) -> &HashMap<String, Group> {
-        &self.groups
+    pub fn get_groups_of(&self, parent_uuid: &str) -> Vec<&Group> {
+        self.groups
+            .iter()
+            .filter(|(_uuid, group)| group.parent() == parent_uuid)
+            .map(|(_uuid, group)| group)
+            .collect()
     }
 
     /// TODO
-    pub fn get_groups_mut(&mut self) -> &mut HashMap<String, Group> {
-        &mut self.groups
+    pub fn get_entries_of(&self, parent_uuid: &str) -> Vec<&EntryHead> {
+        self.entries
+            .iter()
+            .filter(|(_uuid, entry)| entry.parent() == parent_uuid)
+            .map(|(_uuid, entry)| entry)
+            .collect()
     }
 
     /// TODO
-    pub fn get_entries(&self) -> &HashMap<String, EntryHead> {
-        &self.entries
+    pub fn contains_unsaved_changes(&self) -> bool {
+        self.groups.iter().any(|(_uuid, group)| group.is_modified())
+            || self
+                .entries
+                .iter()
+                .any(|(_uuid, entry)| entry.is_modified())
+            || !self.unsaved_entry_bodies.is_empty()
+    }
+
+    /// TODO
+    pub fn get_item_list_for<'a>(
+        &'a self,
+        selected_group_uuid: &str,
+        search: Option<&str>,
+    ) -> ItemList<'a> {
+        if let Some(search) = search {
+            let search = search.to_lowercase();
+            ItemList {
+                groups: self
+                    .groups
+                    .iter()
+                    .filter(|(_uuid, group)| group.title().to_lowercase().contains(&search))
+                    .map(|(_, group)| group)
+                    .collect(),
+                entries: self
+                    .entries
+                    .iter()
+                    .filter(|(_uuid, entry)| entry.title().to_lowercase().contains(&search))
+                    .map(|(_, entry)| entry)
+                    .collect(),
+            }
+        } else {
+            ItemList {
+                groups: self.get_groups_of(selected_group_uuid),
+                entries: self.get_entries_of(selected_group_uuid),
+            }
+        }
     }
 }
 
 /// TODO
 #[derive(Debug)]
-pub struct Children {
-    groups: Vec<String>,
-    entries: Vec<String>,
+pub struct ItemList<'a> {
+    groups: Vec<&'a Group>,
+    entries: Vec<&'a EntryHead>,
+}
+
+impl<'a> ItemList<'a> {
+    pub fn is_empty(&self) -> bool {
+        self.groups.is_empty() && self.entries.is_empty()
+    }
+
+    pub fn get_groups(&self) -> &[&'a Group] {
+        &self.groups
+    }
+
+    pub fn get_entries(&self) -> &[&'a EntryHead] {
+        &self.entries
+    }
 }
 
 #[cfg(test)]

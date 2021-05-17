@@ -102,12 +102,12 @@ pub fn load_all_entry_heads(path: &Path) -> Result<Vec<EntryHead>, PWDuckCoreErr
 pub fn save_entry_body(
     path: &Path,
     uuid: &str,
-    entry_body: EntryBody,
+    entry_body: &EntryBody,
 ) -> Result<(), PWDuckCoreError> {
     save_entry(
         &path.join(ENTRIES_DIR).join(BODY),
         uuid,
-        ron::to_string(&entry_body)?,
+        ron::to_string(entry_body)?,
     )
 }
 
@@ -235,8 +235,8 @@ mod tests {
 
         let result = load_entry_head(&path, "uuid").expect("Loading entry head should not fail");
 
-        assert_eq!(head.get_iv(), result.get_iv());
-        assert_eq!(head.get_content(), result.get_content());
+        assert_eq!(head.iv(), result.iv());
+        assert_eq!(head.content(), result.content());
 
         remove_test_dir(&path);
     }
@@ -258,19 +258,19 @@ mod tests {
         ];
 
         heads.iter().for_each(|head| {
-            save_entry_head(&path, head.get_iv(), head.to_owned()).expect("Should not fail")
+            save_entry_head(&path, head.iv(), head.to_owned()).expect("Should not fail")
         });
 
         let mut results =
             load_all_entry_heads(&path).expect("Loading all entry heads should not fail");
 
-        let compare = |a: &EntryHead, b: &EntryHead| a.get_iv().partial_cmp(b.get_iv()).unwrap();
+        let compare = |a: &EntryHead, b: &EntryHead| a.iv().partial_cmp(b.iv()).unwrap();
         heads.sort_by(compare);
         results.sort_by(compare);
 
         results.iter().zip(heads).for_each(|(result, head)| {
-            assert_eq!(head.get_iv(), result.get_iv());
-            assert_eq!(head.get_content(), result.get_content());
+            assert_eq!(head.iv(), result.iv());
+            assert_eq!(head.content(), result.content());
         });
 
         remove_test_dir(&path);
@@ -288,12 +288,12 @@ mod tests {
 
         let body = EntryBody::new("iv".into(), "body".into());
 
-        save_entry_body(&path, "uuid", body.clone()).expect("Saving entry body should not fail");
+        save_entry_body(&path, "uuid", &body).expect("Saving entry body should not fail");
 
         let result = load_entry_body(&path, "uuid").expect("Loading entry body should not fail");
 
-        assert_eq!(body.get_iv(), result.get_iv());
-        assert_eq!(body.get_content(), result.get_content());
+        assert_eq!(body.iv(), result.iv());
+        assert_eq!(body.content(), result.content());
 
         remove_test_dir(&path);
     }
@@ -314,8 +314,8 @@ mod tests {
 
         let result = load_group(&path, "uuid").expect("Loading group should not fail");
 
-        assert_eq!(group.get_iv(), result.get_iv());
-        assert_eq!(group.get_content(), result.get_content());
+        assert_eq!(group.iv(), result.iv());
+        assert_eq!(group.content(), result.content());
 
         remove_test_dir(&path)
     }
@@ -337,18 +337,18 @@ mod tests {
         ];
 
         groups.iter().for_each(|group| {
-            save_group(&path, group.get_iv(), group.to_owned()).expect("Should not fail")
+            save_group(&path, group.iv(), group.to_owned()).expect("Should not fail")
         });
 
         let mut results = load_all_groups(&path).expect("Loading all groups should not fail");
 
-        let compare = |a: &Group, b: &Group| a.get_iv().partial_cmp(b.get_iv()).unwrap();
+        let compare = |a: &Group, b: &Group| a.iv().partial_cmp(b.iv()).unwrap();
         groups.sort_by(compare);
         results.sort_by(compare);
 
         results.iter().zip(groups).for_each(|(result, group)| {
-            assert_eq!(group.get_iv(), result.get_iv());
-            assert_eq!(group.get_iv(), result.get_iv());
+            assert_eq!(group.iv(), result.iv());
+            assert_eq!(group.iv(), result.iv());
         });
 
         remove_test_dir(&path);
@@ -370,9 +370,9 @@ mod tests {
 
         let result = load_masterkey(&path).expect("Loading master key should not fail");
 
-        assert_eq!(masterkey.get_salt(), result.get_salt());
-        assert_eq!(masterkey.get_iv(), result.get_iv());
-        assert_eq!(masterkey.get_encrypted_key(), result.get_encrypted_key());
+        assert_eq!(masterkey.salt(), result.salt());
+        assert_eq!(masterkey.iv(), result.iv());
+        assert_eq!(masterkey.encrypted_key(), result.encrypted_key());
 
         remove_test_dir(&path);
     }

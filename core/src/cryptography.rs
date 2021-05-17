@@ -116,10 +116,10 @@ pub fn decrypt_masterkey(
     key_protection: &[u8],
     nonce: &[u8],
 ) -> Result<crate::model::master_key::MasterKey, PWDuckCoreError> {
-    let mut hash = hash_password(password, masterkey.get_salt())?;
+    let mut hash = hash_password(password, masterkey.salt())?;
 
-    let encrypted_key = base64::decode(masterkey.get_encrypted_key())?;
-    let mut iv = base64::decode(masterkey.get_iv())?;
+    let encrypted_key = base64::decode(masterkey.encrypted_key())?;
+    let mut iv = base64::decode(masterkey.iv())?;
 
     // unprotected key
     let mut key = aes_cbc_decrypt(&encrypted_key, &hash, &iv)?;
@@ -231,7 +231,9 @@ fn decrypt(
     let mut final_result = SecVec::new();
     let mut read_buffer = RefReadBuffer::new(encrypted_data);
     //let mut buffer = [0; 4096];
-    let mut buffer = SecVec::with_capacity(4096);
+    //let mut buffer = SecVec::with_capacity(4096);
+    //let mut buffer = Vec::with_capacity(4096);
+    let mut buffer: SecVec<u8> = vec![0u8; 4096].into();
     let mut write_buffer = RefWriteBuffer::new(&mut buffer);
 
     loop {
@@ -348,9 +350,9 @@ mod tests {
         let key1 = generate_masterkey(password).expect("Generating masterkey should not fail");
         let key2 = generate_masterkey(password).expect("Generating masterkey should not fail");
 
-        assert_ne!(key1.get_salt(), key2.get_salt());
-        assert_ne!(key1.get_iv(), key2.get_iv());
-        assert_ne!(key1.get_encrypted_key(), key2.get_encrypted_key());
+        assert_ne!(key1.salt(), key2.salt());
+        assert_ne!(key1.iv(), key2.iv());
+        assert_ne!(key1.encrypted_key(), key2.encrypted_key());
     }
 
     #[test]

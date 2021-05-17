@@ -42,14 +42,23 @@
     clippy::module_name_repetitions
 )]
 
-pub mod cryptography;
+mod cryptography;
 
-pub mod error;
+mod error;
+pub use error::PWDuckCoreError;
 
-pub mod io;
+mod io;
 
-pub mod mem_protection;
+mod mem_protection;
+pub use mem_protection::{MemKey, SecString, SecVec};
 
-pub mod model;
+mod model;
+pub use model::{
+    entry::{EntryBody, EntryHead},
+    group::Group,
+    master_key::MasterKey,
+    uuid::Uuid,
+    vault::Vault,
+};
 
-pub mod dto;
+mod dto;

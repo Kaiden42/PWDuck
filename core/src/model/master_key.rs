@@ -1,13 +1,17 @@
 //! TODO
 
+use getset::Getters;
 use std::path::Path;
 use zeroize::Zeroize;
 
 use crate::{cryptography::decrypt_masterkey, error::PWDuckCoreError};
 /// In-memory encrypted master key
-#[derive(Debug, Zeroize)]
+#[derive(Clone, Debug, Zeroize)]
 #[zeroize(drop)]
+#[derive(Getters)]
 pub struct MasterKey {
+    /// TODO
+    #[getset(get = "pub")]
     key: Vec<u8>,
 }
 
@@ -21,11 +25,6 @@ impl MasterKey {
     ) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_masterkey(&path)?;
         decrypt_masterkey(&dto, password, key_protection, nonce)
-    }
-
-    /// TODO
-    pub fn get_key(&self) -> &[u8] {
-        &self.key
     }
 }
 

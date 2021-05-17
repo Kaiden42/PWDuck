@@ -6,19 +6,33 @@ use crate::{
     error::PWDuckCoreError,
     mem_protection::SecString,
 };
+use getset::Getters;
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
 use super::uuid::Uuid;
 
 /// TODO
-#[derive(Debug, Deserialize, Serialize, Zeroize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Zeroize)]
 #[zeroize(drop)]
+#[derive(Getters)]
 pub struct EntryHead {
+    /// TODO
+    #[getset(get = "pub")]
     uuid: Uuid,
+
+    /// TODO
+    #[getset(get = "pub")]
     parent: String,
+
+    /// TODO
+    #[getset(get = "pub")]
     title: String,
+
+    /// TODO
+    #[getset(get = "pub")]
     body: String,
+
     #[serde(skip)]
     modified: bool,
 }
@@ -63,7 +77,7 @@ impl EntryHead {
         for dto in dtos {
             //results.push(Self::decrypt(dto, masterkey)?);
             let head = Self::decrypt(dto, masterkey)?;
-            let _ = results.insert(head.get_uuid().as_string(), head);
+            let _ = results.insert(head.uuid().as_string(), head);
         }
 
         Ok(results)
@@ -74,35 +88,15 @@ impl EntryHead {
         masterkey: &[u8],
     ) -> Result<Self, PWDuckCoreError> {
         let decrypted_content = aes_cbc_decrypt(
-            &base64::decode(dto.get_content())?,
+            &base64::decode(dto.content())?,
             masterkey,
-            &base64::decode(dto.get_iv())?,
+            &base64::decode(dto.iv())?,
         )?;
 
         let content = SecString::from_utf8(decrypted_content)?;
         let head = ron::from_str(&content)?;
 
         Ok(head)
-    }
-
-    /// TODO
-    pub fn get_uuid(&self) -> &Uuid {
-        &self.uuid
-    }
-
-    /// TODO
-    pub fn get_parent(&self) -> &str {
-        &self.parent
-    }
-
-    /// TODO
-    pub fn get_title(&self) -> &str {
-        &self.title
-    }
-
-    /// TODO
-    pub fn get_body(&self) -> &str {
-        &self.body
     }
 
     /// TODO
@@ -115,10 +109,20 @@ impl EntryHead {
 #[allow(missing_debug_implementations)]
 #[derive(Deserialize, Serialize, Zeroize)]
 #[zeroize(drop)]
+#[derive(Getters)]
 pub struct EntryBody {
-    uuid: String,
+    /// TODO
+    #[getset(get = "pub")]
+    uuid: Uuid,
+
+    /// TODO
+    #[getset(get = "pub")]
     username: String,
+
+    /// TODO
+    #[getset(get = "pub")]
     password: String,
+
     #[serde(skip)]
     modified: bool,
 }
@@ -152,30 +156,15 @@ impl EntryBody {
         masterkey: &[u8],
     ) -> Result<Self, PWDuckCoreError> {
         let decrypted_content = aes_cbc_decrypt(
-            &base64::decode(dto.get_content())?,
+            &base64::decode(dto.content())?,
             masterkey,
-            &base64::decode(dto.get_iv())?,
+            &base64::decode(dto.iv())?,
         )?;
 
         let content = SecString::from_utf8(decrypted_content)?;
         let body = ron::from_str(&content)?;
 
         Ok(body)
-    }
-
-    /// TODO
-    pub fn get_uuid(&self) -> &str {
-        &self.uuid
-    }
-
-    /// TODO
-    pub fn get_username(&self) -> &str {
-        &self.username
-    }
-
-    /// TODO
-    pub fn get_password(&self) -> &str {
-        &self.password
     }
 
     /// TODO
