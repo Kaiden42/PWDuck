@@ -273,23 +273,21 @@ impl Vault {
 }
 
 /// TODO
-#[derive(Debug)]
+#[derive(Debug, Getters)]
 pub struct ItemList<'a> {
+    /// TODO
+    #[getset(get = "pub")]
     groups: Vec<&'a Group>,
+
+    /// TODO
+    #[getset(get = "pub")]
     entries: Vec<&'a EntryHead>,
 }
 
 impl<'a> ItemList<'a> {
+    /// TODO
     pub fn is_empty(&self) -> bool {
         self.groups.is_empty() && self.entries.is_empty()
-    }
-
-    pub fn get_groups(&self) -> &[&'a Group] {
-        &self.groups
-    }
-
-    pub fn get_entries(&self) -> &[&'a EntryHead] {
-        &self.entries
     }
 }
 
