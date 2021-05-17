@@ -8,11 +8,13 @@ use seckey::SecBytes;
 
 use crate::{cryptography::fill_random_bytes, error::PWDuckCoreError};
 
-const MIB_1: usize = 1048576;
+/// TODO
+const MIB_1: usize = 0x0010_0000;
 
 /// TODO
 #[derive(Debug)]
 pub struct MemKey {
+    /// TODO
     key: SecBytes,
 }
 
@@ -30,11 +32,13 @@ impl Drop for MemKey {
 
 impl MemKey {
     /// TODO
+    #[must_use]
     pub fn new() -> Self {
-        MemKey::with_length(MIB_1)
+        Self::with_length(MIB_1)
     }
 
     /// TODO
+    #[must_use]
     pub fn with_length(length: usize) -> Self {
         Self {
             key: SecBytes::with(length, |buf| {
@@ -46,6 +50,12 @@ impl MemKey {
                 fill_random_bytes(buf);
             }),
         }
+    }
+}
+
+impl Default for MemKey {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -72,13 +82,21 @@ pub struct SecVec<T: Zeroize>(Vec<T>);
 
 impl<T: Zeroize> SecVec<T> {
     /// TODO
+    #[must_use]
     pub fn new() -> Self {
         Self(Vec::new())
     }
 
     /// TODO
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self(Vec::with_capacity(capacity))
+    }
+}
+
+impl<T: Zeroize> Default for SecVec<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -119,6 +137,7 @@ impl SecString {
     /// TODO
     pub fn from_utf8(v: SecVec<u8>) -> Result<Self, PWDuckCoreError> {
         let raw = v.to_vec();
+        drop(v);
         let result = String::from_utf8(raw);
 
         match result {

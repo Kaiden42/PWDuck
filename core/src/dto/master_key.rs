@@ -4,12 +4,15 @@ use serde::{Deserialize, Serialize};
 /// TODO
 #[derive(Clone, Debug, Deserialize, Serialize, Getters)]
 pub struct MasterKey {
+    /// TODO
     #[getset(get = "pub")]
     salt: String,
 
+    /// TODO
     #[getset(get = "pub")]
     iv: String,
 
+    /// TODO
     #[getset(get = "pub")]
     encrypted_key: String,
 }

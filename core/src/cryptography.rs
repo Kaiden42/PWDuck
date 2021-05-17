@@ -20,7 +20,9 @@ use crate::{
     mem_protection::{MemKey, SecVec},
 };
 
+/// TODO
 const AES_IV_LENGTH: usize = 16;
+/// TODO
 const CHACHA20_NONCE_LENGTH: usize = 8;
 
 /// TODO
@@ -41,7 +43,7 @@ pub fn generate_argon2_salt() -> String {
 
 /// TODO
 fn generate_iv(length: usize) -> Vec<u8> {
-    let mut iv: Vec<u8> = vec![0u8; length];
+    let mut iv: Vec<u8> = vec![0_u8; length];
     //OsRng.fill_bytes(&mut iv);
     fill_random_bytes(&mut iv);
     iv
@@ -77,7 +79,7 @@ pub fn derive_key(data: &[u8], salt: &str) -> Result<SecVec<u8>, PWDuckCoreError
     Ok(password_hash
         .as_bytes()
         .iter()
-        .map(|&b| b)
+        .copied()
         .collect::<Vec<u8>>()
         .into())
 }
@@ -96,7 +98,7 @@ pub fn generate_masterkey(password: &str) -> Result<MasterKey, PWDuckCoreError> 
     let iv = generate_aes_iv();
 
     // Generate random master key and encrypt it with password hash
-    let mut master_key = [0u8; 32];
+    let mut master_key = [0_u8; 32];
     OsRng.fill_bytes(&mut master_key);
     let encrypted_key = aes_cbc_encrypt(&master_key, password_hash.as_slice(), &iv)?;
     master_key.zeroize();
@@ -197,7 +199,7 @@ pub fn chacha20_decrypt(
     decrypt(&mut ChaCha20::new(key, nonce), encrypted_data)
 }
 
-/// Taken from: https://github.com/DaGenix/rust-crypto/blob/master/examples/symmetriccipher.rs
+/// Taken from: <https://github.com/DaGenix/rust-crypto/blob/master/examples/symmetriccipher.rs>
 fn encrypt(encryptor: &mut dyn Encryptor, data: &[u8]) -> Result<Vec<u8>, PWDuckCoreError> {
     let mut final_result = Vec::new();
     let mut read_buffer = RefReadBuffer::new(data);
@@ -211,7 +213,7 @@ fn encrypt(encryptor: &mut dyn Encryptor, data: &[u8]) -> Result<Vec<u8>, PWDuck
                 .take_read_buffer()
                 .take_remaining()
                 .iter()
-                .map(|&i| i),
+                .copied(),
         );
 
         match result {
@@ -223,7 +225,7 @@ fn encrypt(encryptor: &mut dyn Encryptor, data: &[u8]) -> Result<Vec<u8>, PWDuck
     Ok(final_result)
 }
 
-/// Taken from: https://github.com/DaGenix/rust-crypto/blob/master/examples/symmetriccipher.rs
+/// Taken from: <https://github.com/DaGenix/rust-crypto/blob/master/examples/symmetriccipher.rs>
 fn decrypt(
     decryptor: &mut dyn Decryptor,
     encrypted_data: &[u8],
@@ -233,7 +235,7 @@ fn decrypt(
     //let mut buffer = [0; 4096];
     //let mut buffer = SecVec::with_capacity(4096);
     //let mut buffer = Vec::with_capacity(4096);
-    let mut buffer: SecVec<u8> = vec![0u8; 4096].into();
+    let mut buffer: SecVec<u8> = vec![0_u8; 4096].into();
     let mut write_buffer = RefWriteBuffer::new(&mut buffer);
 
     loop {
@@ -246,7 +248,7 @@ fn decrypt(
         tmp.clone_from_slice(&final_result);
         //final_result.zeroize();
         drop(final_result);
-        tmp.extend(read_buffer.take_remaining().iter().map(|&i| i));
+        tmp.extend(read_buffer.take_remaining().iter().copied());
         final_result = tmp;
 
         match result {

@@ -7,7 +7,7 @@ pub enum PWDuckCoreError {
     /// TODO
     Argon2(argon2::password_hash::Error),
     /// TODO
-    AES(SymmetricCipherError),
+    Aes(SymmetricCipherError),
     /// TODO
     Base64(base64::DecodeError),
     /// TODO
@@ -23,8 +23,8 @@ pub enum PWDuckCoreError {
 impl Clone for PWDuckCoreError {
     fn clone(&self) -> Self {
         match self {
-            Self::Argon2(error) => Self::Argon2(error.clone()),
-            Self::AES(error) => Self::AES(error.clone()),
+            Self::Argon2(error) => Self::Argon2(*error),
+            Self::Aes(error) => Self::Aes(*error),
             Self::Base64(error) => Self::Base64(error.clone()),
             Self::Error(error) => Self::Error(error.clone()),
             Self::IO(error) => Self::Error(format!("'Cloned' IO Error: {:?}", error)),
@@ -42,7 +42,7 @@ impl From<argon2::password_hash::Error> for PWDuckCoreError {
 
 impl From<SymmetricCipherError> for PWDuckCoreError {
     fn from(error: SymmetricCipherError) -> Self {
-        Self::AES(error)
+        Self::Aes(error)
     }
 }
 

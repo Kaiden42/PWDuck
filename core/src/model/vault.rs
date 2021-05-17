@@ -1,9 +1,6 @@
 //! TODO
 
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::PathBuf};
 
 use zeroize::Zeroize;
 
@@ -48,12 +45,13 @@ pub struct Vault {
     #[getset(get = "pub")]
     entries: HashMap<String, EntryHead>,
 
+    /// TODO
     unsaved_entry_bodies: HashMap<String, crate::dto::entry::EntryBody>,
 }
 
 impl Vault {
     /// TODO
-    pub fn generate<P>(password: &str, mem_key: &MemKey, path: P) -> Result<Vault, PWDuckCoreError>
+    pub fn generate<P>(password: &str, mem_key: &MemKey, path: P) -> Result<Self, PWDuckCoreError>
     where
         P: Into<PathBuf>,
     {
@@ -74,7 +72,7 @@ impl Vault {
             &nonce,
         )?;
 
-        let mut vault = Vault {
+        let mut vault = Self {
             masterkey,
             salt,
             nonce,
@@ -85,7 +83,7 @@ impl Vault {
         };
 
         let root = Group::create_root_for(vault.path());
-        let _ = vault.groups_mut().insert(root.uuid().as_string(), root);
+        drop(vault.groups_mut().insert(root.uuid().as_string(), root));
 
         save_masterkey(vault.path(), masterkey_dto)?;
         vault.save(mem_key)?;
@@ -95,7 +93,7 @@ impl Vault {
 
     /// TODO
     pub fn save(&mut self, mem_key: &MemKey) -> Result<(), PWDuckCoreError> {
-        let path = self.path.to_owned();
+        let path = self.path.clone();
         let mut masterkey = unprotect_masterkey(
             self.masterkey.key(),
             &derive_key_protection(mem_key, &self.salt)?,
@@ -105,8 +103,7 @@ impl Vault {
         let unsaved_entry_bodies_result: Result<(), PWDuckCoreError> = self
             .unsaved_entry_bodies
             .iter()
-            .map(|(uuid, entry_body)| crate::io::save_entry_body(&path, uuid, entry_body))
-            .collect();
+            .try_for_each(|(uuid, entry_body)| crate::io::save_entry_body(&path, uuid, entry_body));
         if unsaved_entry_bodies_result.is_ok() {
             self.unsaved_entry_bodies.clear()
         }
@@ -115,15 +112,13 @@ impl Vault {
             .groups
             .iter_mut()
             .filter(|(_, group)| group.is_modified())
-            .map(|(_, group)| group.save(&path, &masterkey))
-            .collect();
+            .try_for_each(|(_, group)| group.save(&path, &masterkey));
 
         let entry_result: Result<(), PWDuckCoreError> = self
             .entries
             .iter_mut()
             .filter(|(_, entry)| entry.is_modified())
-            .map(|(_, entry)| entry.save(&path, &masterkey))
-            .collect();
+            .try_for_each(|(_, entry)| entry.save(&path, &masterkey));
 
         masterkey.zeroize();
 
@@ -131,7 +126,7 @@ impl Vault {
     }
 
     /// TODO
-    pub fn load<P>(password: &str, mem_key: &MemKey, path: P) -> Result<Vault, PWDuckCoreError>
+    pub fn load<P>(password: &str, mem_key: &MemKey, path: P) -> Result<Self, PWDuckCoreError>
     where
         P: Into<PathBuf>,
     {
@@ -148,7 +143,7 @@ impl Vault {
         )?;
 
         let unprotected_masterkey = unprotect_masterkey(
-            &masterkey.key(),
+            masterkey.key(),
             &derive_key_protection(mem_key, &salt)?,
             &nonce,
         )?;
@@ -170,16 +165,16 @@ impl Vault {
     }
 
     /// TODO
+    #[must_use]
     pub fn get_name(&self) -> &str {
-        &self
-            .path
+        self.path
             .file_name()
-            .map(|s| s.to_str())
-            .flatten()
+            .and_then(std::ffi::OsStr::to_str)
             .unwrap_or("Name of Vault")
     }
 
     /// TODO
+    #[must_use]
     pub fn get_root_uuid(&self) -> Option<String> {
         //println!("groups: {:?}", self.get_groups());
         //self.groups.get("").map(|r| r.get_uuid().as_string())
@@ -191,7 +186,7 @@ impl Vault {
 
     /// TODO
     pub fn add_group(&mut self, group: Group) {
-        let _ = self.groups.insert(group.uuid().as_string(), group);
+        drop(self.groups.insert(group.uuid().as_string(), group));
     }
 
     /// TODO
@@ -201,19 +196,21 @@ impl Vault {
         entry_body: EntryBody,
         masterkey: &[u8],
     ) -> Result<(), PWDuckCoreError> {
-        let _ = self
-            .entries
-            .insert(entry_head.uuid().as_string(), entry_head);
+        drop(
+            self.entries
+                .insert(entry_head.uuid().as_string(), entry_head),
+        );
 
-        let _ = self.unsaved_entry_bodies.insert(
+        drop(self.unsaved_entry_bodies.insert(
             entry_body.uuid().as_string(),
             entry_body.encrypt(masterkey)?,
-        );
+        ));
         drop(entry_body);
         Ok(())
     }
 
     /// TODO
+    #[must_use]
     pub fn get_groups_of(&self, parent_uuid: &str) -> Vec<&Group> {
         self.groups
             .iter()
@@ -223,6 +220,7 @@ impl Vault {
     }
 
     /// TODO
+    #[must_use]
     pub fn get_entries_of(&self, parent_uuid: &str) -> Vec<&EntryHead> {
         self.entries
             .iter()
@@ -232,6 +230,7 @@ impl Vault {
     }
 
     /// TODO
+    #[must_use]
     pub fn contains_unsaved_changes(&self) -> bool {
         self.groups.iter().any(|(_uuid, group)| group.is_modified())
             || self
@@ -242,33 +241,35 @@ impl Vault {
     }
 
     /// TODO
+    #[must_use]
     pub fn get_item_list_for<'a>(
         &'a self,
         selected_group_uuid: &str,
         search: Option<&str>,
     ) -> ItemList<'a> {
-        if let Some(search) = search {
-            let search = search.to_lowercase();
-            ItemList {
-                groups: self
-                    .groups
-                    .iter()
-                    .filter(|(_uuid, group)| group.title().to_lowercase().contains(&search))
-                    .map(|(_, group)| group)
-                    .collect(),
-                entries: self
-                    .entries
-                    .iter()
-                    .filter(|(_uuid, entry)| entry.title().to_lowercase().contains(&search))
-                    .map(|(_, entry)| entry)
-                    .collect(),
-            }
-        } else {
-            ItemList {
+        search.map_or_else(
+            || ItemList {
                 groups: self.get_groups_of(selected_group_uuid),
                 entries: self.get_entries_of(selected_group_uuid),
-            }
-        }
+            },
+            |search| {
+                let search = search.to_lowercase();
+                ItemList {
+                    groups: self
+                        .groups
+                        .iter()
+                        .filter(|(_uuid, group)| group.title().to_lowercase().contains(&search))
+                        .map(|(_, group)| group)
+                        .collect(),
+                    entries: self
+                        .entries
+                        .iter()
+                        .filter(|(_uuid, entry)| entry.title().to_lowercase().contains(&search))
+                        .map(|(_, entry)| entry)
+                        .collect(),
+                }
+            },
+        )
     }
 }
 

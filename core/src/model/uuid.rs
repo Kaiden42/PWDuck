@@ -9,16 +9,19 @@ use crate::io::generate_uuid;
 /// TODO
 #[derive(Clone, Debug, Deserialize, Serialize, Zeroize)]
 pub struct Uuid {
+    /// TODO
     id: Vec<u8>,
 }
 
 impl Uuid {
     /// TODO
+    #[must_use]
     pub fn new(path: &Path) -> Self {
         generate_uuid(path)
     }
 
     /// TODO
+    #[must_use]
     pub fn as_string(&self) -> String {
         base64::encode(sha256::digest_bytes(&self.id))
     }

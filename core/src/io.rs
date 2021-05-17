@@ -30,7 +30,7 @@ pub const MASTERKEY_NAME: &str = "masterkey.pwduck";
 
 /// TODO
 pub fn generate_uuid(path: &Path) -> Uuid {
-    let mut uuid = vec![0u8; 16];
+    let mut uuid = vec![0_u8; 16];
 
     loop {
         fill_random_bytes(&mut uuid);
@@ -49,11 +49,11 @@ pub fn generate_uuid(path: &Path) -> Uuid {
 
 /// TODO
 pub fn create_new_vault_dir(path: &Path) -> Result<(), PWDuckCoreError> {
-    fs::create_dir(path)?;
-    fs::create_dir(path.join(GROUPS_DIR))?;
-    fs::create_dir(path.join(ENTRIES_DIR))?;
-    fs::create_dir(path.join(ENTRIES_DIR).join(HEAD))?;
-    fs::create_dir(path.join(ENTRIES_DIR).join(BODY))?;
+    fs::create_dir_all(path)?;
+    fs::create_dir_all(path.join(GROUPS_DIR))?;
+    fs::create_dir_all(path.join(ENTRIES_DIR))?;
+    fs::create_dir_all(path.join(ENTRIES_DIR).join(HEAD))?;
+    fs::create_dir_all(path.join(ENTRIES_DIR).join(BODY))?;
     Ok(())
 }
 
@@ -61,7 +61,7 @@ pub fn create_new_vault_dir(path: &Path) -> Result<(), PWDuckCoreError> {
 pub fn save_entry_head(
     path: &Path,
     uuid: &str,
-    entry_head: EntryHead,
+    entry_head: &EntryHead,
 ) -> Result<(), PWDuckCoreError> {
     save_entry(
         &path.join(ENTRIES_DIR).join(HEAD),
@@ -94,7 +94,7 @@ pub fn load_all_entry_heads(path: &Path) -> Result<Vec<EntryHead>, PWDuckCoreErr
         .map(|file| fs::read_to_string(file.path()))
         .collect::<Result<Vec<_>, _>>()?
         .iter()
-        .map(|content| ron::from_str(&content).map_err(PWDuckCoreError::from))
+        .map(|content| ron::from_str(content).map_err(PWDuckCoreError::from))
         .collect()
 }
 
@@ -118,6 +118,7 @@ pub fn load_entry_body(path: &Path, uuid: &str) -> Result<EntryBody, PWDuckCoreE
     Ok(ron::from_str(&content)?)
 }
 
+/// TODO
 fn save_entry(path: &Path, uuid: &str, content: String) -> Result<(), PWDuckCoreError> {
     let file_name = sha256::digest(uuid);
     fs::write(path.join(file_name), content)?;
@@ -125,7 +126,7 @@ fn save_entry(path: &Path, uuid: &str, content: String) -> Result<(), PWDuckCore
 }
 
 /// TODO
-pub fn save_group(path: &Path, uuid: &str, group: Group) -> Result<(), PWDuckCoreError> {
+pub fn save_group(path: &Path, uuid: &str, group: &Group) -> Result<(), PWDuckCoreError> {
     let file_name = sha256::digest(uuid);
     fs::write(
         path.join(GROUPS_DIR).join(file_name),
@@ -158,13 +159,14 @@ pub fn load_all_groups(path: &Path) -> Result<Vec<Group>, PWDuckCoreError> {
         .map(|file| fs::read_to_string(file.path()))
         .collect::<Result<Vec<_>, _>>()?
         .iter()
-        .map(|content| ron::from_str(&content).map_err(PWDuckCoreError::from))
+        .map(|content| ron::from_str(content).map_err(PWDuckCoreError::from))
         .collect()
 }
 
 /// TODO
 pub fn save_masterkey(path: &Path, masterkey: MasterKey) -> Result<(), PWDuckCoreError> {
     fs::write(path.join(MASTERKEY_NAME), ron::to_string(&masterkey)?)?;
+    drop(masterkey);
     Ok(())
 }
 
@@ -231,7 +233,7 @@ mod tests {
 
         let head = EntryHead::new("iv".into(), "head".into());
 
-        save_entry_head(&path, "uuid", head.clone()).expect("Saving entry head should not fail");
+        save_entry_head(&path, "uuid", &head).expect("Saving entry head should not fail");
 
         let result = load_entry_head(&path, "uuid").expect("Loading entry head should not fail");
 
@@ -257,9 +259,9 @@ mod tests {
             EntryHead::new("three".into(), "three".into()),
         ];
 
-        heads.iter().for_each(|head| {
-            save_entry_head(&path, head.iv(), head.to_owned()).expect("Should not fail")
-        });
+        heads
+            .iter()
+            .for_each(|head| save_entry_head(&path, head.iv(), head).expect("Should not fail"));
 
         let mut results =
             load_all_entry_heads(&path).expect("Loading all entry heads should not fail");
@@ -310,7 +312,7 @@ mod tests {
 
         let group = Group::new("iv".into(), "content".into());
 
-        save_group(&path, "uuid", group.clone()).expect("Saving group should not fail");
+        save_group(&path, "uuid", &group).expect("Saving group should not fail");
 
         let result = load_group(&path, "uuid").expect("Loading group should not fail");
 
@@ -336,9 +338,9 @@ mod tests {
             Group::new("three".into(), "three".into()),
         ];
 
-        groups.iter().for_each(|group| {
-            save_group(&path, group.iv(), group.to_owned()).expect("Should not fail")
-        });
+        groups
+            .iter()
+            .for_each(|group| save_group(&path, group.iv(), group).expect("Should not fail"));
 
         let mut results = load_all_groups(&path).expect("Loading all groups should not fail");
 

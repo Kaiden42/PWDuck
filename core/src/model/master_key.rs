@@ -23,7 +23,7 @@ impl MasterKey {
         key_protection: &[u8],
         nonce: &[u8],
     ) -> Result<Self, PWDuckCoreError> {
-        let dto = crate::io::load_masterkey(&path)?;
+        let dto = crate::io::load_masterkey(path)?;
         decrypt_masterkey(&dto, password, key_protection, nonce)
     }
 }

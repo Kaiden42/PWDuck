@@ -33,6 +33,7 @@ pub struct EntryHead {
     #[getset(get = "pub")]
     body: String,
 
+    /// TODO
     #[serde(skip)]
     modified: bool,
 }
@@ -41,7 +42,7 @@ impl EntryHead {
     /// TODO
     pub fn save(&mut self, path: &Path, masterkey: &[u8]) -> Result<(), PWDuckCoreError> {
         let entry_head = self.encrypt(masterkey)?;
-        crate::io::save_entry_head(path, &self.uuid.as_string(), entry_head)?;
+        crate::io::save_entry_head(path, &self.uuid.as_string(), &entry_head)?;
         self.modified = false;
         Ok(())
     }
@@ -50,7 +51,7 @@ impl EntryHead {
     fn encrypt(&self, masterkey: &[u8]) -> Result<crate::dto::entry::EntryHead, PWDuckCoreError> {
         let iv = generate_aes_iv();
         let mut content = ron::to_string(self)?;
-        let encrypted_content = aes_cbc_encrypt(&content.as_bytes(), masterkey, &iv)?;
+        let encrypted_content = aes_cbc_encrypt(content.as_bytes(), masterkey, &iv)?;
         content.zeroize();
         Ok(crate::dto::entry::EntryHead::new(
             base64::encode(iv),
@@ -60,8 +61,8 @@ impl EntryHead {
 
     /// TODO
     pub fn load(path: &Path, uuid: &str, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
-        let dto = crate::io::load_entry_head(&path, uuid)?;
-        Self::decrypt(dto, masterkey)
+        let dto = crate::io::load_entry_head(path, uuid)?;
+        Self::decrypt(&dto, masterkey)
     }
 
     /// TODO
@@ -69,22 +70,23 @@ impl EntryHead {
         path: &Path,
         masterkey: &[u8],
     ) -> Result<HashMap<String, Self>, PWDuckCoreError> {
-        let dtos = crate::io::load_all_entry_heads(&path)?;
+        let dtos = crate::io::load_all_entry_heads(path)?;
 
         //let mut results = Vec::with_capacity(dtos.len());
         let mut results = HashMap::new();
 
         for dto in dtos {
             //results.push(Self::decrypt(dto, masterkey)?);
-            let head = Self::decrypt(dto, masterkey)?;
-            let _ = results.insert(head.uuid().as_string(), head);
+            let head = Self::decrypt(&dto, masterkey)?;
+            drop(results.insert(head.uuid().as_string(), head));
         }
 
         Ok(results)
     }
 
+    /// TODO
     fn decrypt(
-        dto: crate::dto::entry::EntryHead,
+        dto: &crate::dto::entry::EntryHead,
         masterkey: &[u8],
     ) -> Result<Self, PWDuckCoreError> {
         let decrypted_content = aes_cbc_decrypt(
@@ -100,7 +102,8 @@ impl EntryHead {
     }
 
     /// TODO
-    pub fn is_modified(&self) -> bool {
+    #[must_use]
+    pub const fn is_modified(&self) -> bool {
         self.modified
     }
 }
@@ -123,6 +126,7 @@ pub struct EntryBody {
     #[getset(get = "pub")]
     password: String,
 
+    /// TODO
     #[serde(skip)]
     modified: bool,
 }
@@ -135,7 +139,7 @@ impl EntryBody {
     ) -> Result<crate::dto::entry::EntryBody, PWDuckCoreError> {
         let iv = generate_aes_iv();
         let mut content = ron::to_string(self)?;
-        let encrypted_content = aes_cbc_encrypt(&content.as_bytes(), master_key, &iv)?;
+        let encrypted_content = aes_cbc_encrypt(content.as_bytes(), master_key, &iv)?;
         content.zeroize();
         Ok(crate::dto::entry::EntryBody::new(
             base64::encode(iv),
@@ -145,14 +149,14 @@ impl EntryBody {
 
     /// TODO
     pub fn load(path: &Path, uuid: &str, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
-        let dto = crate::io::load_entry_body(&path, uuid)?;
-        let body = Self::decrypt(dto, masterkey)?;
+        let dto = crate::io::load_entry_body(path, uuid)?;
+        let body = Self::decrypt(&dto, masterkey)?;
         Ok(body)
     }
 
     /// TODO
     pub fn decrypt(
-        dto: crate::dto::entry::EntryBody,
+        dto: &crate::dto::entry::EntryBody,
         masterkey: &[u8],
     ) -> Result<Self, PWDuckCoreError> {
         let decrypted_content = aes_cbc_decrypt(
@@ -168,7 +172,8 @@ impl EntryBody {
     }
 
     /// TODO
-    pub fn is_modified(&self) -> bool {
+    #[must_use]
+    pub const fn is_modified(&self) -> bool {
         self.modified
     }
 }
