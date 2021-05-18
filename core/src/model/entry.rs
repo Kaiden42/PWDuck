@@ -6,7 +6,7 @@ use crate::{
     error::PWDuckCoreError,
     mem_protection::SecString,
 };
-use getset::Getters;
+use getset::{Getters, Setters};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
@@ -15,7 +15,7 @@ use super::uuid::Uuid;
 /// TODO
 #[derive(Clone, Debug, Deserialize, Serialize, Zeroize)]
 #[zeroize(drop)]
-#[derive(Getters)]
+#[derive(Getters, Setters)]
 pub struct EntryHead {
     /// TODO
     #[getset(get = "pub")]
@@ -26,7 +26,7 @@ pub struct EntryHead {
     parent: String,
 
     /// TODO
-    #[getset(get = "pub")]
+    #[getset(get = "pub", set = "pub")]
     title: String,
 
     /// TODO
@@ -39,6 +39,17 @@ pub struct EntryHead {
 }
 
 impl EntryHead {
+    /// TODO
+    pub const fn new(uuid: Uuid, parent: String, title: String, body: String) -> Self {
+        Self {
+            uuid,
+            parent,
+            title,
+            body,
+            modified: true,
+        }
+    }
+
     /// TODO
     pub fn save(&mut self, path: &Path, masterkey: &[u8]) -> Result<(), PWDuckCoreError> {
         let entry_head = self.encrypt(masterkey)?;
@@ -110,7 +121,7 @@ impl EntryHead {
 
 /// TODO
 #[allow(missing_debug_implementations)]
-#[derive(Deserialize, Serialize, Zeroize)]
+#[derive(Clone, Deserialize, Serialize, Zeroize)]
 #[zeroize(drop)]
 #[derive(Getters)]
 pub struct EntryBody {
@@ -132,6 +143,16 @@ pub struct EntryBody {
 }
 
 impl EntryBody {
+    /// TODO
+    pub const fn new(uuid: Uuid, username: String, password: String) -> Self {
+        Self {
+            uuid,
+            username,
+            password,
+            modified: true,
+        }
+    }
+
     /// TODO
     pub fn encrypt(
         &self,
@@ -169,6 +190,20 @@ impl EntryBody {
         let body = ron::from_str(&content)?;
 
         Ok(body)
+    }
+
+    /// TODO
+    pub fn set_username(&mut self, username: String) -> &mut Self {
+        self.username.zeroize();
+        self.username = username;
+        self
+    }
+
+    /// TODO
+    pub fn set_password(&mut self, password: String) -> &mut Self {
+        self.password.zeroize();
+        self.password = password;
+        self
     }
 
     /// TODO
