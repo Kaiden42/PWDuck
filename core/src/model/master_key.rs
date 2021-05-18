@@ -4,7 +4,11 @@ use getset::Getters;
 use std::path::Path;
 use zeroize::Zeroize;
 
-use crate::{MemKey, SecVec, cryptography::{decrypt_masterkey, derive_key_protection, unprotect_masterkey}, error::PWDuckCoreError};
+use crate::{
+    cryptography::{decrypt_masterkey, derive_key_protection, unprotect_masterkey},
+    error::PWDuckCoreError,
+    MemKey, SecVec,
+};
 /// In-memory encrypted master key
 #[derive(Clone, Debug, Zeroize)]
 #[zeroize(drop)]
