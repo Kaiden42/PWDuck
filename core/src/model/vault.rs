@@ -247,29 +247,34 @@ impl Vault {
         selected_group_uuid: &str,
         search: Option<&str>,
     ) -> ItemList<'a> {
-        search.map_or_else(
-            || ItemList {
-                groups: self.get_groups_of(selected_group_uuid),
-                entries: self.get_entries_of(selected_group_uuid),
+        let (mut groups, mut entries) = search.map_or_else(
+            || {
+                (
+                    self.get_groups_of(selected_group_uuid),
+                    self.get_entries_of(selected_group_uuid),
+                )
             },
             |search| {
                 let search = search.to_lowercase();
-                ItemList {
-                    groups: self
-                        .groups
+                (
+                    self.groups
                         .iter()
                         .filter(|(_uuid, group)| group.title().to_lowercase().contains(&search))
                         .map(|(_, group)| group)
                         .collect(),
-                    entries: self
-                        .entries
+                    self.entries
                         .iter()
                         .filter(|(_uuid, entry)| entry.title().to_lowercase().contains(&search))
                         .map(|(_, entry)| entry)
                         .collect(),
-                }
+                )
             },
-        )
+        );
+
+        groups.sort_by(|&a, &b| a.title().cmp(b.title()));
+        entries.sort_by(|&a, &b| a.title().cmp(b.title()));
+
+        ItemList { groups, entries }
     }
 }
 
