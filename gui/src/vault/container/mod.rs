@@ -1,7 +1,7 @@
 //! TODO
 
-use iced::{Button, Column, Command, Container, HorizontalAlignment, Length, Row, Space, Text, button};
-use pwduck_core::{EntryBody, EntryHead, Group, PWDuckCoreError, Vault};
+use iced::{button, Column, Command, Container, Length, Row, Space, Text};
+use pwduck_core::{EntryBody, EntryHead, Group, Vault};
 
 mod list;
 use list::{ListMessage, ListView};
@@ -10,10 +10,13 @@ mod modify_entry;
 use modify_entry::{ModifyEntryMessage, ModifyEntryView};
 
 mod modify_group;
-use modify_group::{CreateGroupMessage, CreateGroupView};
 use getset::Getters;
+use modify_group::{CreateGroupMessage, CreateGroupView};
 
-use crate::{Component, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT, Platform, utils::icon_button};
+use crate::{
+    utils::icon_button, Component, Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING,
+    DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
+};
 
 /// TODO
 #[derive(Debug, Getters)]
@@ -21,23 +24,37 @@ pub struct VaultContainer {
     /// TODO
     #[getset(get = "pub")]
     vault: Vault,
+    /// TODO
     current_view: CurrentView,
+    /// TODO
     list_view: ListView,
+    /// TODO
     create_group_view: CreateGroupView,
+    /// TODO
     modify_entry_view: Option<Box<ModifyEntryView>>,
 
+    /// TODO
     save_state: button::State,
+    /// TODO
     new_group_state: button::State,
+    /// TODO
     new_entry_state: button::State,
+    /// TODO
     copy_username_state: button::State,
+    /// TODO
     copy_password_state: button::State,
+    /// TODO
     lock_vault_state: button::State,
 }
 
+/// TODO
 #[derive(Debug)]
 enum CurrentView {
+    /// TODO
     ListView,
+    /// TODO
     CreateGroup,
+    /// TODO
     ModifyEntry,
 }
 
@@ -110,13 +127,13 @@ impl Component for VaultContainer {
             }
             VaultContainerMessage::NewEntry => {
                 let entry_body = EntryBody::new(
-                    pwduck_core::Uuid::new(&self.vault.path()),
+                    pwduck_core::Uuid::new(self.vault.path()),
                     String::new(),
                     String::new(),
                 );
                 let entry_head = EntryHead::new(
-                    pwduck_core::Uuid::new(&self.vault.path()),
-                    self.list_view.selected_group_uuid().to_owned(),
+                    pwduck_core::Uuid::new(self.vault.path()),
+                    self.list_view.selected_group_uuid().clone(),
                     String::new(),
                     entry_body.uuid().as_string(),
                 );
@@ -127,12 +144,11 @@ impl Component for VaultContainer {
 
                 Command::none()
             }
-            VaultContainerMessage::CopyUsername => Command::none(),
-            VaultContainerMessage::CopyPassword => Command::none(),
+            VaultContainerMessage::CopyUsername => todo!(),
+            VaultContainerMessage::CopyPassword => todo!(),
             VaultContainerMessage::LockVault => unreachable!(),
 
             VaultContainerMessage::ListMessage(message) => match message {
-
                 ListMessage::SearchInput(input) => {
                     //self.list_view.search = input;
                     self.list_view.set_search(input);
@@ -146,7 +162,7 @@ impl Component for VaultContainer {
                         .get(self.list_view.selected_group_uuid())
                         .unwrap();
                     self.list_view
-                        .set_selected_group_uuid(group.parent().to_owned());
+                        .set_selected_group_uuid(group.parent().clone());
                     Command::none()
                 }
                 ListMessage::ListItemMessage(msg) => match msg {
@@ -169,7 +185,7 @@ impl Component for VaultContainer {
                 }
                 CreateGroupMessage::Submit => {
                     let group = Group::new(
-                        pwduck_core::Uuid::new(&self.vault.path()),
+                        pwduck_core::Uuid::new(self.vault.path()),
                         //self.list_view.selected_group_uuid.clone(),
                         self.list_view.selected_group_uuid().clone(),
                         //self.create_group_view.group_name.clone(),
@@ -243,7 +259,7 @@ impl Component for VaultContainer {
 
     fn view<P: Platform + 'static>(&mut self) -> iced::Element<'_, Self::Message> {
         let vault_contains_unsaved_changes = self.vault.contains_unsaved_changes();
-        
+
         let mut save = icon_button(&mut self.save_state, "I", "Save Vault");
         if vault_contains_unsaved_changes && self.modify_entry_view.is_none() {
             save = save.on_press(VaultContainerMessage::Save);
@@ -251,7 +267,9 @@ impl Component for VaultContainer {
 
         let mut new_group = icon_button(&mut self.new_group_state, "I", "New Group");
         let mut new_entry = icon_button(&mut self.new_entry_state, "I", "New Entry");
-        if /*TODO self.create_group_view.is_none() &&*/ self.modify_entry_view.is_none() {
+        if
+        /*TODO self.create_group_view.is_none() &&*/
+        self.modify_entry_view.is_none() {
             new_group = new_group.on_press(VaultContainerMessage::NewGroup);
             new_entry = new_entry.on_press(VaultContainerMessage::NewEntry);
         }
@@ -278,7 +296,7 @@ impl Component for VaultContainer {
         ])
         .spacing(DEFAULT_ROW_SPACING)
         .width(Length::Fill);
-        
+
         let body = match self.current_view {
             CurrentView::ListView => self
                 .list_view
@@ -300,10 +318,13 @@ impl Component for VaultContainer {
             Column::new()
                 .padding(DEFAULT_COLUMN_PADDING)
                 .spacing(DEFAULT_COLUMN_SPACING)
-                .push(Text::new(&format!("Vault: {}", self.vault.get_name())).size(DEFAULT_HEADER_SIZE))
+                .push(
+                    Text::new(&format!("Vault: {}", self.vault.get_name()))
+                        .size(DEFAULT_HEADER_SIZE),
+                )
                 .push(toolbar)
                 .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
-                .push(body)
+                .push(body),
         )
         .width(Length::Fill)
         .height(Length::Fill)

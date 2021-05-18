@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 
 use iced::{
-    button, futures::lock::Mutex, text_input, Button, Column, Command, Container,
-    HorizontalAlignment, Length, Row, Text, TextInput,
+    button, text_input, Button, Column, Command, Container, HorizontalAlignment, Length, Row, Text,
+    TextInput,
 };
 use pwduck_core::{PWDuckCoreError, Vault};
 use zeroize::Zeroize;
@@ -17,12 +17,19 @@ use crate::{
 /// TODO
 #[derive(Debug, Default)]
 pub struct VaultLoader {
+    /// TODO
     path: String,
+    /// TODO
     path_state: text_input::State,
+    /// TODO
     password: String,
+    /// TODO
     password_state: text_input::State,
+    /// TODO
     create_state: button::State,
+    /// TODO
     confirm_state: button::State,
+    /// TODO
     path_open_fd_state: button::State,
 }
 
@@ -42,7 +49,7 @@ pub enum VaultLoaderMessage {
     /// TODO
     PathSelected(Result<PathBuf, NfdError>),
     /// TODO
-    Loaded(Result<Vault, PWDuckCoreError>),
+    Loaded(Box<Result<Vault, PWDuckCoreError>>),
 }
 
 impl Component for VaultLoader {
@@ -76,13 +83,12 @@ impl Component for VaultLoader {
                 self.password = input;
                 Command::none()
             }
-            VaultLoaderMessage::Create => unreachable!(),
             VaultLoaderMessage::Confirm => Command::perform(
                 {
                     let mut password = self.password.clone();
                     self.password.zeroize();
 
-                    let path = PathBuf::from(self.path.to_owned());
+                    let path = PathBuf::from(self.path.clone());
                     // TODO: remove duplicate
                     async move {
                         //let mem_key = crate::MEM_KEY.lock().await;
@@ -91,7 +97,7 @@ impl Component for VaultLoader {
 
                         password.zeroize();
 
-                        vault
+                        Box::new(vault)
                     }
                 },
                 VaultLoaderMessage::Loaded,
@@ -106,7 +112,7 @@ impl Component for VaultLoader {
                 Command::none()
             }
             VaultLoaderMessage::PathSelected(Err(_err)) => Command::none(),
-            VaultLoaderMessage::Loaded(_) => unreachable!(),
+            VaultLoaderMessage::Create | VaultLoaderMessage::Loaded(_) => unreachable!(),
         }
     }
 

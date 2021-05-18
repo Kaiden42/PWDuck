@@ -40,6 +40,7 @@ pub struct EntryHead {
 
 impl EntryHead {
     /// TODO
+    #[must_use]
     pub const fn new(uuid: Uuid, parent: String, title: String, body: String) -> Self {
         Self {
             uuid,
@@ -144,6 +145,7 @@ pub struct EntryBody {
 
 impl EntryBody {
     /// TODO
+    #[must_use]
     pub const fn new(uuid: Uuid, username: String, password: String) -> Self {
         Self {
             uuid,

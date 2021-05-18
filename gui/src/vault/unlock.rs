@@ -1,6 +1,6 @@
 //! TODO
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use iced::{
     button, text_input, Button, Column, Command, Container, HorizontalAlignment, Length, Row,
@@ -17,10 +17,15 @@ use crate::{
 /// TODO
 #[derive(Debug, Default)]
 pub struct VaultUnlocker {
+    /// TODO
     path: PathBuf,
+    /// TODO
     password: String,
+    /// TODO
     password_state: text_input::State,
+    /// TODO
     close_state: button::State,
+    /// TODO
     submit_state: button::State,
 }
 
@@ -34,7 +39,7 @@ pub enum VaultUnlockerMessage {
     /// TODO
     Submit,
     /// TODO
-    Unlocked(Result<Vault, PWDuckCoreError>),
+    Unlocked(Box<Result<Vault, PWDuckCoreError>>),
 }
 
 impl Component for VaultUnlocker {
@@ -60,7 +65,6 @@ impl Component for VaultUnlocker {
                 self.password = input;
                 Command::none()
             }
-            VaultUnlockerMessage::Close => unreachable!(),
             VaultUnlockerMessage::Submit => Command::perform(
                 {
                     let mut password = self.password.clone();
@@ -75,12 +79,12 @@ impl Component for VaultUnlocker {
 
                         password.zeroize();
 
-                        vault
+                        Box::new(vault)
                     }
                 },
                 VaultUnlockerMessage::Unlocked,
             ),
-            VaultUnlockerMessage::Unlocked(_) => unreachable!(),
+            VaultUnlockerMessage::Close | VaultUnlockerMessage::Unlocked(_) => unreachable!(),
         }
     }
 
@@ -88,8 +92,7 @@ impl Component for VaultUnlocker {
         let path = PathBuf::from(&self.path);
         let vault_name = path
             .file_name()
-            .map(|s| s.to_str())
-            .flatten()
+            .and_then(std::ffi::OsStr::to_str)
             .unwrap_or("Name of Vault");
 
         let path = Text::new(self.path.to_str().unwrap_or("Invalid path"));

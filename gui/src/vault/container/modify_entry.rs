@@ -10,32 +10,47 @@ use crate::{
     DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING,
 };
 
+/// TODO
 #[derive(Getters, MutGetters)]
 pub struct ModifyEntryView {
+    /// TODO
     #[getset(get = "pub", get_mut = "pub")]
     entry_head: EntryHead,
+    /// TODO
     #[getset(get = "pub", get_mut = "pub")]
     entry_body: EntryBody,
 
+    /// TODO
     title_state: text_input::State,
+    /// TODO
     username_state: text_input::State,
+    /// TODO
     password_state: text_input::State,
 
+    /// TODO
     cancel_state: button::State,
+    /// TODO
     submit_state: button::State,
 }
 
+/// TODO
 #[derive(Clone, Debug)]
 pub enum ModifyEntryMessage {
+    /// TODO
     TitleInput(String),
+    /// TODO
     UsernameInput(String),
+    /// TODO
     PasswordInput(String),
 
+    /// TODO
     Cancel,
+    /// TODO
     Submit,
 }
 
 impl ModifyEntryView {
+    /// TODO
     pub fn with(entry_head: EntryHead, entry_body: EntryBody) -> Self {
         Self {
             entry_head,
@@ -50,6 +65,7 @@ impl ModifyEntryView {
         }
     }
 
+    /// TODO
     pub fn view<'a>(
         &'a mut self,
         _selected_group_uuid: &'a str,
@@ -57,7 +73,7 @@ impl ModifyEntryView {
         let title = TextInput::new(
             &mut self.title_state,
             "Title of this entry",
-            &self.entry_head.title(),
+            self.entry_head.title(),
             ModifyEntryMessage::TitleInput,
         )
         .padding(DEFAULT_TEXT_INPUT_PADDING);
@@ -65,7 +81,7 @@ impl ModifyEntryView {
         let username = TextInput::new(
             &mut self.username_state,
             "Username",
-            &self.entry_body.username(),
+            self.entry_body.username(),
             ModifyEntryMessage::UsernameInput,
         )
         .padding(DEFAULT_TEXT_INPUT_PADDING);
@@ -73,7 +89,7 @@ impl ModifyEntryView {
         let password = TextInput::new(
             &mut self.password_state,
             "Password",
-            &self.entry_body.password(),
+            self.entry_body.password(),
             ModifyEntryMessage::PasswordInput,
         )
         .password()

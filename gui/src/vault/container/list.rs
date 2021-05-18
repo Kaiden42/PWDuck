@@ -1,30 +1,38 @@
+//! TODO
 use iced::{
-    button, container, scrollable, text_input, Button, Column, Container, Element,
-    HorizontalAlignment, Length, Row, Scrollable, Space, Text, TextInput, VerticalAlignment,
+    button, scrollable, text_input, Button, Column, Container, Element, Length, Row, Scrollable,
+    Space, Text, TextInput, VerticalAlignment,
 };
 use pwduck_core::{EntryHead, Group, Vault};
 
 use crate::{
-    DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING,
-    DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING,
+    DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING,
 };
 use getset::{Getters, Setters};
 
+/// TODO
 #[derive(Debug, Getters, Setters)]
 pub struct ListView {
+    /// TODO
     #[getset(get = "pub", set = "pub")]
     selected_group_uuid: String,
+    /// TODO
     #[getset(get)]
     group_items: Vec<ListGroupItem>,
+    /// TODO
     #[getset(get)]
     entry_items: Vec<ListEntryItem>,
 
+    /// TODO
     #[getset(get = "pub", set = "pub")]
     search: String,
+    /// TODO
     search_state: text_input::State,
 
+    /// TODO
     back_state: button::State,
 
+    /// TODO
     scroll_state: scrollable::State,
 }
 
@@ -40,6 +48,7 @@ pub enum ListMessage {
 }
 
 impl ListView {
+    /// TODO
     pub fn new(root_uuid: String, group_count: usize, entry_count: usize) -> Self {
         Self {
             selected_group_uuid: root_uuid,
@@ -55,6 +64,7 @@ impl ListView {
         }
     }
 
+    /// TODO
     pub fn resize(&mut self, vault: &Vault) {
         let (new_group_count, new_entry_count) = (
             vault.get_groups_of(&self.selected_group_uuid).len(),
@@ -65,6 +75,7 @@ impl ListView {
         self.entry_items = vec![ListEntryItem::default(); new_entry_count];
     }
 
+    /// TODO
     pub fn view<'a>(&'a mut self, vault: &'a Vault) -> Element<'a, ListMessage> {
         let current_item_list = vault.get_item_list_for(
             &self.selected_group_uuid,
@@ -131,7 +142,7 @@ impl ListView {
                 //.push(toolbar)
                 //.push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
                 .push(search_bar)
-                .push(Space::with_height(Length::Units(2*DEFAULT_SPACE_HEIGHT)))
+                .push(Space::with_height(Length::Units(2 * DEFAULT_SPACE_HEIGHT)))
                 .push(
                     Row::new()
                         .spacing(DEFAULT_ROW_SPACING)
@@ -155,12 +166,15 @@ impl ListView {
     }
 }
 
+/// TODO
 #[derive(Clone, Debug, Default)]
 struct ListGroupItem {
+    /// TODO
     state: button::State,
 }
 
 impl ListGroupItem {
+    /// TODO
     fn view<'a>(&'a mut self, group: &'a Group) -> Element<'a, ListItemMessage> {
         Button::new(
             &mut self.state,
@@ -176,12 +190,15 @@ impl ListGroupItem {
     }
 }
 
+/// TODO
 #[derive(Clone, Debug, Default)]
 struct ListEntryItem {
+    /// TODO
     state: button::State,
 }
 
 impl ListEntryItem {
+    /// TODO
     fn view<'a>(&'a mut self, entry: &'a EntryHead) -> Element<'a, ListItemMessage> {
         Button::new(
             &mut self.state,
@@ -200,10 +217,13 @@ impl ListEntryItem {
 /// TODO
 #[derive(Clone, Debug)]
 pub enum ListItemMessage {
+    /// TODO
     GroupSelected(String),
+    /// TODO
     EntrySelected(String),
 }
 
+/// TODO
 #[derive(Debug, Default)]
 struct ListGroupStyle;
 
@@ -220,6 +240,7 @@ impl button::StyleSheet for ListGroupStyle {
     }
 }
 
+/// TODO
 #[derive(Debug, Default)]
 struct ListEntryStyle;
 

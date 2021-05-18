@@ -52,6 +52,7 @@ fn main() {
     PWDuckGui::<Desktop>::start().expect("Should not fail");
 }
 
+/// TODO
 #[derive(Default)]
 struct Desktop;
 

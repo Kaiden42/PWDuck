@@ -1,12 +1,10 @@
 //! TODO
 
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 use iced::{
-    button,
-    futures::lock::Mutex,
-    text_input::{self, StyleSheet},
-    Button, Column, Command, Container, HorizontalAlignment, Length, Row, Space, Text, TextInput,
+    button, text_input, Button, Column, Command, Container, HorizontalAlignment, Length, Row,
+    Space, Text, TextInput,
 };
 use zeroize::Zeroize;
 
@@ -19,17 +17,29 @@ use crate::{
 /// TODO
 #[derive(Debug, Default)]
 pub struct VaultCreator {
+    /// TODO
     name: String,
+    /// TODO
     name_state: text_input::State,
+    /// TODO
     path: String,
+    /// TODO
     path_state: text_input::State,
+    /// TODO
     path_open_fd_state: button::State,
+    /// TODO
     password: String,
+    /// TODO
     password_state: text_input::State,
+    /// TODO
     password_confirm: String,
+    /// TODO
     password_confirm_state: text_input::State,
+    /// TODO
     password_equal: bool,
+    /// TODO
     cancel_state: button::State,
+    /// TODO
     submit_state: button::State,
 }
 
@@ -100,7 +110,6 @@ impl Component for VaultCreator {
                     !self.password_confirm.is_empty() && self.password == self.password_confirm;
                 Command::none()
             }
-            VaultCreatorMessage::Cancel => unreachable!(),
             VaultCreatorMessage::Submit => {
                 Command::perform(
                     {
@@ -120,13 +129,13 @@ impl Component for VaultCreator {
 
                             vault.save(&mem_key)?;
 
-                            Ok(vault.path().to_owned())
+                            Ok(vault.path().clone())
                         }
                     },
                     VaultCreatorMessage::VaultCreated,
                 )
             }
-            VaultCreatorMessage::VaultCreated(_) => unreachable!(),
+            VaultCreatorMessage::Cancel | VaultCreatorMessage::VaultCreated(_) => unreachable!(),
         }
     }
 
@@ -231,6 +240,7 @@ impl Component for VaultCreator {
     }
 }
 
+/// TODO
 #[derive(Default)]
 struct PasswordNotEqualStyle;
 

@@ -1,3 +1,4 @@
+//! TODO
 use iced::{
     button, text_input, Button, Column, Container, Element, HorizontalAlignment, Length, Row,
     Space, Text, TextInput,
@@ -9,13 +10,18 @@ use crate::{
 };
 use getset::{Getters, Setters};
 
+/// TODO
 #[derive(Debug, Getters, Setters)]
 pub struct CreateGroupView {
+    /// TODO
     #[getset(get = "pub", set = "pub")]
     group_name: String,
+    /// TODO
     group_name_state: text_input::State,
 
+    /// TODO
     cancel_state: button::State,
+    /// TODO
     submit_state: button::State,
 }
 
@@ -31,6 +37,7 @@ pub enum CreateGroupMessage {
 }
 
 impl CreateGroupView {
+    /// TODO
     pub fn new() -> Self {
         Self {
             group_name: String::new(),
@@ -41,6 +48,7 @@ impl CreateGroupView {
         }
     }
 
+    /// TODO
     pub fn view<'a>(
         &'a mut self,
         vault: &'a Vault,

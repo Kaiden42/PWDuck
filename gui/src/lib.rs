@@ -31,7 +31,7 @@
     clippy::unimplemented,
     clippy::unneeded_field_pattern,
     clippy::unwrap_in_result,
-    clippy::unwrap_used,
+    //clippy::unwrap_used,
     clippy::use_debug,
 )]
 #![allow(
@@ -42,14 +42,10 @@
     clippy::module_name_repetitions
 )]
 
-use std::{
-    marker::PhantomData,
-    path::PathBuf,
-    sync::{Arc, RwLock},
-};
+use std::{marker::PhantomData, path::PathBuf};
 
 use async_trait::async_trait;
-use iced::{executor, futures::lock::Mutex, Application, Command, Settings, Text};
+use iced::{executor, Application, Command, Settings};
 
 pub mod error;
 use error::{NfdError, PWDuckGuiError};
@@ -86,7 +82,9 @@ lazy_static! {
 /// TODO
 #[derive(Debug)]
 pub struct PWDuckGui<P: Platform + 'static> {
+    /// TODO
     tabs: Vec<VaultTab>,
+    /// TODO
     phantom: PhantomData<P>,
 }
 
@@ -141,18 +139,24 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
     }
 }
 
+/// TODO
 trait Component {
+    /// TODO
     type Message: 'static;
+    /// TODO
     type ConstructorParam;
 
+    /// TODO
     fn new(t: Self::ConstructorParam) -> Self;
 
+    /// TODO
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,
         clipboard: &mut iced::Clipboard,
     ) -> iced::Command<Self::Message>;
 
+    /// TODO
     fn view<P: Platform + 'static>(&mut self) -> iced::Element<'_, Self::Message>;
 }
 

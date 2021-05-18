@@ -1,6 +1,6 @@
 //! TODO
 
-use iced::{futures::lock::Mutex, Command};
+use iced::Command;
 
 use crate::{Component, Platform};
 
@@ -14,6 +14,7 @@ use super::{
 /// TODO
 #[derive(Debug)]
 pub struct VaultTab {
+    /// TODO
     state: VaultTabState,
 }
 
@@ -65,11 +66,8 @@ impl Component for VaultTab {
                 self.state = VaultTabState::Create(VaultCreator::new(()));
                 Command::none()
             }
-            (VaultTabMessage::Creator(VaultCreatorMessage::Cancel), _) => {
-                self.state = VaultTabState::Empty(VaultLoader::new(()));
-                Command::none()
-            }
-            (VaultTabMessage::Unlocker(VaultUnlockerMessage::Close), _) => {
+            (VaultTabMessage::Creator(VaultCreatorMessage::Cancel), _)
+            | (VaultTabMessage::Unlocker(VaultUnlockerMessage::Close), _) => {
                 self.state = VaultTabState::Empty(VaultLoader::new(()));
                 Command::none()
             }
@@ -77,9 +75,13 @@ impl Component for VaultTab {
             | (VaultTabMessage::Loader(VaultLoaderMessage::Loaded(vault)), _) => {
                 self.state = VaultTabState::Open(VaultContainer::new(vault.unwrap()));
                 Command::none()
-            },
-            (VaultTabMessage::Container(VaultContainerMessage::LockVault), VaultTabState::Open(container)) => {
-                self.state = VaultTabState::Unlock(VaultUnlocker::new(container.vault().path().to_owned()));
+            }
+            (
+                VaultTabMessage::Container(VaultContainerMessage::LockVault),
+                VaultTabState::Open(container),
+            ) => {
+                self.state =
+                    VaultTabState::Unlock(VaultUnlocker::new(container.vault().path().clone()));
                 Command::none()
             }
 
