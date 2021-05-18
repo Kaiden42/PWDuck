@@ -42,4 +42,32 @@
     clippy::module_name_repetitions
 )]
 
-fn main() {}
+use std::path::PathBuf;
+
+use async_trait::async_trait;
+use pwduck_gui::{error::NfdError, PWDuckGui, Platform};
+use rfd::AsyncFileDialog;
+
+fn main() {
+    PWDuckGui::<Desktop>::start().expect("Should not fail");
+}
+
+#[derive(Default)]
+struct Desktop;
+
+#[async_trait]
+impl Platform for Desktop {
+    fn is_nfd_available() -> bool {
+        true
+    }
+
+    async fn nfd_choose_folder() -> Result<PathBuf, pwduck_gui::error::NfdError> {
+        let file = AsyncFileDialog::new()
+            .set_directory(".")
+            .pick_folder()
+            .await
+            .ok_or(NfdError::Null)?;
+
+        Ok(file.path().into())
+    }
+}
