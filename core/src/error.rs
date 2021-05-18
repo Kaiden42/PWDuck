@@ -1,15 +1,16 @@
 //! TODO
-use crypto::symmetriccipher::SymmetricCipherError;
-
 /// TODO
 #[derive(Debug)]
 pub enum PWDuckCoreError {
     /// TODO
     Argon2(argon2::password_hash::Error),
     /// TODO
-    Aes(SymmetricCipherError),
     /// TODO
     Base64(base64::DecodeError),
+    /// TODO
+    BlockMode(block_modes::BlockModeError),
+    /// TODO
+    BlockModeIV(block_modes::InvalidKeyIvLength),
     /// TODO
     Error(String),
     /// TODO
@@ -24,8 +25,9 @@ impl Clone for PWDuckCoreError {
     fn clone(&self) -> Self {
         match self {
             Self::Argon2(error) => Self::Argon2(*error),
-            Self::Aes(error) => Self::Aes(*error),
             Self::Base64(error) => Self::Base64(error.clone()),
+            Self::BlockMode(error) => Self::BlockMode(error.clone()),
+            Self::BlockModeIV(error) => Self::BlockModeIV(error.clone()),
             Self::Error(error) => Self::Error(error.clone()),
             Self::IO(error) => Self::Error(format!("'Cloned' IO Error: {:?}", error)),
             Self::Ron(error) => Self::Ron(error.clone()),
@@ -40,15 +42,21 @@ impl From<argon2::password_hash::Error> for PWDuckCoreError {
     }
 }
 
-impl From<SymmetricCipherError> for PWDuckCoreError {
-    fn from(error: SymmetricCipherError) -> Self {
-        Self::Aes(error)
-    }
-}
-
 impl From<base64::DecodeError> for PWDuckCoreError {
     fn from(error: base64::DecodeError) -> Self {
         Self::Base64(error)
+    }
+}
+
+impl From<block_modes::BlockModeError> for PWDuckCoreError {
+    fn from(error: block_modes::BlockModeError) -> Self {
+        Self::BlockMode(error)
+    }
+}
+
+impl From<block_modes::InvalidKeyIvLength> for PWDuckCoreError {
+    fn from(error: block_modes::InvalidKeyIvLength) -> Self {
+        Self::BlockModeIV(error)
     }
 }
 

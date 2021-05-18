@@ -1,14 +1,12 @@
 //! TODO
+use aes::Aes256;
 use argon2::{
     password_hash::{Ident, Salt, SaltString},
     Argon2, PasswordHasher,
 };
-use crypto::{
-    aes,
-    buffer::{ReadBuffer, RefReadBuffer, RefWriteBuffer, WriteBuffer},
-    chacha20::ChaCha20,
-    symmetriccipher::{Decryptor, Encryptor},
-};
+use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
+use chacha20::cipher::{NewCipher, StreamCipher};
+use chacha20::{ChaCha20, Key, Nonce};
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use rand_core::OsRng;
@@ -23,7 +21,7 @@ use crate::{
 /// TODO
 const AES_IV_LENGTH: usize = 16;
 /// TODO
-const CHACHA20_NONCE_LENGTH: usize = 8;
+const CHACHA20_NONCE_LENGTH: usize = 12;
 
 /// TODO
 pub fn generate_aes_iv() -> Vec<u8> {
@@ -155,16 +153,8 @@ pub fn unprotect_masterkey(
 
 /// TODO
 pub fn aes_cbc_encrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>, PWDuckCoreError> {
-    encrypt(
-        aes::cbc_encryptor(
-            aes::KeySize::KeySize256,
-            key,
-            iv,
-            crypto::blockmodes::PkcsPadding,
-        )
-        .as_mut(),
-        data,
-    )
+    let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(key, iv)?;
+    Ok(cipher.encrypt_vec(data).into())
 }
 
 /// TODO
@@ -173,21 +163,18 @@ pub fn aes_cbc_decrypt(
     key: &[u8],
     iv: &[u8],
 ) -> Result<SecVec<u8>, PWDuckCoreError> {
-    decrypt(
-        aes::cbc_decryptor(
-            aes::KeySize::KeySize256,
-            key,
-            iv,
-            crypto::blockmodes::PkcsPadding,
-        )
-        .as_mut(),
-        encrypted_data,
-    )
+    let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(key, iv)?;
+    Ok(cipher.decrypt_vec(encrypted_data)?.into())
 }
 
 /// TODO
 pub fn chacha20_encrypt(data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>, PWDuckCoreError> {
-    encrypt(&mut ChaCha20::new(key, nonce), data)
+    let mut cipher = ChaCha20::new(Key::from_slice(key), Nonce::from_slice(nonce));
+
+    let mut result = data.to_vec();
+    cipher.apply_keystream(&mut result);
+
+    Ok(result.into())
 }
 
 /// TODO
@@ -196,68 +183,12 @@ pub fn chacha20_decrypt(
     key: &[u8],
     nonce: &[u8],
 ) -> Result<SecVec<u8>, PWDuckCoreError> {
-    decrypt(&mut ChaCha20::new(key, nonce), encrypted_data)
-}
+    let mut cipher = ChaCha20::new(Key::from_slice(key), Nonce::from_slice(nonce));
 
-/// Taken from: <https://github.com/DaGenix/rust-crypto/blob/master/examples/symmetriccipher.rs>
-fn encrypt(encryptor: &mut dyn Encryptor, data: &[u8]) -> Result<Vec<u8>, PWDuckCoreError> {
-    let mut final_result = Vec::new();
-    let mut read_buffer = RefReadBuffer::new(data);
-    let mut buffer = [0; 4096];
-    let mut write_buffer = RefWriteBuffer::new(&mut buffer);
+    let mut result = encrypted_data.to_vec();
+    cipher.apply_keystream(&mut result);
 
-    loop {
-        let result = encryptor.encrypt(&mut read_buffer, &mut write_buffer, true)?;
-        final_result.extend(
-            write_buffer
-                .take_read_buffer()
-                .take_remaining()
-                .iter()
-                .copied(),
-        );
-
-        match result {
-            crypto::buffer::BufferResult::BufferUnderflow => break,
-            crypto::buffer::BufferResult::BufferOverflow => {}
-        }
-    }
-
-    Ok(final_result)
-}
-
-/// Taken from: <https://github.com/DaGenix/rust-crypto/blob/master/examples/symmetriccipher.rs>
-fn decrypt(
-    decryptor: &mut dyn Decryptor,
-    encrypted_data: &[u8],
-) -> Result<SecVec<u8>, PWDuckCoreError> {
-    let mut final_result = SecVec::new();
-    let mut read_buffer = RefReadBuffer::new(encrypted_data);
-    //let mut buffer = [0; 4096];
-    //let mut buffer = SecVec::with_capacity(4096);
-    //let mut buffer = Vec::with_capacity(4096);
-    let mut buffer: SecVec<u8> = vec![0_u8; 4096].into();
-    let mut write_buffer = RefWriteBuffer::new(&mut buffer);
-
-    loop {
-        let result = decryptor.decrypt(&mut read_buffer, &mut write_buffer, true)?;
-
-        let mut read_buffer = write_buffer.take_read_buffer();
-        let remaining = read_buffer.remaining();
-
-        let mut tmp = SecVec::with_capacity(final_result.len() + remaining);
-        tmp.clone_from_slice(&final_result);
-        //final_result.zeroize();
-        drop(final_result);
-        tmp.extend(read_buffer.take_remaining().iter().copied());
-        final_result = tmp;
-
-        match result {
-            crypto::buffer::BufferResult::BufferUnderflow => break,
-            crypto::buffer::BufferResult::BufferOverflow => {}
-        }
-    }
-
-    Ok(final_result)
+    Ok(result.into())
 }
 
 #[cfg(test)]
@@ -388,12 +319,12 @@ mod tests {
     #[test]
     fn test_aes_cbc_encrypt_decrypt() {
         let data = "This is the data";
-        let encrypted = aes_cbc_encrypt(data.as_bytes(), &[1u8; 32], &[1u8; 16])
+        let encrypted = aes_cbc_encrypt(data.as_bytes(), &[1u8; 32], &[1u8; AES_IV_LENGTH])
             .expect("AES should be able to encrypt some data");
         assert!(!encrypted.is_empty());
         assert_ne!(data.as_bytes(), encrypted.as_slice());
 
-        let decrypted = aes_cbc_decrypt(encrypted.as_slice(), &[1u8; 32], &[1u8; 16])
+        let decrypted = aes_cbc_decrypt(encrypted.as_slice(), &[1u8; 32], &[1u8; AES_IV_LENGTH])
             .expect("AES should be able to decrypt some data");
         assert!(!decrypted.is_empty());
         assert_ne!(decrypted.as_slice(), encrypted.as_slice());
@@ -404,13 +335,18 @@ mod tests {
     #[test]
     fn test_chacha20_encrypt_decrypt() {
         let data = "This is the data";
-        let encrypted = chacha20_encrypt(data.as_bytes(), &[1u8; 32], &[1u8; 8])
-            .expect("ChaCha20 should be able to encrypt some data");
+        let encrypted =
+            chacha20_encrypt(data.as_bytes(), &[1u8; 32], &[1u8; CHACHA20_NONCE_LENGTH])
+                .expect("ChaCha20 should be able to encrypt some data");
         assert!(!encrypted.is_empty());
         assert_ne!(data.as_bytes(), encrypted.as_slice());
 
-        let decrypted = chacha20_decrypt(encrypted.as_slice(), &[1u8; 32], &[1u8; 8])
-            .expect("ChaCha20 should be able to decrypt some data");
+        let decrypted = chacha20_decrypt(
+            encrypted.as_slice(),
+            &[1u8; 32],
+            &[1u8; CHACHA20_NONCE_LENGTH],
+        )
+        .expect("ChaCha20 should be able to decrypt some data");
         assert!(!decrypted.is_empty());
         assert_ne!(decrypted.as_slice(), encrypted.as_slice());
 
