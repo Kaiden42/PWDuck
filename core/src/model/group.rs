@@ -1,7 +1,7 @@
 //! TODO
 use std::{collections::HashMap, path::Path};
 
-use getset::Getters;
+use getset::{Getters, Setters};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
@@ -16,7 +16,7 @@ use super::uuid::Uuid;
 /// TODO
 #[derive(Clone, Debug, Deserialize, Serialize, Zeroize)]
 #[zeroize(drop)]
-#[derive(Getters)]
+#[derive(Getters, Setters)]
 pub struct Group {
     /// TODO
     #[getset(get = "pub")]
@@ -27,7 +27,7 @@ pub struct Group {
     parent: String,
 
     /// TODO
-    #[getset(get = "pub")]
+    #[getset(get = "pub", set = "pub")]
     title: String,
 
     /// TODO

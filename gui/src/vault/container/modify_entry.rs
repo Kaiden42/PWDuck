@@ -66,10 +66,10 @@ impl ModifyEntryView {
     }
 
     /// TODO
-    pub fn view<'a>(
-        &'a mut self,
-        _selected_group_uuid: &'a str,
-    ) -> Element<'a, ModifyEntryMessage> {
+    pub fn view(
+        &mut self,
+        _selected_group_uuid: &str,
+    ) -> Element<ModifyEntryMessage> {
         let title = TextInput::new(
             &mut self.title_state,
             "Title of this entry",

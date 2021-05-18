@@ -1,21 +1,16 @@
 //! TODO
-use iced::{
-    button, text_input, Button, Column, Container, Element, HorizontalAlignment, Length, Row,
-    Space, Text, TextInput,
-};
-use pwduck_core::Vault;
+use getset::{Getters, MutGetters, Setters};
 
-use crate::{
-    DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING,
-};
-use getset::{Getters, Setters};
+use iced::{Button, Column, Container, Element, HorizontalAlignment, Length, Row, Space, Text, TextInput, button, text_input};
+use pwduck_core::{Group, Vault};
 
-/// TODO
-#[derive(Debug, Getters, Setters)]
-pub struct CreateGroupView {
-    /// TODO
-    #[getset(get = "pub", set = "pub")]
-    group_name: String,
+use crate::{DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING};
+
+#[derive(Debug, Getters, MutGetters, Setters)]
+pub struct ModifyGroupView {
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
+    group: Group,
+    
     /// TODO
     group_name_state: text_input::State,
 
@@ -27,7 +22,7 @@ pub struct CreateGroupView {
 
 /// TODO
 #[derive(Clone, Debug)]
-pub enum CreateGroupMessage {
+pub enum ModifyGroupMessage {
     /// TODO
     GroupNameInput(String),
     /// TODO
@@ -36,29 +31,28 @@ pub enum CreateGroupMessage {
     Submit,
 }
 
-impl CreateGroupView {
-    /// TODO
-    pub fn new() -> Self {
+impl ModifyGroupView {
+    pub fn with(group: Group) -> Self {
         Self {
-            group_name: String::new(),
-            group_name_state: text_input::State::new(),
+            group,
 
+            group_name_state: text_input::State::new(),
+            
             cancel_state: button::State::new(),
             submit_state: button::State::new(),
         }
     }
 
-    /// TODO
-    pub fn view<'a>(
-        &'a mut self,
-        vault: &'a Vault,
-        selected_group_uuid: &'a str,
-    ) -> Element<'a, CreateGroupMessage> {
+    pub fn view(
+        &mut self,
+        vault: &Vault,
+        selected_group_uuid: &str,
+    ) -> Element<ModifyGroupMessage> {
         let name = TextInput::new(
             &mut self.group_name_state,
             "Enter the name of the new Group",
-            &self.group_name,
-            CreateGroupMessage::GroupNameInput,
+            &self.group.title(),
+            ModifyGroupMessage::GroupNameInput,
         )
         .padding(DEFAULT_TEXT_INPUT_PADDING);
 
@@ -71,7 +65,7 @@ impl CreateGroupView {
                 .width(Length::Fill),
         )
         .width(Length::Fill)
-        .on_press(CreateGroupMessage::Cancel);
+        .on_press(ModifyGroupMessage::Cancel);
 
         let submit = Button::new(
             &mut self.submit_state,
@@ -80,7 +74,7 @@ impl CreateGroupView {
                 .width(Length::Fill),
         )
         .width(Length::Fill)
-        .on_press(CreateGroupMessage::Submit);
+        .on_press(ModifyGroupMessage::Submit);
 
         let parent_name = if group.title().is_empty() {
             "Root"

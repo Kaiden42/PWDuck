@@ -11,7 +11,7 @@ use modify_entry::{ModifyEntryMessage, ModifyEntryView};
 
 mod modify_group;
 use getset::Getters;
-use modify_group::{CreateGroupMessage, CreateGroupView};
+use modify_group::{ModifyGroupMessage, ModifyGroupView};
 
 use crate::{
     utils::icon_button, Component, Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING,
@@ -29,7 +29,7 @@ pub struct VaultContainer {
     /// TODO
     list_view: ListView,
     /// TODO
-    create_group_view: CreateGroupView,
+    modify_group_view: Option<Box<ModifyGroupView>>,
     /// TODO
     modify_entry_view: Option<Box<ModifyEntryView>>,
 
@@ -77,7 +77,7 @@ pub enum VaultContainerMessage {
     /// TODO
     ListMessage(ListMessage),
     /// TODO
-    CreateGroupMessage(CreateGroupMessage),
+    CreateGroupMessage(ModifyGroupMessage),
     /// TODO
     ModifyEntryMessage(ModifyEntryMessage),
 }
@@ -96,7 +96,7 @@ impl Component for VaultContainer {
             vault,
             current_view: CurrentView::ListView,
             list_view: ListView::new(root_uuid, group_count, entry_count),
-            create_group_view: CreateGroupView::new(),
+            modify_group_view: None,
             modify_entry_view: None,
 
             save_state: button::State::new(),
@@ -122,6 +122,13 @@ impl Component for VaultContainer {
                 Command::none()
             }
             VaultContainerMessage::NewGroup => {
+                let group = Group::new(
+                    pwduck_core::Uuid::new(self.vault.path()),
+                    self.list_view.selected_group_uuid().clone(),
+                    String::new()
+                );
+
+                self.modify_group_view = Some(Box::new(ModifyGroupView::with(group)));
                 self.current_view = CurrentView::CreateGroup;
                 Command::none()
             }
@@ -174,29 +181,34 @@ impl Component for VaultContainer {
                 },
             },
             VaultContainerMessage::CreateGroupMessage(message) => match message {
-                CreateGroupMessage::GroupNameInput(input) => {
-                    //self.create_group_view.group_name = input;
-                    self.create_group_view.set_group_name(input);
+                ModifyGroupMessage::GroupNameInput(input) => {
+                    if let Some(modify_group_view) = self.modify_group_view.as_mut() {
+                        //self.create_group_view.group_name = input;
+                        //modify_group_view.set_group_name(input);
+                        modify_group_view.group_mut().set_title(input);
+                    }
                     Command::none()
                 }
-                CreateGroupMessage::Cancel => {
+                ModifyGroupMessage::Cancel => {
                     self.current_view = CurrentView::ListView;
                     Command::none()
                 }
-                CreateGroupMessage::Submit => {
-                    let group = Group::new(
-                        pwduck_core::Uuid::new(self.vault.path()),
-                        //self.list_view.selected_group_uuid.clone(),
-                        self.list_view.selected_group_uuid().clone(),
-                        //self.create_group_view.group_name.clone(),
-                        self.create_group_view.group_name().clone(),
-                    );
+                ModifyGroupMessage::Submit => {
+                    if let Some(modify_group_view) = self.modify_group_view.as_mut() {
+                        /*let group = Group::new(
+                            pwduck_core::Uuid::new(self.vault.path()),
+                            //self.list_view.selected_group_uuid.clone(),
+                            self.list_view.selected_group_uuid().clone(),
+                            //self.create_group_view.group_name.clone(),
+                            modify_group_view.group_name().clone(),
+                        );*/
 
-                    self.vault.add_group(group);
+                        self.vault.add_group(modify_group_view.group().clone());
 
-                    self.list_view.resize(&self.vault);
-                    self.current_view = CurrentView::ListView;
-                    self.create_group_view = CreateGroupView::new();
+                        self.list_view.resize(&self.vault);
+                        self.current_view = CurrentView::ListView;
+                        self.modify_group_view = None
+                    }
                     Command::none()
                 }
             },
@@ -302,11 +314,15 @@ impl Component for VaultContainer {
                 .list_view
                 .view(&self.vault)
                 .map(VaultContainerMessage::ListMessage),
-            CurrentView::CreateGroup => self
-                .create_group_view
-                .view(&self.vault, self.list_view.selected_group_uuid())
-                .map(VaultContainerMessage::CreateGroupMessage),
-            CurrentView::ModifyEntry => match &mut self.modify_entry_view {
+            
+            CurrentView::CreateGroup => match &mut self.modify_group_view {
+                Some(modify_group_view) => modify_group_view
+                    .view(&self.vault, self.list_view.selected_group_uuid())
+                    .map(VaultContainerMessage::CreateGroupMessage),
+                None => unreachable!()
+            },
+            
+                CurrentView::ModifyEntry => match &mut self.modify_entry_view {
                 Some(modify_enty_view) => modify_enty_view
                     .view(self.list_view.selected_group_uuid())
                     .map(VaultContainerMessage::ModifyEntryMessage),
