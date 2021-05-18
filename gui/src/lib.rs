@@ -59,6 +59,8 @@ use lazy_static::lazy_static;
 use pwduck_core::MemKey;
 use vault::{tab::VaultTab, tab::VaultTabMessage};
 
+mod utils;
+
 /// TODO
 const DEFAULT_MAX_WIDTH: u32 = 600;
 /// TODO

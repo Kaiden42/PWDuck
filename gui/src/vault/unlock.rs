@@ -24,16 +24,6 @@ pub struct VaultUnlocker {
     submit_state: button::State,
 }
 
-impl VaultUnlocker {
-    /// TODO
-    pub fn with_path(path: PathBuf) -> Self {
-        Self {
-            path,
-            ..Self::default()
-        }
-    }
-}
-
 /// TODO
 #[derive(Clone, Debug)]
 pub enum VaultUnlockerMessage {
@@ -49,10 +39,14 @@ pub enum VaultUnlockerMessage {
 
 impl Component for VaultUnlocker {
     type Message = VaultUnlockerMessage;
-    type ConstructorParam = ();
+    type ConstructorParam = PathBuf;
 
-    fn new(_: Self::ConstructorParam) -> Self {
-        Self { ..Self::default() }
+    fn new(path: Self::ConstructorParam) -> Self {
+        //Self { ..Self::default() }
+        Self {
+            path,
+            ..Self::default()
+        }
     }
 
     fn update<P: crate::Platform + 'static>(

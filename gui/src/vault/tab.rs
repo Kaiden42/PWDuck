@@ -77,6 +77,10 @@ impl Component for VaultTab {
             | (VaultTabMessage::Loader(VaultLoaderMessage::Loaded(vault)), _) => {
                 self.state = VaultTabState::Open(VaultContainer::new(vault.unwrap()));
                 Command::none()
+            },
+            (VaultTabMessage::Container(VaultContainerMessage::LockVault), VaultTabState::Open(container)) => {
+                self.state = VaultTabState::Unlock(VaultUnlocker::new(container.vault().path().to_owned()));
+                Command::none()
             }
 
             // Passing every other message to sub elements

@@ -1,6 +1,6 @@
 //! TODO
 
-use iced::Command;
+use iced::{Button, Column, Command, Container, HorizontalAlignment, Length, Row, Space, Text, button};
 use pwduck_core::{EntryBody, EntryHead, Group, PWDuckCoreError, Vault};
 
 mod list;
@@ -11,17 +11,27 @@ use modify_entry::{ModifyEntryMessage, ModifyEntryView};
 
 mod modify_group;
 use modify_group::{CreateGroupMessage, CreateGroupView};
+use getset::Getters;
 
-use crate::{Component, Platform};
+use crate::{Component, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT, Platform, utils::icon_button};
 
 /// TODO
-#[derive(Debug)]
+#[derive(Debug, Getters)]
 pub struct VaultContainer {
+    /// TODO
+    #[getset(get = "pub")]
     vault: Vault,
     current_view: CurrentView,
     list_view: ListView,
     create_group_view: CreateGroupView,
     modify_entry_view: Option<Box<ModifyEntryView>>,
+
+    save_state: button::State,
+    new_group_state: button::State,
+    new_entry_state: button::State,
+    copy_username_state: button::State,
+    copy_password_state: button::State,
+    lock_vault_state: button::State,
 }
 
 #[derive(Debug)]
@@ -34,6 +44,19 @@ enum CurrentView {
 /// TODO
 #[derive(Clone, Debug)]
 pub enum VaultContainerMessage {
+    /// TODO
+    Save,
+    /// TODO
+    NewGroup,
+    /// TODO
+    NewEntry,
+    /// TODO
+    CopyUsername,
+    /// TODO
+    CopyPassword,
+    /// TODO
+    LockVault,
+
     /// TODO
     ListMessage(ListMessage),
     /// TODO
@@ -58,6 +81,13 @@ impl Component for VaultContainer {
             list_view: ListView::new(root_uuid, group_count, entry_count),
             create_group_view: CreateGroupView::new(),
             modify_entry_view: None,
+
+            save_state: button::State::new(),
+            new_group_state: button::State::new(),
+            new_entry_state: button::State::new(),
+            copy_username_state: button::State::new(),
+            copy_password_state: button::State::new(),
+            lock_vault_state: button::State::new(),
         }
     }
 
@@ -67,40 +97,42 @@ impl Component for VaultContainer {
         _clipboard: &mut iced::Clipboard,
     ) -> Command<Self::Message> {
         match message {
+            VaultContainerMessage::Save => {
+                // TODO: find a way to do this async
+                let mem_key = crate::MEM_KEY.lock().unwrap();
+                self.vault.save(&mem_key).unwrap();
+
+                Command::none()
+            }
+            VaultContainerMessage::NewGroup => {
+                self.current_view = CurrentView::CreateGroup;
+                Command::none()
+            }
+            VaultContainerMessage::NewEntry => {
+                let entry_body = EntryBody::new(
+                    pwduck_core::Uuid::new(&self.vault.path()),
+                    String::new(),
+                    String::new(),
+                );
+                let entry_head = EntryHead::new(
+                    pwduck_core::Uuid::new(&self.vault.path()),
+                    self.list_view.selected_group_uuid().to_owned(),
+                    String::new(),
+                    entry_body.uuid().as_string(),
+                );
+
+                self.modify_entry_view =
+                    Some(Box::new(ModifyEntryView::with(entry_head, entry_body)));
+                self.current_view = CurrentView::ModifyEntry;
+
+                Command::none()
+            }
+            VaultContainerMessage::CopyUsername => Command::none(),
+            VaultContainerMessage::CopyPassword => Command::none(),
+            VaultContainerMessage::LockVault => unreachable!(),
+
             VaultContainerMessage::ListMessage(message) => match message {
-                ListMessage::Save => {
-                    // TODO: find a way to do this async
-                    let mem_key = crate::MEM_KEY.lock().unwrap();
-                    self.vault.save(&mem_key).unwrap();
 
-                    Command::none()
-                }
-                ListMessage::NewGroup => {
-                    self.current_view = CurrentView::CreateGroup;
-                    Command::none()
-                }
-                ListMessage::NewEntry => {
-                    let entry_body = EntryBody::new(
-                        pwduck_core::Uuid::new(&self.vault.path()),
-                        String::new(),
-                        String::new(),
-                    );
-                    let entry_head = EntryHead::new(
-                        pwduck_core::Uuid::new(&self.vault.path()),
-                        self.list_view.selected_group_uuid().to_owned(),
-                        String::new(),
-                        entry_body.uuid().as_string(),
-                    );
-
-                    self.modify_entry_view =
-                        Some(Box::new(ModifyEntryView::with(entry_head, entry_body)));
-                    self.current_view = CurrentView::ModifyEntry;
-
-                    Command::none()
-                }
-                ListMessage::CopyUsername => Command::none(),
-                ListMessage::CopyPassword => Command::none(),
-                ListMessage::LockVault => unreachable!(),
                 ListMessage::SearchInput(input) => {
                     //self.list_view.search = input;
                     self.list_view.set_search(input);
@@ -197,6 +229,10 @@ impl Component for VaultContainer {
                                 &masterkey,
                             )
                             .unwrap();
+
+                        self.current_view = CurrentView::ListView;
+                        self.modify_entry_view = None;
+                        self.list_view.resize(&self.vault);
                     }
 
                     Command::none()
@@ -206,7 +242,44 @@ impl Component for VaultContainer {
     }
 
     fn view<P: Platform + 'static>(&mut self) -> iced::Element<'_, Self::Message> {
-        match self.current_view {
+        let vault_contains_unsaved_changes = self.vault.contains_unsaved_changes();
+        
+        let mut save = icon_button(&mut self.save_state, "I", "Save Vault");
+        if vault_contains_unsaved_changes && self.modify_entry_view.is_none() {
+            save = save.on_press(VaultContainerMessage::Save);
+        }
+
+        let mut new_group = icon_button(&mut self.new_group_state, "I", "New Group");
+        let mut new_entry = icon_button(&mut self.new_entry_state, "I", "New Entry");
+        if /*TODO self.create_group_view.is_none() &&*/ self.modify_entry_view.is_none() {
+            new_group = new_group.on_press(VaultContainerMessage::NewGroup);
+            new_entry = new_entry.on_press(VaultContainerMessage::NewEntry);
+        }
+
+        let mut copy_username = icon_button(&mut self.copy_username_state, "I", "Copy Username");
+        let mut copy_password = icon_button(&mut self.copy_password_state, "I", "Copy Password");
+        if self.modify_entry_view.is_some() {
+            copy_username = copy_username.on_press(VaultContainerMessage::CopyUsername);
+            copy_password = copy_password.on_press(VaultContainerMessage::CopyUsername);
+        }
+
+        let mut lock_vault = icon_button(&mut self.lock_vault_state, "I", "Lock Vault");
+        if !vault_contains_unsaved_changes {
+            lock_vault = lock_vault.on_press(VaultContainerMessage::LockVault)
+        }
+
+        let toolbar = Row::with_children(vec![
+            save.into(),
+            new_group.into(),
+            new_entry.into(),
+            copy_username.into(),
+            copy_password.into(),
+            lock_vault.into(),
+        ])
+        .spacing(DEFAULT_ROW_SPACING)
+        .width(Length::Fill);
+        
+        let body = match self.current_view {
             CurrentView::ListView => self
                 .list_view
                 .view(&self.vault)
@@ -221,6 +294,19 @@ impl Component for VaultContainer {
                     .map(VaultContainerMessage::ModifyEntryMessage),
                 None => unreachable!(),
             },
-        }
+        };
+
+        Container::new(
+            Column::new()
+                .padding(DEFAULT_COLUMN_PADDING)
+                .spacing(DEFAULT_COLUMN_SPACING)
+                .push(Text::new(&format!("Vault: {}", self.vault.get_name())).size(DEFAULT_HEADER_SIZE))
+                .push(toolbar)
+                .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
+                .push(body)
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
     }
 }

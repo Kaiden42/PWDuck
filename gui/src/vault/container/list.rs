@@ -19,13 +19,6 @@ pub struct ListView {
     #[getset(get)]
     entry_items: Vec<ListEntryItem>,
 
-    save_state: button::State,
-    new_group_state: button::State,
-    new_entry_state: button::State,
-    copy_username_state: button::State,
-    copy_password_state: button::State,
-    lock_vault_state: button::State,
-
     #[getset(get = "pub", set = "pub")]
     search: String,
     search_state: text_input::State,
@@ -38,18 +31,6 @@ pub struct ListView {
 /// TODO
 #[derive(Clone, Debug)]
 pub enum ListMessage {
-    /// TODO
-    Save,
-    /// TODO
-    NewGroup,
-    /// TODO
-    NewEntry,
-    /// TODO
-    CopyUsername,
-    /// TODO
-    CopyPassword,
-    /// TODO
-    LockVault,
     /// TODO
     SearchInput(String),
     /// TODO
@@ -64,13 +45,6 @@ impl ListView {
             selected_group_uuid: root_uuid,
             group_items: vec![ListGroupItem::default(); group_count],
             entry_items: vec![ListEntryItem::default(); entry_count],
-
-            save_state: button::State::new(),
-            new_group_state: button::State::new(),
-            new_entry_state: button::State::new(),
-            copy_username_state: button::State::new(),
-            copy_password_state: button::State::new(),
-            lock_vault_state: button::State::new(),
 
             search: String::new(),
             search_state: text_input::State::new(),
@@ -92,7 +66,6 @@ impl ListView {
     }
 
     pub fn view<'a>(&'a mut self, vault: &'a Vault) -> Element<'a, ListMessage> {
-        let vault_contains_unsaved_changes = vault.contains_unsaved_changes();
         let current_item_list = vault.get_item_list_for(
             &self.selected_group_uuid,
             if self.search.is_empty() {
@@ -101,74 +74,6 @@ impl ListView {
                 Some(&self.search)
             },
         );
-
-        let mut save = Button::new(
-            &mut self.save_state,
-            Text::new("Save Vault")
-                .horizontal_alignment(HorizontalAlignment::Center)
-                .width(Length::Fill),
-        )
-        .width(Length::Fill);
-        if vault_contains_unsaved_changes {
-            save = save.on_press(ListMessage::Save);
-        }
-
-        let new_group = Button::new(
-            &mut self.new_group_state,
-            Text::new("New Group")
-                .horizontal_alignment(HorizontalAlignment::Center)
-                .width(Length::Fill),
-        )
-        .on_press(ListMessage::NewGroup)
-        .width(Length::Fill);
-
-        let new_entry = Button::new(
-            &mut self.new_entry_state,
-            Text::new("New Entry")
-                .horizontal_alignment(HorizontalAlignment::Center)
-                .width(Length::Fill),
-        )
-        .on_press(ListMessage::NewEntry)
-        .width(Length::Fill);
-
-        let copy_username = Button::new(
-            &mut self.copy_username_state,
-            Text::new("Copy username")
-                .horizontal_alignment(HorizontalAlignment::Center)
-                .width(Length::Fill),
-        )
-        .width(Length::Fill);
-
-        let copy_password = Button::new(
-            &mut self.copy_password_state,
-            Text::new("Copy password")
-                .horizontal_alignment(HorizontalAlignment::Center)
-                .width(Length::Fill),
-        )
-        .width(Length::Fill);
-
-        let mut lock_vault = Button::new(
-            &mut self.lock_vault_state,
-            Text::new("Lock Vault")
-                .horizontal_alignment(HorizontalAlignment::Center)
-                .width(Length::Fill),
-        )
-        .width(Length::Fill);
-
-        if !vault_contains_unsaved_changes {
-            lock_vault = lock_vault.on_press(ListMessage::LockVault)
-        }
-
-        let toolbar = Row::with_children(vec![
-            save.into(),
-            new_group.into(),
-            new_entry.into(),
-            copy_username.into(),
-            copy_password.into(),
-            lock_vault.into(),
-        ])
-        .spacing(DEFAULT_ROW_SPACING)
-        .width(Length::Fill);
 
         let selected_group = vault.groups().get(&self.selected_group_uuid).unwrap();
 
@@ -220,13 +125,13 @@ impl ListView {
 
         Container::new(
             Column::new()
-                .padding(DEFAULT_COLUMN_PADDING)
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(Text::new(&format!("Vault: {}", &vault.get_name())).size(DEFAULT_HEADER_SIZE))
-                .push(toolbar)
-                .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
+                //.padding(DEFAULT_COLUMN_PADDING)
+                //.spacing(DEFAULT_COLUMN_SPACING)
+                //.push(Text::new(&format!("Vault: {}", &vault.get_name())).size(DEFAULT_HEADER_SIZE))
+                //.push(toolbar)
+                //.push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
                 .push(search_bar)
-                .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
+                .push(Space::with_height(Length::Units(2*DEFAULT_SPACE_HEIGHT)))
                 .push(
                     Row::new()
                         .spacing(DEFAULT_ROW_SPACING)
@@ -241,6 +146,7 @@ impl ListView {
                             .vertical_alignment(VerticalAlignment::Center),
                         ),
                 )
+                .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
                 .push(list),
         )
         .width(Length::Fill)
@@ -308,7 +214,7 @@ impl button::StyleSheet for ListGroupStyle {
             background: None,
             border_radius: 5.0,
             border_width: 1.0,
-            border_color: iced::Color::from_rgb(0.7, 0.7, 0.7),
+            border_color: iced::Color::from_rgb(0.5, 0.5, 0.5),
             text_color: iced::Color::BLACK,
         }
     }
@@ -324,7 +230,7 @@ impl button::StyleSheet for ListEntryStyle {
             background: None,
             border_radius: 5.0,
             border_width: 1.0,
-            border_color: iced::Color::from_rgb(0.5, 0.5, 0.5),
+            border_color: iced::Color::from_rgb(0.7, 0.7, 0.7),
             text_color: iced::Color::BLACK,
         }
     }
