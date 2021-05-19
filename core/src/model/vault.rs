@@ -46,6 +46,7 @@ pub struct Vault {
     entries: HashMap<String, EntryHead>,
 
     /// TODO
+    #[getset(get = "pub")]
     unsaved_entry_bodies: HashMap<String, crate::dto::entry::EntryBody>,
 }
 

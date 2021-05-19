@@ -67,10 +67,15 @@ impl ListView {
 
     /// TODO
     pub fn resize(&mut self, vault: &Vault) {
-        let (new_group_count, new_entry_count) = (
-            vault.get_groups_of(&self.selected_group_uuid).len(),
-            vault.get_entries_of(&self.selected_group_uuid).len(),
-        );
+        // TODO: remove
+        let search = if self.search().is_empty() {
+            None
+        } else {
+            Some(self.search().as_str())
+        };
+        let items = vault.get_item_list_for(&self.selected_group_uuid, search);
+        let new_group_count = items.groups().len();
+        let new_entry_count = items.entries().len();
 
         self.group_items = vec![ListGroupItem::default(); new_group_count];
         self.entry_items = vec![ListEntryItem::default(); new_entry_count];

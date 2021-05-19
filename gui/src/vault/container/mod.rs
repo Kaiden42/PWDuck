@@ -232,14 +232,42 @@ fn update_list(
             container
                 .list_view
                 .set_selected_group_uuid(group.parent().clone());
+            container.list_view.resize(&container.vault);
             Command::none()
         }
         ListMessage::ListItemMessage(msg) => match msg {
             list::ListItemMessage::GroupSelected(uuid) => {
                 container.list_view.set_selected_group_uuid(uuid);
+                container.list_view.resize(&container.vault);
                 Command::none()
             }
-            list::ListItemMessage::EntrySelected(_uuid) => todo!(),
+            list::ListItemMessage::EntrySelected(uuid) => {
+                let entry_head = container.vault.entries().get(&uuid)
+                    .ok_or(PWDuckGuiError::Option)?
+                    .clone();
+
+                let mem_key = crate::MEM_KEY.lock()?;
+                let masterkey = container
+                    .vault
+                    .masterkey()
+                    .as_unprotected(&mem_key, container.vault.salt(), container.vault.nonce())?;
+                
+                // Load body from cache if exists, otherwise load from file system.
+                let entry_body = container.vault.unsaved_entry_bodies()
+                    .get(entry_head.body())
+                    .map(|dto| pwduck_core::EntryBody::decrypt(dto, &masterkey))
+                    .unwrap_or_else(|| {
+                        pwduck_core::EntryBody::load(
+                            container.vault.path(),
+                            entry_head.body(),
+                            &masterkey
+                        )
+                    })?;
+
+                container.modify_entry_view = Some(Box::new(ModifyEntryView::with(entry_head, entry_body)));
+                container.current_view = CurrentView::ModifyEntry;
+                Command::none()
+            },
         },
     };
     Ok(cmd)
@@ -318,7 +346,7 @@ fn update_modify_entry(
         }
         ModifyEntryMessage::Submit => {
             if let Some(modify_entry_view) = container.modify_entry_view.as_mut() {
-                let mem_key = crate::MEM_KEY.lock().unwrap();
+                let mem_key = crate::MEM_KEY.lock()?;
                 let masterkey = container
                     .vault
                     .masterkey()
