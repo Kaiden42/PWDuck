@@ -185,12 +185,12 @@ impl Vault {
     }
 
     /// TODO
-    pub fn add_group(&mut self, group: Group) {
+    pub fn insert_group(&mut self, group: Group) {
         drop(self.groups.insert(group.uuid().as_string(), group));
     }
 
     /// TODO
-    pub fn add_entry(
+    pub fn insert_entry(
         &mut self,
         entry_head: EntryHead,
         entry_body: EntryBody,
