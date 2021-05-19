@@ -45,7 +45,7 @@
 use std::{marker::PhantomData, path::PathBuf};
 
 use async_trait::async_trait;
-use iced::{executor, Application, Command, Settings, Text};
+use iced::{executor, Application, Command, Settings, Subscription, Text};
 
 pub mod error;
 use error::{NfdError, PWDuckGuiError};
@@ -87,6 +87,10 @@ pub struct PWDuckGui<P: Platform + 'static> {
     error_dialog_state: modal::State<ErrorDialogState>,
     /// TODO
     tabs: Vec<VaultTab>,
+
+    /// TODO
+    windo_size: WindowSize,
+    close_requested: bool,
     /// TODO
     phantom: PhantomData<P>,
 }
@@ -96,10 +100,20 @@ struct ErrorDialogState {
     error: String,
 }
 
+#[derive(Debug, Default)]
+struct WindowSize {
+    width: u32,
+    height: u32,
+}
+
 impl<P: Platform + 'static> PWDuckGui<P> {
     /// TODO
     pub fn start() -> Result<(), PWDuckGuiError> {
-        Self::run(Settings::default())?;
+        //Self::run(Settings::default())?;
+        Self::run(Settings {
+            exit_on_close_request: false,
+            ..Settings::default()
+        })?;
         Ok(())
     }
 }
@@ -109,6 +123,8 @@ impl<P: Platform + 'static> PWDuckGui<P> {
 pub enum Message {
     /// TODO
     ErrorDialogClose,
+    /// TODO
+    IcedEvent(iced_native::Event),
     /// TODO
     VaultTab(VaultTabMessage),
 }
@@ -123,6 +139,8 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
             Self {
                 error_dialog_state: modal::State::default(),
                 tabs: vec![VaultTab::new(())],
+                windo_size: WindowSize::default(),
+                close_requested: false,
                 phantom: PhantomData,
             },
             Command::none(),
@@ -138,12 +156,28 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         message: Self::Message,
         clipboard: &mut iced::Clipboard,
     ) -> iced::Command<Self::Message> {
+        self.close_requested = false;
         let cmd = match message {
             Message::ErrorDialogClose => {
                 self.error_dialog_state.inner_mut().error.clear();
                 self.error_dialog_state.show(false);
                 Ok(Command::none())
             }
+
+            Message::IcedEvent(event) => match event {
+                iced_native::Event::Window(event) => match event {
+                    iced_native::window::Event::Resized { width, height } => {
+                        self.windo_size = WindowSize { width, height };
+                        Ok(Command::none())
+                    }
+                    iced_native::window::Event::CloseRequested => {
+                        self.close_requested = true;
+                        Ok(Command::none())
+                    }
+                    _ => Ok(Command::none()),
+                },
+                _ => Ok(Command::none()),
+            },
 
             Message::VaultTab(msg) => self.tabs[0]
                 .update::<P>(msg, clipboard)
@@ -171,6 +205,14 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         .on_esc(Message::ErrorDialogClose)
         .backdrop(Message::ErrorDialogClose)
         .into()
+    }
+
+    fn subscription(&self) -> Subscription<Self::Message> {
+        iced_native::subscription::events().map(Message::IcedEvent)
+    }
+
+    fn should_exit(&self) -> bool {
+        self.close_requested && !self.tabs.iter().any(VaultTab::contains_unsaved_changes)
     }
 }
 

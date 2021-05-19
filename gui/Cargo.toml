@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 pwduck_core = {path = "../core"}
 iced = "0.3.0"
+iced_native = "0.4.0"
 async-trait = "0.1.50"
 zeroize = "1.3.0"
 lazy_static = "1.4.0"

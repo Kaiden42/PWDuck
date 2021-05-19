@@ -18,6 +18,16 @@ pub struct VaultTab {
     state: VaultTabState,
 }
 
+impl VaultTab {
+    /// TODO
+    pub fn contains_unsaved_changes(&self) -> bool {
+        match &self.state {
+            VaultTabState::Open(container) => container.vault().contains_unsaved_changes(),
+            _ => false,
+        }
+    }
+}
+
 /// TODO
 #[derive(Clone, Debug)]
 pub enum VaultTabMessage {
