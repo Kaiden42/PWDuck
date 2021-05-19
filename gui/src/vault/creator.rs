@@ -9,9 +9,10 @@ use iced::{
 use zeroize::Zeroize;
 
 use crate::{
-    error::NfdError, Component, Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING,
-    DEFAULT_HEADER_SIZE, DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
-    DEFAULT_TEXT_INPUT_PADDING,
+    error::{NfdError, PWDuckGuiError},
+    utils::{centered_container_with_column, default_vertical_space},
+    Component, Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
+    DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING,
 };
 
 /// TODO
@@ -78,8 +79,8 @@ impl Component for VaultCreator {
         &mut self,
         message: Self::Message,
         _clipboard: &mut iced::Clipboard,
-    ) -> Command<Self::Message> {
-        match message {
+    ) -> Result<Command<Self::Message>, PWDuckGuiError> {
+        let cmd = match message {
             VaultCreatorMessage::NameInput(input) => {
                 self.name = input;
                 Command::none()
@@ -136,7 +137,8 @@ impl Component for VaultCreator {
                 )
             }
             VaultCreatorMessage::Cancel | VaultCreatorMessage::VaultCreated(_) => unreachable!(),
-        }
+        };
+        Ok(cmd)
     }
 
     fn view<P: Platform + 'static>(&mut self) -> iced::Element<'_, Self::Message> {
@@ -207,35 +209,27 @@ impl Component for VaultCreator {
             submit_button = submit_button.on_press(Self::Message::Submit)
         }
 
-        Container::new(
-            Column::new()
-                .max_width(DEFAULT_MAX_WIDTH)
-                .padding(DEFAULT_COLUMN_PADDING)
-                .spacing(DEFAULT_COLUMN_SPACING)
-                .push(Text::new("Create a new Vault:").size(DEFAULT_HEADER_SIZE))
-                .push(name)
-                .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
-                .push(
-                    Row::new()
-                        .spacing(DEFAULT_ROW_SPACING)
-                        .push(path)
-                        .push(path_fd_button),
-                )
-                .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
-                .push(password)
-                .push(password_confirm)
-                .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
-                .push(
-                    Row::new()
-                        .spacing(DEFAULT_ROW_SPACING)
-                        .push(cancel_button)
-                        .push(submit_button),
-                ),
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .center_x()
-        .center_y()
+        centered_container_with_column(vec![
+            Text::new("Create a new Vault:")
+                .size(DEFAULT_HEADER_SIZE)
+                .into(),
+            name.into(),
+            default_vertical_space().into(),
+            Row::new()
+                .spacing(DEFAULT_ROW_SPACING)
+                .push(path)
+                .push(path_fd_button)
+                .into(),
+            default_vertical_space().into(),
+            password.into(),
+            password_confirm.into(),
+            default_vertical_space().into(),
+            Row::new()
+                .spacing(DEFAULT_ROW_SPACING)
+                .push(cancel_button)
+                .push(submit_button)
+                .into(),
+        ])
         .into()
     }
 }

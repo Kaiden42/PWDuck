@@ -2,7 +2,7 @@
 
 use iced::Command;
 
-use crate::{Component, Platform};
+use crate::{error::PWDuckGuiError, vault::container::ToolBarMessage, Component, Platform};
 
 use super::{
     container::{VaultContainer, VaultContainerMessage},
@@ -59,8 +59,8 @@ impl Component for VaultTab {
         &mut self,
         message: Self::Message,
         clipboard: &mut iced::Clipboard,
-    ) -> iced::Command<Self::Message> {
-        match (message, &mut self.state) {
+    ) -> Result<iced::Command<Self::Message>, PWDuckGuiError> {
+        let msg = match (message, &mut self.state) {
             // Handling Messages of sub elements.
             (VaultTabMessage::Loader(VaultLoaderMessage::Create), _) => {
                 self.state = VaultTabState::Create(VaultCreator::new(()));
@@ -73,11 +73,13 @@ impl Component for VaultTab {
             }
             (VaultTabMessage::Unlocker(VaultUnlockerMessage::Unlocked(vault)), _)
             | (VaultTabMessage::Loader(VaultLoaderMessage::Loaded(vault)), _) => {
-                self.state = VaultTabState::Open(VaultContainer::new(vault.unwrap()));
+                self.state = VaultTabState::Open(VaultContainer::new(vault?));
                 Command::none()
             }
             (
-                VaultTabMessage::Container(VaultContainerMessage::LockVault),
+                VaultTabMessage::Container(VaultContainerMessage::ToolBar(
+                    ToolBarMessage::LockVault,
+                )),
                 VaultTabState::Open(container),
             ) => {
                 self.state =
@@ -87,19 +89,20 @@ impl Component for VaultTab {
 
             // Passing every other message to sub elements
             (VaultTabMessage::Loader(msg), VaultTabState::Empty(loader)) => loader
-                .update::<P>(msg, clipboard)
+                .update::<P>(msg, clipboard)?
                 .map(VaultTabMessage::Loader),
             (VaultTabMessage::Creator(msg), VaultTabState::Create(creator)) => creator
-                .update::<P>(msg, clipboard)
+                .update::<P>(msg, clipboard)?
                 .map(VaultTabMessage::Creator),
             (VaultTabMessage::Unlocker(msg), VaultTabState::Unlock(unlocker)) => unlocker
-                .update::<P>(msg, clipboard)
+                .update::<P>(msg, clipboard)?
                 .map(VaultTabMessage::Unlocker),
             (VaultTabMessage::Container(msg), VaultTabState::Open(container)) => container
-                .update::<P>(msg, clipboard)
+                .update::<P>(msg, clipboard)?
                 .map(VaultTabMessage::Container),
             _ => unreachable!(),
-        }
+        };
+        Ok(msg)
     }
 
     fn view<P: Platform + 'static>(

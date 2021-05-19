@@ -6,6 +6,7 @@ use iced::{
 use pwduck_core::{EntryHead, Group, Vault};
 
 use crate::{
+    utils::{default_vertical_space, vertical_space},
     DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING,
 };
 use getset::{Getters, Setters};
@@ -136,13 +137,8 @@ impl ListView {
 
         Container::new(
             Column::new()
-                //.padding(DEFAULT_COLUMN_PADDING)
-                //.spacing(DEFAULT_COLUMN_SPACING)
-                //.push(Text::new(&format!("Vault: {}", &vault.get_name())).size(DEFAULT_HEADER_SIZE))
-                //.push(toolbar)
-                //.push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
                 .push(search_bar)
-                .push(Space::with_height(Length::Units(2 * DEFAULT_SPACE_HEIGHT)))
+                .push(vertical_space(2))
                 .push(
                     Row::new()
                         .spacing(DEFAULT_ROW_SPACING)
@@ -157,7 +153,7 @@ impl ListView {
                             .vertical_alignment(VerticalAlignment::Center),
                         ),
                 )
-                .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
+                .push(default_vertical_space())
                 .push(list),
         )
         .width(Length::Fill)

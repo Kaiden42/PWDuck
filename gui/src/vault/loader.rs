@@ -10,8 +10,10 @@ use pwduck_core::{PWDuckCoreError, Vault};
 use zeroize::Zeroize;
 
 use crate::{
-    error::NfdError, Component, Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING,
-    DEFAULT_HEADER_SIZE, DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
+    error::{NfdError, PWDuckGuiError},
+    utils::centered_container_with_column,
+    Component, Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
+    DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
 
 /// TODO
@@ -49,7 +51,7 @@ pub enum VaultLoaderMessage {
     /// TODO
     PathSelected(Result<PathBuf, NfdError>),
     /// TODO
-    Loaded(Box<Result<Vault, PWDuckCoreError>>),
+    Loaded(Result<Box<Vault>, PWDuckCoreError>),
 }
 
 impl Component for VaultLoader {
@@ -72,8 +74,8 @@ impl Component for VaultLoader {
         &mut self,
         message: Self::Message,
         _clipboard: &mut iced::Clipboard,
-    ) -> iced::Command<Self::Message> {
-        match message {
+    ) -> Result<iced::Command<Self::Message>, PWDuckGuiError> {
+        let cmd = match message {
             VaultLoaderMessage::PathInput(input) => {
                 self.path = input;
                 Command::none()
@@ -97,7 +99,8 @@ impl Component for VaultLoader {
 
                         password.zeroize();
 
-                        Box::new(vault)
+                        //Box::new(vault)
+                        vault.map(|v| Box::new(v))
                     }
                 },
                 VaultLoaderMessage::Loaded,
@@ -113,7 +116,8 @@ impl Component for VaultLoader {
             }
             VaultLoaderMessage::PathSelected(Err(_err)) => Command::none(),
             VaultLoaderMessage::Create | VaultLoaderMessage::Loaded(_) => unreachable!(),
-        }
+        };
+        Ok(cmd)
     }
 
     fn view<P: Platform + 'static>(
@@ -163,30 +167,22 @@ impl Component for VaultLoader {
             unlock_vault = unlock_vault.on_press(Self::Message::Confirm);
         }
 
-        Container::new(
-            Column::new()
-                .max_width(DEFAULT_MAX_WIDTH)
-                .padding(DEFAULT_COLUMN_PADDING)
-                .spacing(DEFAULT_COLUMN_SPACING)
-                .push(Text::new("Open existing Vault:").size(DEFAULT_HEADER_SIZE))
-                .push(
-                    Row::new()
-                        .spacing(DEFAULT_ROW_SPACING)
-                        .push(vault_path)
-                        .push(path_fd_button),
-                )
-                .push(password)
-                .push(
-                    Row::new()
-                        .spacing(DEFAULT_ROW_SPACING)
-                        .push(create)
-                        .push(unlock_vault),
-                ),
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .center_x()
-        .center_y()
+        centered_container_with_column(vec![
+            Text::new("Open existing Vault:")
+                .size(DEFAULT_HEADER_SIZE)
+                .into(),
+            Row::new()
+                .spacing(DEFAULT_ROW_SPACING)
+                .push(vault_path)
+                .push(path_fd_button)
+                .into(),
+            password.into(),
+            Row::new()
+                .spacing(DEFAULT_ROW_SPACING)
+                .push(create)
+                .push(unlock_vault)
+                .into(),
+        ])
         .into()
     }
 }

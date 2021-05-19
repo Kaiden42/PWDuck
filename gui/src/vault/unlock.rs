@@ -10,8 +10,9 @@ use pwduck_core::{PWDuckCoreError, Vault};
 use zeroize::Zeroize;
 
 use crate::{
-    Component, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
-    DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING,
+    error::PWDuckGuiError, Component, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING,
+    DEFAULT_HEADER_SIZE, DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
+    DEFAULT_TEXT_INPUT_PADDING,
 };
 
 /// TODO
@@ -39,7 +40,7 @@ pub enum VaultUnlockerMessage {
     /// TODO
     Submit,
     /// TODO
-    Unlocked(Box<Result<Vault, PWDuckCoreError>>),
+    Unlocked(Result<Box<Vault>, PWDuckCoreError>),
 }
 
 impl Component for VaultUnlocker {
@@ -58,8 +59,8 @@ impl Component for VaultUnlocker {
         &mut self,
         message: Self::Message,
         _clipboard: &mut iced::Clipboard,
-    ) -> iced::Command<Self::Message> {
-        match message {
+    ) -> Result<iced::Command<Self::Message>, PWDuckGuiError> {
+        let cmd = match message {
             VaultUnlockerMessage::PasswordInput(input) => {
                 self.password.zeroize();
                 self.password = input;
@@ -79,13 +80,15 @@ impl Component for VaultUnlocker {
 
                         password.zeroize();
 
-                        Box::new(vault)
+                        //Box::new(vault)
+                        vault.map(|v| Box::new(v))
                     }
                 },
                 VaultUnlockerMessage::Unlocked,
             ),
             VaultUnlockerMessage::Close | VaultUnlockerMessage::Unlocked(_) => unreachable!(),
-        }
+        };
+        Ok(cmd)
     }
 
     fn view<P: crate::Platform + 'static>(&mut self) -> iced::Element<'_, Self::Message> {

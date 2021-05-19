@@ -1,13 +1,14 @@
 //! TODO
 
 use getset::{Getters, MutGetters};
-use iced::{
-    button, text_input, Button, Column, Container, Element, Length, Row, Space, Text, TextInput,
-};
+use iced::{button, text_input, Column, Container, Element, Length, Row, Space, Text};
 use pwduck_core::{EntryBody, EntryHead};
 
 use crate::{
-    DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING,
+    utils::{
+        centered_container_with_column, default_text_input, default_vertical_space, icon_button,
+    },
+    DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
 };
 
 /// TODO
@@ -66,74 +67,49 @@ impl ModifyEntryView {
     }
 
     /// TODO
-    pub fn view(
-        &mut self,
-        _selected_group_uuid: &str,
-    ) -> Element<ModifyEntryMessage> {
-        let title = TextInput::new(
+    pub fn view(&mut self, _selected_group_uuid: &str) -> Element<ModifyEntryMessage> {
+        let title = default_text_input(
             &mut self.title_state,
             "Title of this entry",
             self.entry_head.title(),
             ModifyEntryMessage::TitleInput,
-        )
-        .padding(DEFAULT_TEXT_INPUT_PADDING);
+        );
 
-        let username = TextInput::new(
+        let username = default_text_input(
             &mut self.username_state,
             "Username",
             self.entry_body.username(),
             ModifyEntryMessage::UsernameInput,
-        )
-        .padding(DEFAULT_TEXT_INPUT_PADDING);
+        );
 
-        let password = TextInput::new(
+        let password = default_text_input(
             &mut self.password_state,
             "Password",
             self.entry_body.password(),
             ModifyEntryMessage::PasswordInput,
         )
-        .password()
-        .padding(DEFAULT_TEXT_INPUT_PADDING);
+        .password();
 
-        let cancel = Button::new(
-            &mut self.cancel_state,
-            Text::new("Cancel")
-                .horizontal_alignment(iced::HorizontalAlignment::Center)
-                .width(Length::Fill),
-        )
-        .width(Length::Fill)
-        .on_press(ModifyEntryMessage::Cancel);
+        let cancel =
+            icon_button(&mut self.cancel_state, "I", "Cancel").on_press(ModifyEntryMessage::Cancel);
 
-        let submit = Button::new(
-            &mut self.submit_state,
-            Text::new("Submit")
-                .horizontal_alignment(iced::HorizontalAlignment::Center)
-                .width(Length::Fill),
-        )
-        .width(Length::Fill)
-        .on_press(ModifyEntryMessage::Submit);
+        let submit =
+            icon_button(&mut self.submit_state, "I", "Submit").on_press(ModifyEntryMessage::Submit);
 
-        Container::new(
-            Column::new()
-                .max_width(DEFAULT_MAX_WIDTH)
-                .push(Text::new("Modify entry:"))
-                .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
-                .push(title)
-                .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
-                .push(username)
-                .push(password)
-                .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
-                .push(
-                    Row::new()
-                        .spacing(DEFAULT_ROW_SPACING)
-                        .push(cancel)
-                        .push(submit),
-                ),
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .center_x()
-        .center_y()
+        centered_container_with_column(vec![
+            Text::new("Modify entry:").into(),
+            //default_vertical_space().into(),
+            title.into(),
+            default_vertical_space().into(),
+            username.into(),
+            password.into(),
+            default_vertical_space().into(),
+            Row::new()
+                .spacing(DEFAULT_ROW_SPACING)
+                .push(cancel)
+                .push(submit)
+                .into(),
+        ])
         .into()
     }
 }

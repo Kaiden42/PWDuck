@@ -127,10 +127,15 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         message: Self::Message,
         clipboard: &mut iced::Clipboard,
     ) -> iced::Command<Self::Message> {
-        match message {
+        let cmd = match message {
             Message::VaultTab(msg) => self.tabs[0]
                 .update::<P>(msg, clipboard)
-                .map(Message::VaultTab),
+                .map(|c| c.map(Message::VaultTab)),
+        };
+
+        match cmd {
+            Ok(cmd) => cmd,
+            Err(_) => Command::none(),
         }
     }
 
@@ -154,7 +159,7 @@ trait Component {
         &mut self,
         message: Self::Message,
         clipboard: &mut iced::Clipboard,
-    ) -> iced::Command<Self::Message>;
+    ) -> Result<iced::Command<Self::Message>, PWDuckGuiError>;
 
     /// TODO
     fn view<P: Platform + 'static>(&mut self) -> iced::Element<'_, Self::Message>;
