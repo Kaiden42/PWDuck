@@ -81,12 +81,14 @@ impl Component for VaultUnlocker {
                         password.zeroize();
 
                         //Box::new(vault)
-                        vault.map(|v| Box::new(v))
+                        vault.map(Box::new)
                     }
                 },
                 VaultUnlockerMessage::Unlocked,
             ),
-            VaultUnlockerMessage::Close | VaultUnlockerMessage::Unlocked(_) => unreachable!(),
+            VaultUnlockerMessage::Close | VaultUnlockerMessage::Unlocked(_) => {
+                return PWDuckGuiError::Unreachable("VaultUnlockerMessage".into()).into()
+            }
         };
         Ok(cmd)
     }

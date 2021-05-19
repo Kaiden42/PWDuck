@@ -37,7 +37,7 @@ pub enum VaultTabState {
     /// TODO
     Empty(VaultLoader),
     /// TODO
-    Create(VaultCreator),
+    Create(Box<VaultCreator>),
     /// TODO
     Open(VaultContainer),
     /// TODO
@@ -63,7 +63,7 @@ impl Component for VaultTab {
         let msg = match (message, &mut self.state) {
             // Handling Messages of sub elements.
             (VaultTabMessage::Loader(VaultLoaderMessage::Create), _) => {
-                self.state = VaultTabState::Create(VaultCreator::new(()));
+                self.state = VaultTabState::Create(Box::new(VaultCreator::new(())));
                 Command::none()
             }
             (VaultTabMessage::Creator(VaultCreatorMessage::Cancel), _)
@@ -100,7 +100,7 @@ impl Component for VaultTab {
             (VaultTabMessage::Container(msg), VaultTabState::Open(container)) => container
                 .update::<P>(msg, clipboard)?
                 .map(VaultTabMessage::Container),
-            _ => unreachable!(),
+            _ => return PWDuckGuiError::Unreachable("VaultTabMessage".into()).into(),
         };
         Ok(msg)
     }

@@ -1,6 +1,6 @@
 //! TODO
 
-use iced::{Column, Command, Container, Length, Space, Text};
+use iced::{Column, Command, Container, Length, Text};
 use pwduck_core::{EntryBody, EntryHead, Group, Vault};
 
 mod list;
@@ -18,10 +18,8 @@ use toolbar::ToolBar;
 pub use toolbar::ToolBarMessage;
 
 use crate::{
-    error::PWDuckGuiError,
-    utils::{centered_container_with_column, default_vertical_space},
-    Component, Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
-    DEFAULT_SPACE_HEIGHT,
+    error::PWDuckGuiError, utils::default_vertical_space, Component, Platform,
+    DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
 };
 
 /// TODO
@@ -97,7 +95,7 @@ impl Component for VaultContainer {
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<Self::Message>, PWDuckGuiError> {
         match message {
-            VaultContainerMessage::ToolBar(message) => update_toolbar(self, message, clipboard),
+            VaultContainerMessage::ToolBar(message) => update_toolbar(self, &message, clipboard),
             VaultContainerMessage::List(message) => update_list(self, message, clipboard),
             VaultContainerMessage::CreateGroup(message) => {
                 update_modify_group(self, message, clipboard)
@@ -159,9 +157,10 @@ impl Component for VaultContainer {
     }
 }
 
+/// TODO
 fn update_toolbar(
     container: &mut VaultContainer,
-    message: ToolBarMessage,
+    message: &ToolBarMessage,
     _clipboard: &mut iced::Clipboard,
 ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
     let cmd = match message {
@@ -204,11 +203,14 @@ fn update_toolbar(
         }
         ToolBarMessage::CopyUsername => todo!(),
         ToolBarMessage::CopyPassword => todo!(),
-        ToolBarMessage::LockVault => unreachable!(),
+        ToolBarMessage::LockVault => {
+            return PWDuckGuiError::Unreachable("ToolBarMessage".into()).into()
+        }
     };
     Ok(cmd)
 }
 
+/// TODO
 fn update_list(
     container: &mut VaultContainer,
     message: ListMessage,
@@ -243,6 +245,7 @@ fn update_list(
     Ok(cmd)
 }
 
+/// TODO
 fn update_modify_group(
     container: &mut VaultContainer,
     message: ModifyGroupMessage,
@@ -279,6 +282,7 @@ fn update_modify_group(
     Ok(cmd)
 }
 
+/// TODO
 fn update_modify_entry(
     container: &mut VaultContainer,
     message: ModifyEntryMessage,

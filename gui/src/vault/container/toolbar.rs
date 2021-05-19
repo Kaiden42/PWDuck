@@ -4,6 +4,7 @@ use iced::{button, Element, Length, Row};
 
 use crate::{utils::icon_button, DEFAULT_ROW_SPACING};
 
+/// TODO
 #[derive(Debug, Default)]
 pub struct ToolBar {
     /// TODO
@@ -38,6 +39,7 @@ pub enum ToolBarMessage {
 }
 
 impl ToolBar {
+    /// TODO
     pub fn view(
         &mut self,
         vault_contains_unsaved_changes: bool,

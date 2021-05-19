@@ -1,18 +1,20 @@
 //! TODO
 use getset::{Getters, MutGetters, Setters};
 
-use iced::{button, text_input, Column, Container, Element, Length, Row, Space, Text};
+use iced::{button, text_input, Element, Row, Text};
 use pwduck_core::{Group, Vault};
 
 use crate::{
     utils::{
         centered_container_with_column, default_text_input, default_vertical_space, icon_button,
     },
-    DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
+    DEFAULT_ROW_SPACING,
 };
 
+/// TODO
 #[derive(Debug, Getters, MutGetters, Setters)]
 pub struct ModifyGroupView {
+    /// TODO
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     group: Group,
 
@@ -37,6 +39,7 @@ pub enum ModifyGroupMessage {
 }
 
 impl ModifyGroupView {
+    /// TODO
     pub fn with(group: Group) -> Self {
         Self {
             group,
@@ -48,6 +51,7 @@ impl ModifyGroupView {
         }
     }
 
+    /// TODO
     pub fn view(
         &mut self,
         vault: &Vault,
@@ -56,7 +60,7 @@ impl ModifyGroupView {
         let name = default_text_input(
             &mut self.group_name_state,
             "Enter the name of the new Group",
-            &self.group.title(),
+            self.group.title(),
             ModifyGroupMessage::GroupNameInput,
         );
 

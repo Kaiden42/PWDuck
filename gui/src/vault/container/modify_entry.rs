@@ -1,14 +1,14 @@
 //! TODO
 
 use getset::{Getters, MutGetters};
-use iced::{button, text_input, Column, Container, Element, Length, Row, Space, Text};
+use iced::{button, text_input, Element, Row, Text};
 use pwduck_core::{EntryBody, EntryHead};
 
 use crate::{
     utils::{
         centered_container_with_column, default_text_input, default_vertical_space, icon_button,
     },
-    DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
+    DEFAULT_ROW_SPACING,
 };
 
 /// TODO

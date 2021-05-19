@@ -3,16 +3,14 @@
 use std::path::PathBuf;
 
 use iced::{
-    button, text_input, Button, Column, Command, Container, HorizontalAlignment, Length, Row,
-    Space, Text, TextInput,
+    button, text_input, Button, Command, HorizontalAlignment, Length, Row, Text, TextInput,
 };
 use zeroize::Zeroize;
 
 use crate::{
     error::{NfdError, PWDuckGuiError},
     utils::{centered_container_with_column, default_vertical_space},
-    Component, Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
-    DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING,
+    Component, Platform, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
 
 /// TODO
@@ -93,7 +91,7 @@ impl Component for VaultCreator {
                 Command::perform(P::nfd_choose_folder(), VaultCreatorMessage::PathSelected)
             }
             VaultCreatorMessage::PathSelected(Ok(path)) => {
-                self.path = path.to_str().unwrap().to_owned();
+                self.path = path.to_str().ok_or(PWDuckGuiError::Option)?.to_owned();
                 Command::none()
             }
             VaultCreatorMessage::PathSelected(Err(_err)) => Command::none(),
@@ -136,7 +134,9 @@ impl Component for VaultCreator {
                     VaultCreatorMessage::VaultCreated,
                 )
             }
-            VaultCreatorMessage::Cancel | VaultCreatorMessage::VaultCreated(_) => unreachable!(),
+            VaultCreatorMessage::Cancel | VaultCreatorMessage::VaultCreated(_) => {
+                return PWDuckGuiError::Unreachable("VaultCreatorMessage".into()).into()
+            }
         };
         Ok(cmd)
     }

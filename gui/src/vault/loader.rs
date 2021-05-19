@@ -3,8 +3,7 @@
 use std::path::PathBuf;
 
 use iced::{
-    button, text_input, Button, Column, Command, Container, HorizontalAlignment, Length, Row, Text,
-    TextInput,
+    button, text_input, Button, Command, HorizontalAlignment, Length, Row, Text, TextInput,
 };
 use pwduck_core::{PWDuckCoreError, Vault};
 use zeroize::Zeroize;
@@ -12,8 +11,7 @@ use zeroize::Zeroize;
 use crate::{
     error::{NfdError, PWDuckGuiError},
     utils::centered_container_with_column,
-    Component, Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
-    DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
+    Component, Platform, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
 
 /// TODO
@@ -94,13 +92,13 @@ impl Component for VaultLoader {
                     // TODO: remove duplicate
                     async move {
                         //let mem_key = crate::MEM_KEY.lock().await;
-                        let mem_key = crate::MEM_KEY.lock().unwrap();
+                        let mem_key = crate::MEM_KEY.lock()?;
                         let vault = pwduck_core::Vault::load(&password, &mem_key, path);
 
                         password.zeroize();
 
                         //Box::new(vault)
-                        vault.map(|v| Box::new(v))
+                        vault.map(Box::new)
                     }
                 },
                 VaultLoaderMessage::Loaded,
@@ -111,11 +109,13 @@ impl Component for VaultLoader {
                 VaultLoaderMessage::PathSelected,
             ),
             VaultLoaderMessage::PathSelected(Ok(path)) => {
-                self.path = path.to_str().unwrap().to_owned();
+                self.path = path.to_str().ok_or(PWDuckGuiError::Option)?.to_owned();
                 Command::none()
             }
             VaultLoaderMessage::PathSelected(Err(_err)) => Command::none(),
-            VaultLoaderMessage::Create | VaultLoaderMessage::Loaded(_) => unreachable!(),
+            VaultLoaderMessage::Create | VaultLoaderMessage::Loaded(_) => {
+                return PWDuckGuiError::Unreachable("VaultLoaderMessage".into()).into()
+            }
         };
         Ok(cmd)
     }

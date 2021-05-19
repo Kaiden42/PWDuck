@@ -29,6 +29,7 @@ pub fn horizontal_centered_text(label: impl Into<String>) -> Text {
         .width(Length::Fill)
 }
 
+/// TODO
 pub fn default_text_input<'a, F, Message: Clone>(
     state: &'a mut text_input::State,
     placeholder: &str,
@@ -41,6 +42,7 @@ where
     TextInput::new(state, placeholder, value, on_change).padding(DEFAULT_TEXT_INPUT_PADDING)
 }
 
+/// TODO
 pub fn centered_container_with_column<'a, Message: 'a>(
     children: Vec<Element<'a, Message>>,
 ) -> Container<'a, Message> {
@@ -56,10 +58,12 @@ pub fn centered_container_with_column<'a, Message: 'a>(
     .center_y()
 }
 
+/// TODO
 pub fn default_vertical_space() -> Space {
     vertical_space(1)
 }
 
+/// TODO
 pub fn vertical_space(factor: u16) -> Space {
     Space::with_height(Length::Units(factor * DEFAULT_SPACE_HEIGHT))
 }

@@ -1,4 +1,6 @@
 //! TODO
+
+use std::sync::PoisonError;
 /// TODO
 #[derive(Debug)]
 pub enum PWDuckCoreError {
@@ -16,6 +18,8 @@ pub enum PWDuckCoreError {
     /// TODO
     IO(std::io::Error),
     /// TODO
+    Mutex(String),
+    /// TODO
     Ron(ron::Error),
     /// TODO
     Utf8(std::string::FromUtf8Error),
@@ -30,6 +34,7 @@ impl Clone for PWDuckCoreError {
             Self::BlockModeIV(error) => Self::BlockModeIV(error.clone()),
             Self::Error(error) => Self::Error(error.clone()),
             Self::IO(error) => Self::Error(format!("'Cloned' IO Error: {:?}", error)),
+            Self::Mutex(error) => Self::Mutex(error.clone()),
             Self::Ron(error) => Self::Ron(error.clone()),
             Self::Utf8(error) => Self::Utf8(error.clone()),
         }
@@ -69,6 +74,12 @@ impl From<String> for PWDuckCoreError {
 impl From<std::io::Error> for PWDuckCoreError {
     fn from(error: std::io::Error) -> Self {
         Self::IO(error)
+    }
+}
+
+impl<T> From<PoisonError<T>> for PWDuckCoreError {
+    fn from(error: PoisonError<T>) -> Self {
+        Self::Mutex(format!("{:?}", error))
     }
 }
 

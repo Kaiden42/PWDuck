@@ -1,13 +1,13 @@
 //! TODO
 use iced::{
     button, scrollable, text_input, Button, Column, Container, Element, Length, Row, Scrollable,
-    Space, Text, TextInput, VerticalAlignment,
+    Text, TextInput, VerticalAlignment,
 };
 use pwduck_core::{EntryHead, Group, Vault};
 
 use crate::{
     utils::{default_vertical_space, vertical_space},
-    DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING,
+    DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
 use getset::{Getters, Setters};
 
