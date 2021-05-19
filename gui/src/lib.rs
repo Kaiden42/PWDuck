@@ -90,7 +90,7 @@ pub struct PWDuckGui<P: Platform + 'static> {
 
     /// TODO
     windo_size: WindowSize,
-    close_requested: bool,
+    can_exit: bool,
     /// TODO
     phantom: PhantomData<P>,
 }
@@ -140,7 +140,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                 error_dialog_state: modal::State::default(),
                 tabs: vec![VaultTab::new(())],
                 windo_size: WindowSize::default(),
-                close_requested: false,
+                can_exit: false,
                 phantom: PhantomData,
             },
             Command::none(),
@@ -156,7 +156,6 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         message: Self::Message,
         clipboard: &mut iced::Clipboard,
     ) -> iced::Command<Self::Message> {
-        self.close_requested = false;
         let cmd = match message {
             Message::ErrorDialogClose => {
                 self.error_dialog_state.inner_mut().error.clear();
@@ -171,7 +170,10 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                         Ok(Command::none())
                     }
                     iced_native::window::Event::CloseRequested => {
-                        self.close_requested = true;
+                        if !self.tabs.iter().any(VaultTab::contains_unsaved_changes) {
+                            // TODO: add nice error dialog
+                            self.can_exit = true;
+                        }
                         Ok(Command::none())
                     }
                     _ => Ok(Command::none()),
@@ -212,7 +214,8 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
     }
 
     fn should_exit(&self) -> bool {
-        self.close_requested && !self.tabs.iter().any(VaultTab::contains_unsaved_changes)
+        self.can_exit
+        //&& !self.tabs.iter().any(VaultTab::contains_unsaved_changes)
     }
 }
 
