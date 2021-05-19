@@ -45,12 +45,13 @@
 use std::{marker::PhantomData, path::PathBuf};
 
 use async_trait::async_trait;
-use iced::{executor, Application, Command, Settings};
+use iced::{executor, Application, Command, Settings, Text};
 
 pub mod error;
 use error::{NfdError, PWDuckGuiError};
 
 pub mod vault;
+use iced_aw::{modal, Card, Modal};
 use lazy_static::lazy_static;
 use pwduck_core::MemKey;
 use vault::{tab::VaultTab, tab::VaultTabMessage};
@@ -83,9 +84,16 @@ lazy_static! {
 #[derive(Debug)]
 pub struct PWDuckGui<P: Platform + 'static> {
     /// TODO
+    error_dialog_state: modal::State<ErrorDialogState>,
+    /// TODO
     tabs: Vec<VaultTab>,
     /// TODO
     phantom: PhantomData<P>,
+}
+
+#[derive(Debug, Default)]
+struct ErrorDialogState {
+    error: String,
 }
 
 impl<P: Platform + 'static> PWDuckGui<P> {
@@ -100,6 +108,8 @@ impl<P: Platform + 'static> PWDuckGui<P> {
 #[derive(Clone, Debug)]
 pub enum Message {
     /// TODO
+    ErrorDialogClose,
+    /// TODO
     VaultTab(VaultTabMessage),
 }
 
@@ -111,6 +121,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
     fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
         (
             Self {
+                error_dialog_state: modal::State::default(),
                 tabs: vec![VaultTab::new(())],
                 phantom: PhantomData,
             },
@@ -128,6 +139,12 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         clipboard: &mut iced::Clipboard,
     ) -> iced::Command<Self::Message> {
         let cmd = match message {
+            Message::ErrorDialogClose => {
+                self.error_dialog_state.inner_mut().error.clear();
+                self.error_dialog_state.show(false);
+                Ok(Command::none())
+            }
+
             Message::VaultTab(msg) => self.tabs[0]
                 .update::<P>(msg, clipboard)
                 .map(|c| c.map(Message::VaultTab)),
@@ -135,12 +152,25 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
 
         match cmd {
             Ok(cmd) => cmd,
-            Err(_) => Command::none(),
+            Err(error) => {
+                self.error_dialog_state.inner_mut().error = format!("{:?}", error);
+                self.error_dialog_state.show(true);
+                Command::none()
+            }
         }
     }
 
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
-        self.tabs[0].view::<P>().map(Message::VaultTab)
+        let tabs = self.tabs[0].view::<P>().map(Message::VaultTab);
+        Modal::new(&mut self.error_dialog_state, tabs, |state| {
+            Card::new(Text::new("Ooopsi whoopsi"), Text::new(state.error.clone()))
+                .max_width(DEFAULT_MAX_WIDTH)
+                .on_close(Message::ErrorDialogClose)
+                .into()
+        })
+        .on_esc(Message::ErrorDialogClose)
+        .backdrop(Message::ErrorDialogClose)
+        .into()
     }
 }
 
