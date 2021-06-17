@@ -15,4 +15,4 @@ members = [
 [dependencies]
 pwduck_gui = { path = "./gui" }
 async-trait = "0.1.50"
-rfd = "0.3.0"
+rfd = "0.4.0"
