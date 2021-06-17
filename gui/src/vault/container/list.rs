@@ -6,7 +6,7 @@ use iced::{
 use pwduck_core::{EntryHead, Group, Vault};
 
 use crate::{
-    utils::{default_vertical_space, vertical_space},
+    utils::{default_vertical_space, icon_button, vertical_space},
     DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
 use getset::{Getters, Setters};
@@ -32,6 +32,8 @@ pub struct ListView {
 
     /// TODO
     back_state: button::State,
+    /// TODO
+    edit_group_state: button::State,
 
     /// TODO
     scroll_state: scrollable::State,
@@ -44,6 +46,8 @@ pub enum ListMessage {
     SearchInput(String),
     /// TODO
     Back,
+    /// TODO
+    EditGroup,
     /// TODO
     ListItemMessage(ListItemMessage),
 }
@@ -60,6 +64,7 @@ impl ListView {
             search_state: text_input::State::new(),
 
             back_state: button::State::new(),
+            edit_group_state: button::State::new(),
 
             scroll_state: scrollable::State::new(),
         }
@@ -102,10 +107,31 @@ impl ListView {
         )
         .padding(DEFAULT_TEXT_INPUT_PADDING);
 
-        let mut back = Button::new(&mut self.back_state, Text::new("< Back"));
+        let mut back = icon_button(&mut self.back_state, "I", "Back").width(Length::Shrink);
         if !selected_group.is_root() {
             back = back.on_press(ListMessage::Back);
         }
+
+        let mut edit_group =
+            icon_button(&mut self.edit_group_state, "I", "Edit").width(Length::Shrink);
+        if !selected_group.is_root() {
+            edit_group = edit_group.on_press(ListMessage::EditGroup);
+        }
+
+        let group_controls = Row::new()
+            .spacing(2 * DEFAULT_ROW_SPACING)
+            .align_items(iced::Align::Center)
+            .push(back)
+            .push(
+                Text::new(if selected_group.is_root() {
+                    "Root"
+                } else {
+                    selected_group.title()
+                })
+                .vertical_alignment(VerticalAlignment::Center)
+                .width(Length::Fill),
+            )
+            .push(edit_group);
 
         let list: Element<_> = if current_item_list.is_empty() {
             Container::new(Text::new(if self.search.is_empty() {
@@ -144,20 +170,7 @@ impl ListView {
             Column::new()
                 .push(search_bar)
                 .push(vertical_space(2))
-                .push(
-                    Row::new()
-                        .spacing(DEFAULT_ROW_SPACING)
-                        .align_items(iced::Align::Center)
-                        .push(back)
-                        .push(
-                            Text::new(if selected_group.is_root() {
-                                "Root"
-                            } else {
-                                selected_group.title()
-                            })
-                            .vertical_alignment(VerticalAlignment::Center),
-                        ),
-                )
+                .push(group_controls)
                 .push(default_vertical_space())
                 .push(list),
         )

@@ -7,7 +7,8 @@ mod list;
 use list::{ListMessage, ListView};
 
 mod modify_entry;
-use modify_entry::{ModifyEntryMessage, ModifyEntryView};
+pub use modify_entry::ModifyEntryMessage;
+use modify_entry::ModifyEntryView;
 
 mod modify_group;
 use getset::Getters;
@@ -161,7 +162,7 @@ impl Component for VaultContainer {
 fn update_toolbar(
     container: &mut VaultContainer,
     message: &ToolBarMessage,
-    _clipboard: &mut iced::Clipboard,
+    clipboard: &mut iced::Clipboard,
 ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
     let cmd = match message {
         ToolBarMessage::Save => {
@@ -201,8 +202,20 @@ fn update_toolbar(
 
             Command::none()
         }
-        ToolBarMessage::CopyUsername => todo!(),
-        ToolBarMessage::CopyPassword => todo!(),
+        ToolBarMessage::CopyUsername => {
+            if let Some(modify_entry_view) = container.modify_entry_view.as_ref() {
+                clipboard.write(modify_entry_view.entry_body().username().clone());
+            }
+
+            Command::none()
+        }
+        ToolBarMessage::CopyPassword => {
+            if let Some(modify_entry_view) = container.modify_entry_view.as_ref() {
+                clipboard.write(modify_entry_view.entry_body().password().clone());
+            }
+
+            Command::none()
+        }
         ToolBarMessage::LockVault => {
             return PWDuckGuiError::Unreachable("ToolBarMessage".into()).into()
         }
@@ -235,6 +248,18 @@ fn update_list(
             container.list_view.resize(&container.vault);
             Command::none()
         }
+        ListMessage::EditGroup => {
+            let group = container
+                .vault
+                .groups()
+                .get(container.list_view.selected_group_uuid())
+                .ok_or(PWDuckGuiError::Option)?
+                .clone();
+
+            container.modify_group_view = Some(Box::new(ModifyGroupView::with(group)));
+            container.current_view = CurrentView::CreateGroup;
+            Command::none()
+        }
         ListMessage::ListItemMessage(msg) => match msg {
             list::ListItemMessage::GroupSelected(uuid) => {
                 container.list_view.set_selected_group_uuid(uuid);
@@ -242,32 +267,41 @@ fn update_list(
                 Command::none()
             }
             list::ListItemMessage::EntrySelected(uuid) => {
-                let entry_head = container.vault.entries().get(&uuid)
+                let entry_head = container
+                    .vault
+                    .entries()
+                    .get(&uuid)
                     .ok_or(PWDuckGuiError::Option)?
                     .clone();
 
                 let mem_key = crate::MEM_KEY.lock()?;
-                let masterkey = container
-                    .vault
-                    .masterkey()
-                    .as_unprotected(&mem_key, container.vault.salt(), container.vault.nonce())?;
-                
-                // Load body from cache if exists, otherwise load from file system.
-                let entry_body = container.vault.unsaved_entry_bodies()
-                    .get(entry_head.body())
-                    .map(|dto| pwduck_core::EntryBody::decrypt(dto, &masterkey))
-                    .unwrap_or_else(|| {
-                        pwduck_core::EntryBody::load(
-                            container.vault.path(),
-                            entry_head.body(),
-                            &masterkey
-                        )
-                    })?;
+                let masterkey = container.vault.masterkey().as_unprotected(
+                    &mem_key,
+                    container.vault.salt(),
+                    container.vault.nonce(),
+                )?;
 
-                container.modify_entry_view = Some(Box::new(ModifyEntryView::with(entry_head, entry_body)));
+                // Load body from cache if exists, otherwise load from file system.
+                let entry_body = container
+                    .vault
+                    .unsaved_entry_bodies()
+                    .get(entry_head.body())
+                    .map_or_else(
+                        || {
+                            pwduck_core::EntryBody::load(
+                                container.vault.path(),
+                                entry_head.body(),
+                                &masterkey,
+                            )
+                        },
+                        |dto| pwduck_core::EntryBody::decrypt(dto, &masterkey),
+                    )?;
+
+                container.modify_entry_view =
+                    Some(Box::new(ModifyEntryView::with(entry_head, entry_body)));
                 container.current_view = CurrentView::ModifyEntry;
                 Command::none()
-            },
+            }
         },
     };
     Ok(cmd)
@@ -314,38 +348,46 @@ fn update_modify_group(
 fn update_modify_entry(
     container: &mut VaultContainer,
     message: ModifyEntryMessage,
-    _clipboard: &mut iced::Clipboard,
+    clipboard: &mut iced::Clipboard,
 ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
-    let cmd = match message {
-        ModifyEntryMessage::TitleInput(input) => {
-            if let Some(modify_entry_view) = container.modify_entry_view.as_mut() {
+    let cmd = if let Some(modify_entry_view) = container.modify_entry_view.as_mut() {
+        match message {
+            ModifyEntryMessage::TitleInput(input) => {
                 modify_entry_view.entry_head_mut().set_title(input);
+                Command::none()
             }
-
-            Command::none()
-        }
-        ModifyEntryMessage::UsernameInput(input) => {
-            if let Some(modify_entry_view) = container.modify_entry_view.as_mut() {
+            ModifyEntryMessage::UsernameInput(input) => {
                 modify_entry_view.entry_body_mut().set_username(input);
+                Command::none()
             }
-
-            Command::none()
-        }
-        ModifyEntryMessage::PasswordInput(input) => {
-            if let Some(modify_entry_view) = container.modify_entry_view.as_mut() {
+            ModifyEntryMessage::UsernameCopy => {
+                clipboard.write(modify_entry_view.entry_body().username().clone());
+                Command::none()
+            }
+            ModifyEntryMessage::PasswordInput(input) => {
                 modify_entry_view.entry_body_mut().set_password(input);
+                Command::none()
             }
+            ModifyEntryMessage::PasswordShow => {
+                modify_entry_view.set_password_show(!modify_entry_view.password_show());
+                Command::none()
+            }
+            ModifyEntryMessage::PasswordGenerate => {
+                // TODO
+                Command::none()
+            }
+            ModifyEntryMessage::PasswordCopy => {
+                clipboard.write(modify_entry_view.entry_body().password().clone());
+                Command::none()
+            }
+            ModifyEntryMessage::Cancel => {
+                container.current_view = CurrentView::ListView;
+                container.modify_entry_view = None;
 
-            Command::none()
-        }
-        ModifyEntryMessage::Cancel => {
-            container.current_view = CurrentView::ListView;
-            container.modify_entry_view = None;
-
-            Command::none()
-        }
-        ModifyEntryMessage::Submit => {
-            if let Some(modify_entry_view) = container.modify_entry_view.as_mut() {
+                Command::none()
+            }
+            ModifyEntryMessage::Submit => {
+                // TODO async
                 let mem_key = crate::MEM_KEY.lock()?;
                 let masterkey = container
                     .vault
@@ -365,10 +407,12 @@ fn update_modify_entry(
                 container.current_view = CurrentView::ListView;
                 container.modify_entry_view = None;
                 container.list_view.resize(&container.vault);
-            }
 
-            Command::none()
+                Command::none()
+            }
         }
+    } else {
+        Command::none()
     };
     Ok(cmd)
 }

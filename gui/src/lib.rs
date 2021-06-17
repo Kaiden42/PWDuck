@@ -39,13 +39,16 @@
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
     clippy::cast_possible_wrap,
-    clippy::module_name_repetitions
+    clippy::module_name_repetitions,
+
+    // TODO: remove
+    clippy::missing_errors_doc,
 )]
 
 use std::{marker::PhantomData, path::PathBuf};
 
 use async_trait::async_trait;
-use iced::{executor, Application, Command, Settings, Subscription, Text};
+use iced::{executor, Application, Command, Element, Settings, Subscription, Text};
 
 pub mod error;
 use error::{NfdError, PWDuckGuiError};
@@ -54,9 +57,19 @@ pub mod vault;
 use iced_aw::{modal, Card, Modal};
 use lazy_static::lazy_static;
 use pwduck_core::MemKey;
-use vault::{tab::VaultTab, tab::VaultTabMessage};
+use vault::{
+    container::ModifyEntryMessage,
+    tab::VaultTabMessage,
+    tab::{VaultContainerMessage, VaultTab},
+};
 
+mod pw_modal;
 mod utils;
+use pw_modal::{PasswordGeneratorMessage, PasswordGeneratorState, Target};
+
+use crate::vault::creator::VaultCreatorMessage;
+
+mod password_score;
 
 /// TODO
 const DEFAULT_MAX_WIDTH: u32 = 600;
@@ -86,23 +99,32 @@ pub struct PWDuckGui<P: Platform + 'static> {
     /// TODO
     error_dialog_state: modal::State<ErrorDialogState>,
     /// TODO
+    password_generator_state: modal::State<PasswordGeneratorState>,
+    /// TODO
     tabs: Vec<VaultTab>,
 
     /// TODO
     windo_size: WindowSize,
+    /// TODO
     can_exit: bool,
+
     /// TODO
     phantom: PhantomData<P>,
 }
 
+/// TODO
 #[derive(Debug, Default)]
 struct ErrorDialogState {
+    /// TODO
     error: String,
 }
 
+/// TODO
 #[derive(Debug, Default)]
 struct WindowSize {
+    /// TODO
     width: u32,
+    /// TODO
     height: u32,
 }
 
@@ -124,6 +146,8 @@ pub enum Message {
     /// TODO
     ErrorDialogClose,
     /// TODO
+    PasswordGenerator(PasswordGeneratorMessage),
+    /// TODO
     IcedEvent(iced_native::Event),
     /// TODO
     VaultTab(VaultTabMessage),
@@ -138,6 +162,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         (
             Self {
                 error_dialog_state: modal::State::default(),
+                password_generator_state: modal::State::new(PasswordGeneratorState::new()),
                 tabs: vec![VaultTab::new(())],
                 windo_size: WindowSize::default(),
                 can_exit: false,
@@ -157,11 +182,72 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         clipboard: &mut iced::Clipboard,
     ) -> iced::Command<Self::Message> {
         let cmd = match message {
+            Message::VaultTab(VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
+                ModifyEntryMessage::PasswordGenerate,
+            ))) => {
+                self.password_generator_state
+                    .inner_mut()
+                    .generate_and_update_password();
+                self.password_generator_state.show(true);
+
+                self.password_generator_state
+                    .inner_mut()
+                    .set_target(match message {
+                        Message::VaultTab(VaultTabMessage::Container(
+                            VaultContainerMessage::ModifyEntry(_),
+                        )) => Target::EntryModifier,
+                        Message::VaultTab(VaultTabMessage::Creator(_)) => todo!(),
+                        _ => Target::None,
+                    });
+
+                // TODO: clean up
+                Ok(Command::perform(
+                    crate::pw_modal::estimate_password_strength(
+                        self.password_generator_state
+                            .inner()
+                            .password()
+                            .clone()
+                            .into(),
+                    ),
+                    PasswordGeneratorMessage::PasswordScore,
+                )
+                .map(Message::PasswordGenerator))
+            }
+
             Message::ErrorDialogClose => {
                 self.error_dialog_state.inner_mut().error.clear();
                 self.error_dialog_state.show(false);
                 Ok(Command::none())
             }
+            Message::PasswordGenerator(PasswordGeneratorMessage::Cancel) => {
+                self.password_generator_state.show(false);
+                Ok(Command::none())
+            }
+            Message::PasswordGenerator(PasswordGeneratorMessage::Submit) => {
+                self.password_generator_state.show(false);
+                // TODO: clean up
+                let password = self.password_generator_state.inner().password().clone();
+                let message = match self.password_generator_state.inner().target() {
+                    Target::Creator => {
+                        VaultTabMessage::Creator(VaultCreatorMessage::PasswordInput(password))
+                    }
+                    Target::EntryModifier => {
+                        VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
+                            ModifyEntryMessage::PasswordInput(password),
+                        ))
+                    }
+                    Target::None => unreachable!(),
+                };
+                Ok(Command::perform(
+                    async { Message::VaultTab(message) },
+                    |m| m,
+                ))
+            }
+            Message::PasswordGenerator(msg) => self
+                .password_generator_state
+                .inner_mut()
+                .update(msg, clipboard)
+                .map(|cmd| cmd.map(Message::PasswordGenerator)),
 
             Message::IcedEvent(event) => match event {
                 iced_native::Event::Window(event) => match event {
@@ -198,15 +284,10 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
 
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
         let tabs = self.tabs[0].view::<P>().map(Message::VaultTab);
-        Modal::new(&mut self.error_dialog_state, tabs, |state| {
-            Card::new(Text::new("Ooopsi whoopsi"), Text::new(state.error.clone()))
-                .max_width(DEFAULT_MAX_WIDTH)
-                .on_close(Message::ErrorDialogClose)
-                .into()
-        })
-        .on_esc(Message::ErrorDialogClose)
-        .backdrop(Message::ErrorDialogClose)
-        .into()
+
+        let body = password_modal::<P>(&mut self.password_generator_state, tabs);
+
+        error_modal::<P>(&mut self.error_dialog_state, body)
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
@@ -217,6 +298,33 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         self.can_exit
         //&& !self.tabs.iter().any(VaultTab::contains_unsaved_changes)
     }
+}
+
+/// TODO
+fn password_modal<'a, P: Platform + 'static>(
+    state: &'a mut modal::State<pw_modal::PasswordGeneratorState>,
+    body: Element<'a, Message>,
+) -> Element<'a, Message> {
+    Modal::new(state, body, |state| {
+        state.view().map(Message::PasswordGenerator)
+    })
+    .into()
+}
+
+/// TODO
+fn error_modal<'a, P: Platform + 'static>(
+    state: &'a mut modal::State<ErrorDialogState>,
+    body: Element<'a, Message>,
+) -> Element<'a, Message> {
+    Modal::new(state, body, |state| {
+        Card::new(Text::new("Ooopsi whoopsi"), Text::new(state.error.clone()))
+            .max_width(DEFAULT_MAX_WIDTH)
+            .on_close(Message::ErrorDialogClose)
+            .into()
+    })
+    .on_esc(Message::ErrorDialogClose)
+    .backdrop(Message::ErrorDialogClose)
+    .into()
 }
 
 /// TODO

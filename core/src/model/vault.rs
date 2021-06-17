@@ -12,10 +12,9 @@ use crate::{
     error::PWDuckCoreError,
     io::{create_new_vault_dir, save_masterkey},
     mem_protection::MemKey,
-    EntryBody,
 };
 
-use super::{entry::EntryHead, group::Group, master_key::MasterKey};
+use super::{entry::EntryBody, entry::EntryHead, group::Group, master_key::MasterKey};
 use getset::{Getters, MutGetters};
 
 /// TODO

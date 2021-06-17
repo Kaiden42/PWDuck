@@ -39,7 +39,10 @@
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
     clippy::cast_possible_wrap,
-    clippy::module_name_repetitions
+    clippy::module_name_repetitions,
+
+    // TODO: remove
+    clippy::missing_errors_doc,
 )]
 
 mod cryptography;
@@ -60,5 +63,9 @@ pub use model::{
     uuid::Uuid,
     vault::Vault,
 };
+
+mod passwords;
+pub use passwords::{generate_password, password_entropy, Symbols};
+pub use pw_entropy::PasswordInfo;
 
 mod dto;

@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 //! TODO
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]

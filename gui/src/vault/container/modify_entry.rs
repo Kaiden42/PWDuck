@@ -1,7 +1,7 @@
 //! TODO
 
-use getset::{Getters, MutGetters};
-use iced::{button, text_input, Element, Row, Text};
+use getset::{Getters, MutGetters, Setters};
+use iced::{button, text_input, Element, Length, Row, Text};
 use pwduck_core::{EntryBody, EntryHead};
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// TODO
-#[derive(Getters, MutGetters)]
+#[derive(Getters, MutGetters, Setters)]
 pub struct ModifyEntryView {
     /// TODO
     #[getset(get = "pub", get_mut = "pub")]
@@ -26,7 +26,18 @@ pub struct ModifyEntryView {
     /// TODO
     username_state: text_input::State,
     /// TODO
+    username_copy_state: button::State,
+    /// TODO
     password_state: text_input::State,
+    /// TODO
+    #[getset(get = "pub", set = "pub")]
+    password_show: bool,
+    /// TODO
+    password_show_state: button::State,
+    /// TODO
+    password_generate_state: button::State,
+    /// TODO
+    password_copy_state: button::State,
 
     /// TODO
     cancel_state: button::State,
@@ -42,7 +53,15 @@ pub enum ModifyEntryMessage {
     /// TODO
     UsernameInput(String),
     /// TODO
+    UsernameCopy,
+    /// TODO
     PasswordInput(String),
+    /// TODO
+    PasswordShow,
+    /// TODO
+    PasswordGenerate,
+    /// TODO
+    PasswordCopy,
 
     /// TODO
     Cancel,
@@ -59,7 +78,12 @@ impl ModifyEntryView {
 
             title_state: text_input::State::new(),
             username_state: text_input::State::new(),
+            username_copy_state: button::State::new(),
             password_state: text_input::State::new(),
+            password_show: false,
+            password_show_state: button::State::new(),
+            password_generate_state: button::State::new(),
+            password_copy_state: button::State::new(),
 
             cancel_state: button::State::new(),
             submit_state: button::State::new(),
@@ -81,14 +105,38 @@ impl ModifyEntryView {
             self.entry_body.username(),
             ModifyEntryMessage::UsernameInput,
         );
+        let username_copy = icon_button(&mut self.username_copy_state, "I", "C")
+            .width(Length::Shrink)
+            .on_press(ModifyEntryMessage::UsernameCopy);
 
-        let password = default_text_input(
+        let mut password = default_text_input(
             &mut self.password_state,
             "Password",
             self.entry_body.password(),
             ModifyEntryMessage::PasswordInput,
+        );
+        if !self.password_show {
+            password = password.password();
+        }
+
+        let password_show = icon_button(
+            &mut self.password_show_state,
+            "I",
+            if self.password_show {
+                // TODO
+                "H"
+            } else {
+                "S"
+            },
         )
-        .password();
+        .width(Length::Shrink)
+        .on_press(ModifyEntryMessage::PasswordShow);
+        let password_generate = icon_button(&mut self.password_generate_state, "I", "G")
+            .width(Length::Shrink)
+            .on_press(ModifyEntryMessage::PasswordGenerate);
+        let password_copy = icon_button(&mut self.password_copy_state, "I", "C")
+            .width(Length::Shrink)
+            .on_press(ModifyEntryMessage::PasswordCopy);
 
         let cancel =
             icon_button(&mut self.cancel_state, "I", "Cancel").on_press(ModifyEntryMessage::Cancel);
@@ -101,8 +149,20 @@ impl ModifyEntryView {
             //default_vertical_space().into(),
             title.into(),
             default_vertical_space().into(),
-            username.into(),
-            password.into(),
+            //username.into(),
+            Row::new()
+                .spacing(DEFAULT_ROW_SPACING)
+                .push(username)
+                .push(username_copy)
+                .into(),
+            //password.into(),
+            Row::new()
+                .spacing(DEFAULT_ROW_SPACING)
+                .push(password)
+                .push(password_show)
+                .push(password_generate)
+                .push(password_copy)
+                .into(),
             default_vertical_space().into(),
             Row::new()
                 .spacing(DEFAULT_ROW_SPACING)

@@ -154,7 +154,7 @@ pub fn unprotect_masterkey(
 /// TODO
 pub fn aes_cbc_encrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>, PWDuckCoreError> {
     let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(key, iv)?;
-    Ok(cipher.encrypt_vec(data).into())
+    Ok(cipher.encrypt_vec(data))
 }
 
 /// TODO
@@ -174,7 +174,7 @@ pub fn chacha20_encrypt(data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>
     let mut result = data.to_vec();
     cipher.apply_keystream(&mut result);
 
-    Ok(result.into())
+    Ok(result)
 }
 
 /// TODO

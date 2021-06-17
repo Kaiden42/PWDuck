@@ -23,6 +23,8 @@ pub enum PWDuckCoreError {
     Ron(ron::Error),
     /// TODO
     Utf8(std::string::FromUtf8Error),
+    //// TODO
+    //ZxcvbnError(zxcvbn::ZxcvbnError),
 }
 
 impl Clone for PWDuckCoreError {
@@ -30,13 +32,14 @@ impl Clone for PWDuckCoreError {
         match self {
             Self::Argon2(error) => Self::Argon2(*error),
             Self::Base64(error) => Self::Base64(error.clone()),
-            Self::BlockMode(error) => Self::BlockMode(error.clone()),
-            Self::BlockModeIV(error) => Self::BlockModeIV(error.clone()),
+            Self::BlockMode(error) => Self::BlockMode(*error),
+            Self::BlockModeIV(error) => Self::BlockModeIV(*error),
             Self::Error(error) => Self::Error(error.clone()),
             Self::IO(error) => Self::Error(format!("'Cloned' IO Error: {:?}", error)),
             Self::Mutex(error) => Self::Mutex(error.clone()),
             Self::Ron(error) => Self::Ron(error.clone()),
             Self::Utf8(error) => Self::Utf8(error.clone()),
+            //Self::ZxcvbnError(error) => Self::ZxcvbnError(error.clone()),
         }
     }
 }
@@ -94,3 +97,9 @@ impl From<std::string::FromUtf8Error> for PWDuckCoreError {
         Self::Utf8(error)
     }
 }
+
+/*impl From<zxcvbn::ZxcvbnError> for PWDuckCoreError {
+    fn from(error: zxcvbn::ZxcvbnError) -> Self {
+        Self::ZxcvbnError(error)
+    }
+}*/

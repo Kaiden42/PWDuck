@@ -20,6 +20,9 @@ serde = { version = "1.0.125", features = ["derive"] }
 ron = "0.6.4"
 sha256 = "1.0.2"
 getset = "0.1.1"
+#zxcvbn = "2.1.1"
+#chbs_password_checker = "0.1.0"
+pw_entropy = { git = "https://github.com/Kaiden42/pw_entropy", rev = "d8d8305db936a94cc50bb770b8898f18f67faf71" }
 
 aes = "0.7.2"
 chacha20 = "0.7.1"

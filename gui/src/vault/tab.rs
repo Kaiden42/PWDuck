@@ -4,8 +4,9 @@ use iced::Command;
 
 use crate::{error::PWDuckGuiError, vault::container::ToolBarMessage, Component, Platform};
 
+pub use super::container::VaultContainerMessage;
 use super::{
-    container::{VaultContainer, VaultContainerMessage},
+    container::VaultContainer,
     creator::{VaultCreator, VaultCreatorMessage},
     loader::{VaultLoader, VaultLoaderMessage},
     unlock::{VaultUnlocker, VaultUnlockerMessage},
@@ -20,6 +21,7 @@ pub struct VaultTab {
 
 impl VaultTab {
     /// TODO
+    #[must_use]
     pub fn contains_unsaved_changes(&self) -> bool {
         match &self.state {
             VaultTabState::Open(container) => container.vault().contains_unsaved_changes(),
@@ -79,6 +81,10 @@ impl Component for VaultTab {
             (VaultTabMessage::Creator(VaultCreatorMessage::Cancel), _)
             | (VaultTabMessage::Unlocker(VaultUnlockerMessage::Close), _) => {
                 self.state = VaultTabState::Empty(VaultLoader::new(()));
+                Command::none()
+            }
+            (VaultTabMessage::Creator(VaultCreatorMessage::VaultCreated(vault)), _) => {
+                self.state = VaultTabState::Unlock(VaultUnlocker::new(vault?));
                 Command::none()
             }
             (VaultTabMessage::Unlocker(VaultUnlockerMessage::Unlocked(vault)), _)

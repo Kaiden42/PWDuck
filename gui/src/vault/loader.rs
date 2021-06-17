@@ -2,15 +2,13 @@
 
 use std::path::PathBuf;
 
-use iced::{
-    button, text_input, Button, Command, HorizontalAlignment, Length, Row, Text, TextInput,
-};
+use iced::{button, text_input, Command, Length, Row, Text, TextInput};
 use pwduck_core::{PWDuckCoreError, Vault};
 use zeroize::Zeroize;
 
 use crate::{
     error::{NfdError, PWDuckGuiError},
-    utils::centered_container_with_column,
+    utils::{centered_container_with_column, icon_button},
     Component, Platform, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
 
@@ -21,14 +19,21 @@ pub struct VaultLoader {
     path: String,
     /// TODO
     path_state: text_input::State,
+
     /// TODO
     password: String,
     /// TODO
     password_state: text_input::State,
     /// TODO
+    show_password: bool,
+    /// TOOD
+    show_password_state: button::State,
+
+    /// TODO
     create_state: button::State,
     /// TODO
     confirm_state: button::State,
+
     /// TODO
     path_open_fd_state: button::State,
 }
@@ -40,6 +45,8 @@ pub enum VaultLoaderMessage {
     PathInput(String),
     /// TODO
     PasswordInput(String),
+    /// TODO
+    ShowPassword,
     /// TODO
     Create,
     /// TODO
@@ -60,10 +67,15 @@ impl Component for VaultLoader {
         Self {
             path: String::new(),
             path_state: text_input::State::new(),
+
             password: String::new(),
             password_state: text_input::State::new(),
+            show_password: false,
+            show_password_state: button::State::new(),
+
             create_state: button::State::new(),
             confirm_state: button::State::new(),
+
             path_open_fd_state: button::State::new(),
         }
     }
@@ -81,6 +93,10 @@ impl Component for VaultLoader {
             VaultLoaderMessage::PasswordInput(input) => {
                 self.password.zeroize();
                 self.password = input;
+                Command::none()
+            }
+            VaultLoaderMessage::ShowPassword => {
+                self.show_password = !self.show_password;
                 Command::none()
             }
             VaultLoaderMessage::Confirm => Command::perform(
@@ -124,47 +140,50 @@ impl Component for VaultLoader {
         &mut self,
         //platform: &dyn Platform
     ) -> iced::Element<'_, Self::Message> {
-        let mut path_fd_button = Button::new(&mut self.path_open_fd_state, Text::new("Open"));
+        let mut path_fd_button =
+            icon_button(&mut self.path_open_fd_state, "I", "Open").width(Length::Shrink);
         if P::is_nfd_available() {
-            path_fd_button = path_fd_button.on_press(Self::Message::OpenFileDialog);
+            path_fd_button = path_fd_button.on_press(VaultLoaderMessage::OpenFileDialog);
         }
 
         let vault_path = TextInput::new(
             &mut self.path_state,
             "Chose a Vault",
             &self.path,
-            Self::Message::PathInput,
+            VaultLoaderMessage::PathInput,
         )
         .padding(DEFAULT_TEXT_INPUT_PADDING);
 
-        let password = TextInput::new(
+        let mut password = TextInput::new(
             &mut self.password_state,
             "Password",
             &self.password,
-            Self::Message::PasswordInput,
+            VaultLoaderMessage::PasswordInput,
         )
-        .padding(DEFAULT_TEXT_INPUT_PADDING)
-        .password();
+        .padding(DEFAULT_TEXT_INPUT_PADDING);
+        if !self.show_password {
+            password = password.password();
+        }
 
-        let create = Button::new(
-            &mut self.create_state,
-            Text::new("Create new")
-                .horizontal_alignment(HorizontalAlignment::Center)
-                .width(Length::Fill),
+        let show_password = icon_button(
+            &mut self.show_password_state,
+            "I",
+            if self.show_password {
+                // TODO
+                "H"
+            } else {
+                "S"
+            },
         )
-        .on_press(Self::Message::Create)
-        .width(Length::Fill);
+        .width(Length::Shrink)
+        .on_press(VaultLoaderMessage::ShowPassword);
 
-        let mut unlock_vault = Button::new(
-            &mut self.confirm_state,
-            Text::new("Unlock Vault")
-                .horizontal_alignment(HorizontalAlignment::Center)
-                .width(Length::Fill),
-        )
-        .width(Length::Fill);
+        let create = icon_button(&mut self.create_state, "I", "Create new")
+            .on_press(VaultLoaderMessage::Create);
 
+        let mut unlock_vault = icon_button(&mut self.confirm_state, "I", "Unlock Vault");
         if !self.path.is_empty() && !self.password.is_empty() {
-            unlock_vault = unlock_vault.on_press(Self::Message::Confirm);
+            unlock_vault = unlock_vault.on_press(VaultLoaderMessage::Confirm);
         }
 
         centered_container_with_column(vec![
@@ -176,7 +195,11 @@ impl Component for VaultLoader {
                 .push(vault_path)
                 .push(path_fd_button)
                 .into(),
-            password.into(),
+            Row::new()
+                .spacing(DEFAULT_ROW_SPACING)
+                .push(password)
+                .push(show_password)
+                .into(),
             Row::new()
                 .spacing(DEFAULT_ROW_SPACING)
                 .push(create)
