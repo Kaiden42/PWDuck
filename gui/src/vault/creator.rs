@@ -79,7 +79,7 @@ impl VaultCreator {
     fn submit(&mut self) -> Command<VaultCreatorMessage> {
         Command::perform(
             {
-                let mut password = self.password.clone();
+                let password = self.password.clone();
                 self.password.zeroize();
                 self.password_confirm.zeroize();
 

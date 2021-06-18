@@ -8,7 +8,6 @@ use iced::{
 use iced_aw::{Card, TabBar, TabLabel};
 use lazy_static::__Deref;
 use pwduck_core::{PWDuckCoreError, PasswordInfo, SecString};
-use zeroize::Zeroize;
 
 use crate::{
     error::PWDuckGuiError,
@@ -59,11 +58,47 @@ pub struct PasswordGeneratorState {
     target: Target,
 }
 
+/// TODO
+#[derive(Clone, Debug)]
+pub enum PasswordGeneratorMessage {
+    /// TODO
+    PasswordInput(String),
+    /// TODO
+    PasswordShow,
+    /// TODO
+    PasswordCopy,
+    /// TODO
+    PasswordReroll,
+
+    /// TODO
+    PasswordScore(Result<pwduck_core::PasswordInfo, pwduck_core::PWDuckCoreError>),
+
+    /// TODO
+    TabSelected(usize),
+    /// TODO
+    PasswordTabMessage(PasswordTabMessage),
+    /// TODO
+    PassphraseTabMessage(PassphraseTabMessage),
+
+    /// TODO
+    Cancel,
+    /// TODO
+    Submit,
+}
+
 impl PasswordGeneratorState {
     /// TODO
-    fn estimate_password_strength(&mut self) -> Command<PasswordGeneratorMessage> {
+    pub fn new() -> Self {
+        Self {
+            password_tab_state: PasswordTabState::new(),
+            ..Self::default()
+        }
+    }
+
+    /// TODO
+    fn estimate_password_strength(&self) -> Command<PasswordGeneratorMessage> {
         Command::perform(
-            estimate_password_strength(self.password.clone().into()),
+            estimate_password_strength(self.password.clone()),
             PasswordGeneratorMessage::PasswordScore,
         )
     }
@@ -81,10 +116,7 @@ impl PasswordGeneratorState {
     }
 
     /// TODO
-    fn copy_password(
-        &mut self,
-        clipboard: &mut iced::Clipboard,
-    ) -> Command<PasswordGeneratorMessage> {
+    fn copy_password(&self, clipboard: &mut iced::Clipboard) -> Command<PasswordGeneratorMessage> {
         clipboard.write(self.password.deref().clone());
         Command::none()
     }
@@ -134,44 +166,6 @@ impl PasswordGeneratorState {
         self.generate_and_update_password();
 
         Ok(self.estimate_password_strength())
-    }
-}
-
-/// TODO
-#[derive(Clone, Debug)]
-pub enum PasswordGeneratorMessage {
-    /// TODO
-    PasswordInput(String),
-    /// TODO
-    PasswordShow,
-    /// TODO
-    PasswordCopy,
-    /// TODO
-    PasswordReroll,
-
-    /// TODO
-    PasswordScore(Result<pwduck_core::PasswordInfo, pwduck_core::PWDuckCoreError>),
-
-    /// TODO
-    TabSelected(usize),
-    /// TODO
-    PasswordTabMessage(PasswordTabMessage),
-    /// TODO
-    PassphraseTabMessage(PassphraseTabMessage),
-
-    /// TODO
-    Cancel,
-    /// TODO
-    Submit,
-}
-
-impl PasswordGeneratorState {
-    /// TODO
-    pub fn new() -> Self {
-        Self {
-            password_tab_state: PasswordTabState::new(),
-            ..Self::default()
-        }
     }
 
     /// TODO
@@ -300,7 +294,8 @@ impl PasswordGeneratorState {
         self.password = match self.active_tab {
             0 => self.password_tab_state.generate(),
             _ => self.passphrase_tab_state.generate(),
-        }.into()
+        }
+        .into()
     }
 }
 

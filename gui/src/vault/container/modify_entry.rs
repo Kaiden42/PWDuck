@@ -104,7 +104,7 @@ impl ModifyEntryView {
     }
 
     /// TODO
-    fn copy_username(&mut self, clipboard: &mut iced::Clipboard) -> Command<ModifyEntryMessage> {
+    fn copy_username(&self, clipboard: &mut iced::Clipboard) -> Command<ModifyEntryMessage> {
         clipboard.write(self.entry_body().username().clone());
         Command::none()
     }
@@ -122,7 +122,7 @@ impl ModifyEntryView {
     }
 
     /// TODO
-    fn copy_password(&mut self, clipboard: &mut iced::Clipboard) -> Command<ModifyEntryMessage> {
+    fn copy_password(&self, clipboard: &mut iced::Clipboard) -> Command<ModifyEntryMessage> {
         clipboard.write(self.entry_body().password().clone());
         Command::none()
     }

@@ -1,6 +1,9 @@
 //! TODO
 
-use std::{fmt::Debug, ops::{Deref, DerefMut}};
+use std::{
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
 use zeroize::Zeroize;
 

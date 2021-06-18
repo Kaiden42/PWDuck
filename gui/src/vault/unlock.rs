@@ -41,7 +41,7 @@ impl VaultUnlocker {
     fn submit(&mut self) -> Command<VaultUnlockerMessage> {
         Command::perform(
             {
-                let mut password = self.password.clone();
+                let password = self.password.clone();
                 self.password.zeroize();
                 let path = self.path.clone();
                 async move {

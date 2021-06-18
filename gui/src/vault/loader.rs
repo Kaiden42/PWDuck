@@ -61,7 +61,7 @@ impl VaultLoader {
     fn confirm(&mut self) -> Command<VaultLoaderMessage> {
         Command::perform(
             {
-                let mut password = self.password.clone();
+                let password = self.password.clone();
                 self.password.zeroize();
 
                 let path = PathBuf::from(self.path.clone());

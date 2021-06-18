@@ -56,7 +56,7 @@ use error::{NfdError, PWDuckGuiError};
 pub mod vault;
 use iced_aw::{modal, Card, Modal};
 use lazy_static::lazy_static;
-use pwduck_core::{MemKey, SecString};
+use pwduck_core::MemKey;
 use vault::{
     container::ModifyEntryMessage,
     tab::VaultTabMessage,
@@ -159,7 +159,7 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         // TODO: clean up
         Command::perform(
             crate::pw_modal::estimate_password_strength(
-                self.password_generator_state.inner().password().to_owned()
+                self.password_generator_state.inner().password().clone(),
             ),
             PasswordGeneratorMessage::PasswordScore,
         )
@@ -181,9 +181,11 @@ impl<P: Platform + 'static> PWDuckGui<P> {
             Target::Creator => {
                 VaultTabMessage::Creator(VaultCreatorMessage::PasswordInput(password.into()))
             }
-            Target::EntryModifier => VaultTabMessage::Container(
-                VaultContainerMessage::ModifyEntry(ModifyEntryMessage::PasswordInput(password.into())),
-            ),
+            Target::EntryModifier => {
+                VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
+                    ModifyEntryMessage::PasswordInput(password.into()),
+                ))
+            }
             Target::None => return PWDuckGuiError::Unreachable("Message".into()).into(),
         };
         Ok(Command::perform(

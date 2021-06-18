@@ -91,7 +91,7 @@ impl VaultContainer {
     }
 
     /// TODO
-    fn copy_username(&mut self, clipboard: &mut iced::Clipboard) -> Command<ToolBarMessage> {
+    fn copy_username(&self, clipboard: &mut iced::Clipboard) -> Command<ToolBarMessage> {
         if let Some(modify_entry_view) = self.modify_entry_view.as_ref() {
             clipboard.write(modify_entry_view.entry_body().username().clone());
         }
@@ -100,7 +100,7 @@ impl VaultContainer {
     }
 
     /// TODO
-    fn copy_password(&mut self, clipboard: &mut iced::Clipboard) -> Command<ToolBarMessage> {
+    fn copy_password(&self, clipboard: &mut iced::Clipboard) -> Command<ToolBarMessage> {
         if let Some(modify_entry_view) = self.modify_entry_view.as_ref() {
             clipboard.write(modify_entry_view.entry_body().password().clone());
         }
