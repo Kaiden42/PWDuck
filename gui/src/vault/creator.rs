@@ -42,6 +42,72 @@ pub struct VaultCreator {
     submit_state: button::State,
 }
 
+impl VaultCreator {
+    /// TODO
+    fn update_name(&mut self, name: String) -> Command<VaultCreatorMessage> {
+        self.name = name;
+        Command::none()
+    }
+
+    /// TODO
+    fn update_path(&mut self, path: String) -> Command<VaultCreatorMessage> {
+        self.path = path;
+        Command::none()
+    }
+
+    /// TODO
+    fn update_password(&mut self, password: String) -> Command<VaultCreatorMessage> {
+        self.password.zeroize();
+        self.password = password;
+        self.check_password_equality();
+        Command::none()
+    }
+
+    /// TODO
+    fn update_password_confirm(&mut self, password: String) -> Command<VaultCreatorMessage> {
+        self.password_confirm.zeroize();
+        self.password_confirm = password;
+        self.check_password_equality();
+        Command::none()
+    }
+
+    /// TODO
+    fn check_password_equality(&mut self) {
+        self.password_equal = !self.password.is_empty() && self.password == self.password_confirm;
+    }
+
+    /// TODO
+    fn submit(&mut self) -> Command<VaultCreatorMessage> {
+        Command::perform(
+            {
+                let mut password = self.password.clone();
+                self.password.zeroize();
+                self.password_confirm.zeroize();
+
+                //let path = self.path.clone();
+                let path: PathBuf = self.path.clone().into();
+                let path = path.join(self.name.clone());
+                async move {
+                    //let mem_key = crate::MEM_KEY.lock().await;
+                    let mem_key = crate::MEM_KEY.lock().unwrap();
+                    let mut vault = pwduck_core::Vault::generate(&password, &mem_key, path)?;
+                    password.zeroize();
+
+                    vault.save(&mem_key)?;
+
+                    Ok(vault.path().clone())
+                }
+            },
+            VaultCreatorMessage::VaultCreated,
+        )
+    }
+
+    /// TODO
+    fn open_file_dialog<P: Platform + 'static>() -> Command<VaultCreatorMessage> {
+        Command::perform(P::nfd_choose_folder(), VaultCreatorMessage::PathSelected)
+    }
+}
+
 /// TODO
 #[derive(Clone, Debug)]
 pub enum VaultCreatorMessage {
@@ -79,61 +145,24 @@ impl Component for VaultCreator {
         _clipboard: &mut iced::Clipboard,
     ) -> Result<Command<Self::Message>, PWDuckGuiError> {
         let cmd = match message {
-            VaultCreatorMessage::NameInput(input) => {
-                self.name = input;
-                Command::none()
-            }
-            VaultCreatorMessage::PathInput(input) => {
-                self.path = input;
-                Command::none()
-            }
-            VaultCreatorMessage::PathOpenFD => {
-                Command::perform(P::nfd_choose_folder(), VaultCreatorMessage::PathSelected)
-            }
+            VaultCreatorMessage::NameInput(input) => self.update_name(input),
+
+            VaultCreatorMessage::PathInput(input) => self.update_path(input),
+
+            VaultCreatorMessage::PathOpenFD => Self::open_file_dialog::<P>(),
+
             VaultCreatorMessage::PathSelected(Ok(path)) => {
-                self.path = path.to_str().ok_or(PWDuckGuiError::Option)?.to_owned();
-                Command::none()
+                self.update_path(path.to_str().ok_or(PWDuckGuiError::Option)?.to_owned())
             }
+
             VaultCreatorMessage::PathSelected(Err(_err)) => Command::none(),
-            VaultCreatorMessage::PasswordInput(input) => {
-                self.password.zeroize();
-                self.password = input;
-                self.password_equal =
-                    !self.password.is_empty() && self.password == self.password_confirm;
-                Command::none()
-            }
-            VaultCreatorMessage::PasswordConfirmInput(input) => {
-                self.password_confirm.zeroize();
-                self.password_confirm = input;
-                self.password_equal =
-                    !self.password_confirm.is_empty() && self.password == self.password_confirm;
-                Command::none()
-            }
-            VaultCreatorMessage::Submit => {
-                Command::perform(
-                    {
-                        let mut password = self.password.clone();
-                        self.password.zeroize();
-                        self.password_confirm.zeroize();
 
-                        //let path = self.path.clone();
-                        let path: PathBuf = self.path.clone().into();
-                        let path = path.join(self.name.clone());
-                        async move {
-                            //let mem_key = crate::MEM_KEY.lock().await;
-                            let mem_key = crate::MEM_KEY.lock().unwrap();
-                            let mut vault =
-                                pwduck_core::Vault::generate(&password, &mem_key, path)?;
-                            password.zeroize();
+            VaultCreatorMessage::PasswordInput(input) => self.update_password(input),
 
-                            vault.save(&mem_key)?;
+            VaultCreatorMessage::PasswordConfirmInput(input) => self.update_password_confirm(input),
 
-                            Ok(vault.path().clone())
-                        }
-                    },
-                    VaultCreatorMessage::VaultCreated,
-                )
-            }
+            VaultCreatorMessage::Submit => self.submit(),
+
             VaultCreatorMessage::Cancel | VaultCreatorMessage::VaultCreated(_) => {
                 return PWDuckGuiError::Unreachable("VaultCreatorMessage".into()).into()
             }

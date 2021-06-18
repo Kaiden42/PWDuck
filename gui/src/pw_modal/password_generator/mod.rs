@@ -6,6 +6,7 @@ use iced::{
     TextInput,
 };
 use iced_aw::{Card, TabBar, TabLabel};
+use pwduck_core::{PWDuckCoreError, PasswordInfo};
 use zeroize::Zeroize;
 
 use crate::{
@@ -57,6 +58,86 @@ pub struct PasswordGeneratorState {
     target: Target,
 }
 
+impl PasswordGeneratorState {
+    /// TODO
+    fn estimate_password_strength(&mut self) -> Command<PasswordGeneratorMessage> {
+        Command::perform(
+            estimate_password_strength(self.password.clone().into()),
+            PasswordGeneratorMessage::PasswordScore,
+        )
+    }
+
+    /// TODO
+    fn update_password(&mut self, password: String) -> Command<PasswordGeneratorMessage> {
+        self.password.zeroize();
+        self.password = password;
+
+        self.estimate_password_strength()
+    }
+
+    /// TODO
+    fn toogle_password_visibility(&mut self) -> Command<PasswordGeneratorMessage> {
+        self.password_show = !self.password_show;
+        Command::none()
+    }
+
+    /// TODO
+    fn copy_password(
+        &mut self,
+        clipboard: &mut iced::Clipboard,
+    ) -> Command<PasswordGeneratorMessage> {
+        clipboard.write(self.password.clone());
+        Command::none()
+    }
+
+    /// TODO
+    fn reroll_password(&mut self) -> Command<PasswordGeneratorMessage> {
+        self.generate_and_update_password();
+        Command::none()
+    }
+
+    /// TODO
+    fn set_password_score(
+        &mut self,
+        score: Result<PasswordInfo, PWDuckCoreError>,
+    ) -> Command<PasswordGeneratorMessage> {
+        self.password_score = Some(PasswordScore::new(score));
+        Command::none()
+    }
+
+    /// TODO
+    fn select_tab(&mut self, index: usize) -> Command<PasswordGeneratorMessage> {
+        self.active_tab = index;
+        self.reroll_password()
+    }
+
+    /// TODO
+    fn update_password_tab(
+        &mut self,
+        message: &PasswordTabMessage,
+    ) -> Result<Command<PasswordGeneratorMessage>, PWDuckGuiError> {
+        self.password_tab_state
+            .update(message)
+            .map(|cmd| cmd.map(PasswordGeneratorMessage::PasswordTabMessage))?;
+        self.generate_and_update_password();
+
+        Ok(self.estimate_password_strength())
+    }
+
+    /// TODO
+    fn update_passphrase_tab(
+        &mut self,
+        message: &PassphraseTabMessage,
+    ) -> Result<Command<PasswordGeneratorMessage>, PWDuckGuiError> {
+        self.passphrase_tab_state
+            .update(message)
+            .map(|cmd| cmd.map(PasswordGeneratorMessage::PassphraseTabMessage))?;
+        self.generate_and_update_password();
+
+        Ok(self.estimate_password_strength())
+    }
+}
+
 /// TODO
 #[derive(Clone, Debug)]
 pub enum PasswordGeneratorMessage {
@@ -101,65 +182,18 @@ impl PasswordGeneratorState {
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<PasswordGeneratorMessage>, PWDuckGuiError> {
         match message {
-            PasswordGeneratorMessage::PasswordInput(input) => {
-                self.password.zeroize();
-                self.password = input;
-                //Ok(Command::none())
-
-                Ok(Command::perform(
-                    estimate_password_strength(self.password.clone().into()),
-                    PasswordGeneratorMessage::PasswordScore,
-                ))
-            }
-            PasswordGeneratorMessage::PasswordShow => {
-                self.password_show = !self.password_show;
-                Ok(Command::none())
-            }
-            PasswordGeneratorMessage::PasswordCopy => {
-                clipboard.write(self.password.clone());
-                Ok(Command::none())
-            }
-            PasswordGeneratorMessage::PasswordReroll => {
-                self.generate_and_update_password();
-                Ok(Command::none())
-            }
-
-            PasswordGeneratorMessage::PasswordScore(score) => {
-                self.password_score = Some(PasswordScore::new(score));
-                Ok(Command::none())
-            }
-
-            PasswordGeneratorMessage::TabSelected(index) => {
-                self.active_tab = index;
-                self.generate_and_update_password();
-                Ok(Command::none())
-            }
-
+            PasswordGeneratorMessage::PasswordInput(password) => Ok(self.update_password(password)),
+            PasswordGeneratorMessage::PasswordShow => Ok(self.toogle_password_visibility()),
+            PasswordGeneratorMessage::PasswordCopy => Ok(self.copy_password(clipboard)),
+            PasswordGeneratorMessage::PasswordReroll => Ok(self.reroll_password()),
+            PasswordGeneratorMessage::PasswordScore(score) => Ok(self.set_password_score(score)),
+            PasswordGeneratorMessage::TabSelected(index) => Ok(self.select_tab(index)),
             PasswordGeneratorMessage::PasswordTabMessage(message) => {
-                let cmd = self
-                    .password_tab_state
-                    .update(&message)
-                    .map(|cmd| cmd.map(PasswordGeneratorMessage::PasswordTabMessage));
-                self.generate_and_update_password();
-                cmd?;
-                Ok(Command::perform(
-                    estimate_password_strength(self.password.clone().into()),
-                    PasswordGeneratorMessage::PasswordScore,
-                ))
+                self.update_password_tab(&message)
             }
             PasswordGeneratorMessage::PassphraseTabMessage(message) => {
-                let cmd = self
-                    .passphrase_tab_state
-                    .update(&message)
-                    .map(|cmd| cmd.map(PasswordGeneratorMessage::PassphraseTabMessage));
-                self.generate_and_update_password();
-                cmd?;
-                Ok(Command::perform(
-                    estimate_password_strength(self.password.clone().into()),
-                    PasswordGeneratorMessage::PasswordScore,
-                ))
+                self.update_passphrase_tab(&message)
             }
-
             PasswordGeneratorMessage::Cancel | PasswordGeneratorMessage::Submit => {
                 PWDuckGuiError::Unreachable("PasswordGeneratorMessage".into()).into()
             }

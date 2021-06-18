@@ -30,6 +30,35 @@ pub struct VaultUnlocker {
     submit_state: button::State,
 }
 
+impl VaultUnlocker {
+    /// TODO
+    fn update_password(&mut self, password: String) -> Command<VaultUnlockerMessage> {
+        self.password.zeroize();
+        self.password = password;
+        Command::none()
+    }
+
+    /// TODO
+    fn submit(&mut self) -> Command<VaultUnlockerMessage> {
+        Command::perform(
+            {
+                let mut password = self.password.clone();
+                self.password.zeroize();
+                let path = self.path.clone();
+                async move {
+                    let mem_key = crate::MEM_KEY.lock()?;
+                    let vault = pwduck_core::Vault::load(&password, &mem_key, path);
+
+                    password.zeroize();
+
+                    vault.map(Box::new)
+                }
+            },
+            VaultUnlockerMessage::Unlocked,
+        )
+    }
+}
+
 /// TODO
 #[derive(Clone, Debug)]
 pub enum VaultUnlockerMessage {
@@ -60,37 +89,13 @@ impl Component for VaultUnlocker {
         message: Self::Message,
         _clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Self::Message>, PWDuckGuiError> {
-        let cmd = match message {
-            VaultUnlockerMessage::PasswordInput(input) => {
-                self.password.zeroize();
-                self.password = input;
-                Command::none()
-            }
-            VaultUnlockerMessage::Submit => Command::perform(
-                {
-                    let mut password = self.password.clone();
-                    self.password.zeroize();
-
-                    let path = self.path.clone();
-                    // TODO: remove duplicate
-                    async move {
-                        //let mem_key = crate::MEM_KEY.lock().await;
-                        let mem_key = crate::MEM_KEY.lock().unwrap();
-                        let vault = pwduck_core::Vault::load(&password, &mem_key, path);
-
-                        password.zeroize();
-
-                        //Box::new(vault)
-                        vault.map(Box::new)
-                    }
-                },
-                VaultUnlockerMessage::Unlocked,
-            ),
+        match message {
+            VaultUnlockerMessage::PasswordInput(password) => Ok(self.update_password(password)),
+            VaultUnlockerMessage::Submit => Ok(self.submit()),
             VaultUnlockerMessage::Close | VaultUnlockerMessage::Unlocked(_) => {
-                return PWDuckGuiError::Unreachable("VaultUnlockerMessage".into()).into()
+                PWDuckGuiError::Unreachable("VaultUnlockerMessage".into()).into()
             }
-        };
-        Ok(cmd)
+        }
     }
 
     fn view<P: crate::Platform + 'static>(&mut self) -> iced::Element<'_, Self::Message> {

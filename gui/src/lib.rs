@@ -138,6 +138,114 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         })?;
         Ok(())
     }
+
+    /// TODO
+    fn password_generator_show(&mut self, message: &Message) -> iced::Command<Message> {
+        self.password_generator_state
+            .inner_mut()
+            .generate_and_update_password();
+        self.password_generator_state.show(true);
+
+        self.password_generator_state
+            .inner_mut()
+            .set_target(match message {
+                Message::VaultTab(VaultTabMessage::Container(
+                    VaultContainerMessage::ModifyEntry(_),
+                )) => Target::EntryModifier,
+                Message::VaultTab(VaultTabMessage::Creator(_)) => todo!(),
+                _ => Target::None,
+            });
+
+        // TODO: clean up
+        Command::perform(
+            crate::pw_modal::estimate_password_strength(
+                self.password_generator_state
+                    .inner()
+                    .password()
+                    .clone()
+                    .into(),
+            ),
+            PasswordGeneratorMessage::PasswordScore,
+        )
+        .map(Message::PasswordGenerator)
+    }
+
+    /// TODO
+    fn password_generator_cancel(&mut self) -> iced::Command<Message> {
+        self.password_generator_state.show(false);
+        Command::none()
+    }
+
+    /// TODO
+    fn password_generator_submit(&mut self) -> Result<iced::Command<Message>, PWDuckGuiError> {
+        self.password_generator_state.show(false);
+        // TODO: clean up
+        let password = self.password_generator_state.inner().password().clone();
+        let message = match self.password_generator_state.inner().target() {
+            Target::Creator => {
+                VaultTabMessage::Creator(VaultCreatorMessage::PasswordInput(password))
+            }
+            Target::EntryModifier => VaultTabMessage::Container(
+                VaultContainerMessage::ModifyEntry(ModifyEntryMessage::PasswordInput(password)),
+            ),
+            Target::None => return PWDuckGuiError::Unreachable("Message".into()).into(),
+        };
+        Ok(Command::perform(
+            async { Message::VaultTab(message) },
+            |m| m,
+        ))
+    }
+
+    /// TODO
+    fn update_password_generator(
+        &mut self,
+        message: PasswordGeneratorMessage,
+        clipboard: &mut iced::Clipboard,
+    ) -> Result<iced::Command<Message>, PWDuckGuiError> {
+        self.password_generator_state
+            .inner_mut()
+            .update(message, clipboard)
+            .map(|cmd| cmd.map(Message::PasswordGenerator))
+    }
+
+    /// TODO
+    fn close_error_dialog(&mut self) -> iced::Command<Message> {
+        self.error_dialog_state.inner_mut().error.clear();
+        self.error_dialog_state.show(false);
+        Command::none()
+    }
+
+    /// TODO
+    fn catch_iced_event<Message>(&mut self, event: iced_native::Event) -> iced::Command<Message> {
+        match event {
+            iced_native::Event::Window(event) => match event {
+                iced_native::window::Event::Resized { width, height } => {
+                    self.windo_size = WindowSize { width, height };
+                    Command::none()
+                }
+                iced_native::window::Event::CloseRequested => {
+                    if !self.tabs.iter().any(VaultTab::contains_unsaved_changes) {
+                        // TODO: add nice error dialog
+                        self.can_exit = true;
+                    }
+                    Command::none()
+                }
+                _ => Command::none(),
+            },
+            _ => Command::none(),
+        }
+    }
+
+    /// TODO
+    fn update_vault_tab(
+        &mut self,
+        message: VaultTabMessage,
+        clipboard: &mut iced::Clipboard,
+    ) -> Result<iced::Command<Message>, PWDuckGuiError> {
+        self.tabs[0]
+            .update::<P>(message, clipboard)
+            .map(|c| c.map(Message::VaultTab))
+    }
 }
 
 /// TODO
@@ -184,92 +292,25 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         let cmd = match message {
             Message::VaultTab(VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
                 ModifyEntryMessage::PasswordGenerate,
-            ))) => {
-                self.password_generator_state
-                    .inner_mut()
-                    .generate_and_update_password();
-                self.password_generator_state.show(true);
+            ))) => Ok(self.password_generator_show(&message)),
 
-                self.password_generator_state
-                    .inner_mut()
-                    .set_target(match message {
-                        Message::VaultTab(VaultTabMessage::Container(
-                            VaultContainerMessage::ModifyEntry(_),
-                        )) => Target::EntryModifier,
-                        Message::VaultTab(VaultTabMessage::Creator(_)) => todo!(),
-                        _ => Target::None,
-                    });
+            Message::ErrorDialogClose => Ok(self.close_error_dialog()),
 
-                // TODO: clean up
-                Ok(Command::perform(
-                    crate::pw_modal::estimate_password_strength(
-                        self.password_generator_state
-                            .inner()
-                            .password()
-                            .clone()
-                            .into(),
-                    ),
-                    PasswordGeneratorMessage::PasswordScore,
-                )
-                .map(Message::PasswordGenerator))
-            }
-
-            Message::ErrorDialogClose => {
-                self.error_dialog_state.inner_mut().error.clear();
-                self.error_dialog_state.show(false);
-                Ok(Command::none())
-            }
             Message::PasswordGenerator(PasswordGeneratorMessage::Cancel) => {
-                self.password_generator_state.show(false);
-                Ok(Command::none())
+                Ok(self.password_generator_cancel())
             }
+
             Message::PasswordGenerator(PasswordGeneratorMessage::Submit) => {
-                self.password_generator_state.show(false);
-                // TODO: clean up
-                let password = self.password_generator_state.inner().password().clone();
-                let message = match self.password_generator_state.inner().target() {
-                    Target::Creator => {
-                        VaultTabMessage::Creator(VaultCreatorMessage::PasswordInput(password))
-                    }
-                    Target::EntryModifier => {
-                        VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
-                            ModifyEntryMessage::PasswordInput(password),
-                        ))
-                    }
-                    Target::None => unreachable!(),
-                };
-                Ok(Command::perform(
-                    async { Message::VaultTab(message) },
-                    |m| m,
-                ))
+                self.password_generator_submit()
             }
-            Message::PasswordGenerator(msg) => self
-                .password_generator_state
-                .inner_mut()
-                .update(msg, clipboard)
-                .map(|cmd| cmd.map(Message::PasswordGenerator)),
 
-            Message::IcedEvent(event) => match event {
-                iced_native::Event::Window(event) => match event {
-                    iced_native::window::Event::Resized { width, height } => {
-                        self.windo_size = WindowSize { width, height };
-                        Ok(Command::none())
-                    }
-                    iced_native::window::Event::CloseRequested => {
-                        if !self.tabs.iter().any(VaultTab::contains_unsaved_changes) {
-                            // TODO: add nice error dialog
-                            self.can_exit = true;
-                        }
-                        Ok(Command::none())
-                    }
-                    _ => Ok(Command::none()),
-                },
-                _ => Ok(Command::none()),
-            },
+            Message::PasswordGenerator(message) => {
+                self.update_password_generator(message, clipboard)
+            }
 
-            Message::VaultTab(msg) => self.tabs[0]
-                .update::<P>(msg, clipboard)
-                .map(|c| c.map(Message::VaultTab)),
+            Message::IcedEvent(event) => Ok(self.catch_iced_event(event)),
+
+            Message::VaultTab(message) => self.update_vault_tab(message, clipboard),
         };
 
         match cmd {

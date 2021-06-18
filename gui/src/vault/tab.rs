@@ -1,6 +1,9 @@
 //! TODO
 
+use std::path::PathBuf;
+
 use iced::Command;
+use pwduck_core::Vault;
 
 use crate::{error::PWDuckGuiError, vault::container::ToolBarMessage, Component, Platform};
 
@@ -26,6 +29,53 @@ impl VaultTab {
         match &self.state {
             VaultTabState::Open(container) => container.vault().contains_unsaved_changes(),
             _ => false,
+        }
+    }
+
+    /// TODO
+    fn change_to_create_state(&mut self) -> Command<VaultTabMessage> {
+        self.state = VaultTabState::Create(Box::new(VaultCreator::new(())));
+        Command::none()
+    }
+
+    /// TODO
+    fn change_to_empty_state(&mut self) -> Command<VaultTabMessage> {
+        self.state = VaultTabState::Empty(VaultLoader::new(()));
+        Command::none()
+    }
+
+    /// TODO
+    fn change_to_unlock_state(&mut self, vault: PathBuf) -> Command<VaultTabMessage> {
+        self.state = VaultTabState::Unlock(VaultUnlocker::new(vault));
+        Command::none()
+    }
+
+    /// TODO
+    fn change_to_open_state(&mut self, vault: Box<Vault>) -> Command<VaultTabMessage> {
+        self.state = VaultTabState::Open(VaultContainer::new(vault));
+        Command::none()
+    }
+
+    /// TODO
+    fn update_state<P: Platform + 'static>(
+        &mut self,
+        message: VaultTabMessage,
+        clipboard: &mut iced::Clipboard,
+    ) -> Result<Command<VaultTabMessage>, PWDuckGuiError> {
+        match (message, &mut self.state) {
+            (VaultTabMessage::Loader(msg), VaultTabState::Empty(loader)) => Ok(loader
+                .update::<P>(msg, clipboard)?
+                .map(VaultTabMessage::Loader)),
+            (VaultTabMessage::Creator(msg), VaultTabState::Create(creator)) => Ok(creator
+                .update::<P>(msg, clipboard)?
+                .map(VaultTabMessage::Creator)),
+            (VaultTabMessage::Unlocker(msg), VaultTabState::Unlock(unlocker)) => Ok(unlocker
+                .update::<P>(msg, clipboard)?
+                .map(VaultTabMessage::Unlocker)),
+            (VaultTabMessage::Container(msg), VaultTabState::Open(container)) => Ok(container
+                .update::<P>(msg, clipboard)?
+                .map(VaultTabMessage::Container)),
+            _ => PWDuckGuiError::Unreachable("VaultTabMessage".into()).into(),
         }
     }
 }
@@ -72,53 +122,39 @@ impl Component for VaultTab {
         message: Self::Message,
         clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Self::Message>, PWDuckGuiError> {
-        let msg = match (message, &mut self.state) {
+        match (message.clone(), &mut self.state) {
             // Handling Messages of sub elements.
             (VaultTabMessage::Loader(VaultLoaderMessage::Create), _) => {
-                self.state = VaultTabState::Create(Box::new(VaultCreator::new(())));
-                Command::none()
+                Ok(self.change_to_create_state())
             }
+
             (VaultTabMessage::Creator(VaultCreatorMessage::Cancel), _)
             | (VaultTabMessage::Unlocker(VaultUnlockerMessage::Close), _) => {
-                self.state = VaultTabState::Empty(VaultLoader::new(()));
-                Command::none()
+                Ok(self.change_to_empty_state())
             }
+
             (VaultTabMessage::Creator(VaultCreatorMessage::VaultCreated(vault)), _) => {
-                self.state = VaultTabState::Unlock(VaultUnlocker::new(vault?));
-                Command::none()
+                Ok(self.change_to_unlock_state(vault?))
             }
+
             (VaultTabMessage::Unlocker(VaultUnlockerMessage::Unlocked(vault)), _)
             | (VaultTabMessage::Loader(VaultLoaderMessage::Loaded(vault)), _) => {
-                self.state = VaultTabState::Open(VaultContainer::new(vault?));
-                Command::none()
+                Ok(self.change_to_open_state(vault?))
             }
+
             (
                 VaultTabMessage::Container(VaultContainerMessage::ToolBar(
                     ToolBarMessage::LockVault,
                 )),
                 VaultTabState::Open(container),
             ) => {
-                self.state =
-                    VaultTabState::Unlock(VaultUnlocker::new(container.vault().path().clone()));
-                Command::none()
+                let path = container.vault().path().clone();
+                Ok(self.change_to_unlock_state(path))
             }
 
             // Passing every other message to sub elements
-            (VaultTabMessage::Loader(msg), VaultTabState::Empty(loader)) => loader
-                .update::<P>(msg, clipboard)?
-                .map(VaultTabMessage::Loader),
-            (VaultTabMessage::Creator(msg), VaultTabState::Create(creator)) => creator
-                .update::<P>(msg, clipboard)?
-                .map(VaultTabMessage::Creator),
-            (VaultTabMessage::Unlocker(msg), VaultTabState::Unlock(unlocker)) => unlocker
-                .update::<P>(msg, clipboard)?
-                .map(VaultTabMessage::Unlocker),
-            (VaultTabMessage::Container(msg), VaultTabState::Open(container)) => container
-                .update::<P>(msg, clipboard)?
-                .map(VaultTabMessage::Container),
-            _ => return PWDuckGuiError::Unreachable("VaultTabMessage".into()).into(),
-        };
-        Ok(msg)
+            _ => self.update_state::<P>(message, clipboard),
+        }
     }
 
     fn view<P: Platform + 'static>(

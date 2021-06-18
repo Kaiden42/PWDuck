@@ -1,10 +1,11 @@
 //! TODO
 
 use getset::{Getters, MutGetters, Setters};
-use iced::{button, text_input, Element, Length, Row, Text};
+use iced::{button, text_input, Command, Element, Length, Row, Text};
 use pwduck_core::{EntryBody, EntryHead};
 
 use crate::{
+    error::PWDuckGuiError,
     utils::{
         centered_container_with_column, default_text_input, default_vertical_space, icon_button,
     },
@@ -87,6 +88,63 @@ impl ModifyEntryView {
 
             cancel_state: button::State::new(),
             submit_state: button::State::new(),
+        }
+    }
+
+    /// TODO
+    fn update_title(&mut self, title: String) -> Command<ModifyEntryMessage> {
+        self.entry_head_mut().set_title(title);
+        Command::none()
+    }
+
+    /// TODO
+    fn update_username(&mut self, username: String) -> Command<ModifyEntryMessage> {
+        self.entry_body_mut().set_username(username);
+        Command::none()
+    }
+
+    /// TODO
+    fn copy_username(&mut self, clipboard: &mut iced::Clipboard) -> Command<ModifyEntryMessage> {
+        clipboard.write(self.entry_body().username().clone());
+        Command::none()
+    }
+
+    /// TODO
+    fn update_password(&mut self, password: String) -> Command<ModifyEntryMessage> {
+        self.entry_body_mut().set_password(password);
+        Command::none()
+    }
+
+    /// TODO
+    fn toggle_password_visibility(&mut self) -> Command<ModifyEntryMessage> {
+        self.password_show = !self.password_show;
+        Command::none()
+    }
+
+    /// TODO
+    fn copy_password(&mut self, clipboard: &mut iced::Clipboard) -> Command<ModifyEntryMessage> {
+        clipboard.write(self.entry_body().password().clone());
+        Command::none()
+    }
+
+    /// TODO
+    pub fn update(
+        &mut self,
+        message: ModifyEntryMessage,
+        clipboard: &mut iced::Clipboard,
+    ) -> Result<Command<ModifyEntryMessage>, PWDuckGuiError> {
+        match message {
+            ModifyEntryMessage::TitleInput(title) => Ok(self.update_title(title)),
+            ModifyEntryMessage::UsernameInput(username) => Ok(self.update_username(username)),
+            ModifyEntryMessage::UsernameCopy => Ok(self.copy_username(clipboard)),
+            ModifyEntryMessage::PasswordInput(password) => Ok(self.update_password(password)),
+            ModifyEntryMessage::PasswordShow => Ok(self.toggle_password_visibility()),
+            ModifyEntryMessage::PasswordCopy => Ok(self.copy_password(clipboard)),
+            ModifyEntryMessage::PasswordGenerate
+            | ModifyEntryMessage::Cancel
+            | ModifyEntryMessage::Submit => {
+                PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into()
+            }
         }
     }
 

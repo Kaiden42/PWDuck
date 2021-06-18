@@ -1,10 +1,11 @@
 //! TODO
 use getset::{Getters, MutGetters, Setters};
 
-use iced::{button, text_input, Element, Row, Text};
+use iced::{button, text_input, Command, Element, Row, Text};
 use pwduck_core::{Group, Vault};
 
 use crate::{
+    error::PWDuckGuiError,
     utils::{
         centered_container_with_column, default_text_input, default_vertical_space, icon_button,
     },
@@ -48,6 +49,21 @@ impl ModifyGroupView {
 
             cancel_state: button::State::new(),
             submit_state: button::State::new(),
+        }
+    }
+
+    /// TODO
+    pub fn update(
+        &mut self,
+        message: ModifyGroupMessage,
+        _clipboard: &mut iced::Clipboard,
+    ) -> Result<Command<ModifyGroupMessage>, PWDuckGuiError> {
+        match message {
+            ModifyGroupMessage::GroupNameInput(password) => {
+                self.group_mut().set_title(password);
+                Ok(Command::none())
+            }
+            _ => PWDuckGuiError::Unreachable("ModifyGroupMessage".into()).into(),
         }
     }
 

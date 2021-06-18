@@ -38,6 +38,56 @@ pub struct VaultLoader {
     path_open_fd_state: button::State,
 }
 
+impl VaultLoader {
+    /// TODO
+    fn update_path(&mut self, path: String) -> Command<VaultLoaderMessage> {
+        self.path = path;
+        Command::none()
+    }
+
+    /// TODO
+    fn update_password(&mut self, password: String) -> Command<VaultLoaderMessage> {
+        self.password.zeroize();
+        self.password = password;
+        Command::none()
+    }
+
+    /// TODO
+    fn toggle_password_visibility(&mut self) -> Command<VaultLoaderMessage> {
+        self.show_password = !self.show_password;
+        Command::none()
+    }
+
+    /// TODO
+    fn confirm(&mut self) -> Command<VaultLoaderMessage> {
+        Command::perform(
+            {
+                let mut password = self.password.clone();
+                self.password.zeroize();
+
+                let path = PathBuf::from(self.path.clone());
+                // TODO: remove duplicate
+                async move {
+                    //let mem_key = crate::MEM_KEY.lock().await;
+                    let mem_key = crate::MEM_KEY.lock()?;
+                    let vault = pwduck_core::Vault::load(&password, &mem_key, path);
+
+                    password.zeroize();
+
+                    //Box::new(vault)
+                    vault.map(Box::new)
+                }
+            },
+            VaultLoaderMessage::Loaded,
+        )
+    }
+
+    /// TODO
+    fn open_file_dialog<P: Platform + 'static>() -> Command<VaultLoaderMessage> {
+        Command::perform(P::nfd_choose_folder(), VaultLoaderMessage::PathSelected)
+    }
+}
+
 /// TODO
 #[derive(Clone, Debug)]
 pub enum VaultLoaderMessage {
@@ -86,49 +136,22 @@ impl Component for VaultLoader {
         _clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Self::Message>, PWDuckGuiError> {
         let cmd = match message {
-            VaultLoaderMessage::PathInput(input) => {
-                self.path = input;
-                Command::none()
-            }
-            VaultLoaderMessage::PasswordInput(input) => {
-                self.password.zeroize();
-                self.password = input;
-                Command::none()
-            }
-            VaultLoaderMessage::ShowPassword => {
-                self.show_password = !self.show_password;
-                Command::none()
-            }
-            VaultLoaderMessage::Confirm => Command::perform(
-                {
-                    let mut password = self.password.clone();
-                    self.password.zeroize();
+            VaultLoaderMessage::PathInput(input) => self.update_path(input),
 
-                    let path = PathBuf::from(self.path.clone());
-                    // TODO: remove duplicate
-                    async move {
-                        //let mem_key = crate::MEM_KEY.lock().await;
-                        let mem_key = crate::MEM_KEY.lock()?;
-                        let vault = pwduck_core::Vault::load(&password, &mem_key, path);
+            VaultLoaderMessage::PasswordInput(input) => self.update_password(input),
 
-                        password.zeroize();
+            VaultLoaderMessage::ShowPassword => self.toggle_password_visibility(),
 
-                        //Box::new(vault)
-                        vault.map(Box::new)
-                    }
-                },
-                VaultLoaderMessage::Loaded,
-            ),
-            VaultLoaderMessage::OpenFileDialog => Command::perform(
-                //<platform as Platform>::open_file(),
-                P::nfd_choose_folder(),
-                VaultLoaderMessage::PathSelected,
-            ),
+            VaultLoaderMessage::Confirm => self.confirm(),
+
+            VaultLoaderMessage::OpenFileDialog => Self::open_file_dialog::<P>(),
+
             VaultLoaderMessage::PathSelected(Ok(path)) => {
-                self.path = path.to_str().ok_or(PWDuckGuiError::Option)?.to_owned();
-                Command::none()
+                self.update_path(path.to_str().ok_or(PWDuckGuiError::Option)?.to_owned())
             }
+
             VaultLoaderMessage::PathSelected(Err(_err)) => Command::none(),
+
             VaultLoaderMessage::Create | VaultLoaderMessage::Loaded(_) => {
                 return PWDuckGuiError::Unreachable("VaultLoaderMessage".into()).into()
             }
