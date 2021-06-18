@@ -128,7 +128,7 @@ impl<T: Zeroize> From<Vec<T>> for SecVec<T> {
 }
 
 /// TODO
-#[derive(Default, PartialEq, Eq, Zeroize)]
+#[derive(Clone, Default, PartialEq, Eq, Zeroize)]
 #[zeroize(drop)]
 #[allow(missing_debug_implementations)]
 pub struct SecString(String);
@@ -177,6 +177,12 @@ impl From<String> for SecString {
 impl Debug for SecString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("This is a SecString")
+    }
+}
+
+impl From<SecString> for String {
+    fn from(sec_string: SecString) -> Self {
+        sec_string.0.clone()
     }
 }
 

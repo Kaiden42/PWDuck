@@ -6,6 +6,7 @@ use iced::{
     TextInput,
 };
 use iced_aw::{Card, TabBar, TabLabel};
+use lazy_static::__Deref;
 use pwduck_core::{PWDuckCoreError, PasswordInfo, SecString};
 use zeroize::Zeroize;
 
@@ -84,7 +85,7 @@ impl PasswordGeneratorState {
         &mut self,
         clipboard: &mut iced::Clipboard,
     ) -> Command<PasswordGeneratorMessage> {
-        clipboard.write(self.password.clone());
+        clipboard.write(self.password.deref().clone());
         Command::none()
     }
 
