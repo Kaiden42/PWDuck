@@ -6,7 +6,7 @@ use iced::{
     button, text_input, Button, Column, Command, Container, HorizontalAlignment, Length, Row,
     Space, Text, TextInput,
 };
-use pwduck_core::{PWDuckCoreError, Vault};
+use pwduck_core::{PWDuckCoreError, SecString, Vault};
 use zeroize::Zeroize;
 
 use crate::{
@@ -21,7 +21,7 @@ pub struct VaultUnlocker {
     /// TODO
     path: PathBuf,
     /// TODO
-    password: String,
+    password: SecString,
     /// TODO
     password_state: text_input::State,
     /// TODO
@@ -33,8 +33,7 @@ pub struct VaultUnlocker {
 impl VaultUnlocker {
     /// TODO
     fn update_password(&mut self, password: String) -> Command<VaultUnlockerMessage> {
-        self.password.zeroize();
-        self.password = password;
+        self.password = password.into();
         Command::none()
     }
 
@@ -48,8 +47,6 @@ impl VaultUnlocker {
                 async move {
                     let mem_key = crate::MEM_KEY.lock()?;
                     let vault = pwduck_core::Vault::load(&password, &mem_key, path);
-
-                    password.zeroize();
 
                     vault.map(Box::new)
                 }

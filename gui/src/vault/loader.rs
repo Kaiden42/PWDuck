@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use iced::{button, text_input, Command, Length, Row, Text, TextInput};
-use pwduck_core::{PWDuckCoreError, Vault};
+use pwduck_core::{PWDuckCoreError, SecString, Vault};
 use zeroize::Zeroize;
 
 use crate::{
@@ -21,7 +21,7 @@ pub struct VaultLoader {
     path_state: text_input::State,
 
     /// TODO
-    password: String,
+    password: SecString,
     /// TODO
     password_state: text_input::State,
     /// TODO
@@ -47,8 +47,7 @@ impl VaultLoader {
 
     /// TODO
     fn update_password(&mut self, password: String) -> Command<VaultLoaderMessage> {
-        self.password.zeroize();
-        self.password = password;
+        self.password = password.into();
         Command::none()
     }
 
@@ -71,8 +70,6 @@ impl VaultLoader {
                     //let mem_key = crate::MEM_KEY.lock().await;
                     let mem_key = crate::MEM_KEY.lock()?;
                     let vault = pwduck_core::Vault::load(&password, &mem_key, path);
-
-                    password.zeroize();
 
                     //Box::new(vault)
                     vault.map(Box::new)
@@ -118,7 +115,7 @@ impl Component for VaultLoader {
             path: String::new(),
             path_state: text_input::State::new(),
 
-            password: String::new(),
+            password: SecString::default(),
             password_state: text_input::State::new(),
             show_password: false,
             show_password_state: button::State::new(),

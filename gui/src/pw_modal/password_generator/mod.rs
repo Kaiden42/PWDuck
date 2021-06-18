@@ -6,7 +6,7 @@ use iced::{
     TextInput,
 };
 use iced_aw::{Card, TabBar, TabLabel};
-use pwduck_core::{PWDuckCoreError, PasswordInfo};
+use pwduck_core::{PWDuckCoreError, PasswordInfo, SecString};
 use zeroize::Zeroize;
 
 use crate::{
@@ -26,7 +26,7 @@ use password_tab::{PasswordTabMessage, PasswordTabState};
 pub struct PasswordGeneratorState {
     /// TODO
     #[getset(get = "pub")]
-    password: String,
+    password: SecString,
     /// TODO
     password_state: text_input::State,
     /// TODO
@@ -69,9 +69,7 @@ impl PasswordGeneratorState {
 
     /// TODO
     fn update_password(&mut self, password: String) -> Command<PasswordGeneratorMessage> {
-        self.password.zeroize();
-        self.password = password;
-
+        self.password = password.into();
         self.estimate_password_strength()
     }
 
@@ -298,12 +296,10 @@ impl PasswordGeneratorState {
 
     /// TODO
     pub fn generate_and_update_password(&mut self) {
-        self.password.zeroize();
-
         self.password = match self.active_tab {
             0 => self.password_tab_state.generate(),
             _ => self.passphrase_tab_state.generate(),
-        }
+        }.into()
     }
 }
 

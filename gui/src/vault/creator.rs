@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use iced::{
     button, text_input, Button, Command, HorizontalAlignment, Length, Row, Text, TextInput,
 };
+use pwduck_core::SecString;
 use zeroize::Zeroize;
 
 use crate::{
@@ -27,11 +28,11 @@ pub struct VaultCreator {
     /// TODO
     path_open_fd_state: button::State,
     /// TODO
-    password: String,
+    password: SecString,
     /// TODO
     password_state: text_input::State,
     /// TODO
-    password_confirm: String,
+    password_confirm: SecString,
     /// TODO
     password_confirm_state: text_input::State,
     /// TODO
@@ -57,16 +58,14 @@ impl VaultCreator {
 
     /// TODO
     fn update_password(&mut self, password: String) -> Command<VaultCreatorMessage> {
-        self.password.zeroize();
-        self.password = password;
+        self.password = password.into();
         self.check_password_equality();
         Command::none()
     }
 
     /// TODO
     fn update_password_confirm(&mut self, password: String) -> Command<VaultCreatorMessage> {
-        self.password_confirm.zeroize();
-        self.password_confirm = password;
+        self.password_confirm = password.into();
         self.check_password_equality();
         Command::none()
     }
@@ -91,7 +90,6 @@ impl VaultCreator {
                     //let mem_key = crate::MEM_KEY.lock().await;
                     let mem_key = crate::MEM_KEY.lock().unwrap();
                     let mut vault = pwduck_core::Vault::generate(&password, &mem_key, path)?;
-                    password.zeroize();
 
                     vault.save(&mem_key)?;
 

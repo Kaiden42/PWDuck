@@ -1,6 +1,6 @@
 //! TODO
 
-use std::ops::{Deref, DerefMut};
+use std::{fmt::Debug, ops::{Deref, DerefMut}};
 
 use zeroize::Zeroize;
 
@@ -128,7 +128,7 @@ impl<T: Zeroize> From<Vec<T>> for SecVec<T> {
 }
 
 /// TODO
-#[derive(PartialEq, Eq, Zeroize)]
+#[derive(Default, PartialEq, Eq, Zeroize)]
 #[zeroize(drop)]
 #[allow(missing_debug_implementations)]
 pub struct SecString(String);
@@ -171,6 +171,12 @@ impl DerefMut for SecString {
 impl From<String> for SecString {
     fn from(s: String) -> Self {
         Self(s)
+    }
+}
+
+impl Debug for SecString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("This is a SecString")
     }
 }
 
