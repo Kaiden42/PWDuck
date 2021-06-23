@@ -7,7 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-seckey = "0.11.2"
+# seckey = "0.11.2" # Removed by own version
+seckey = { git="https://github.com/Kaiden42/seckey", features = ["mlock"]}
 rand = { version = "0.8.3" }
 rand_chacha = "0.3.0"
 rand_core = "0.6.2"
@@ -31,3 +32,9 @@ block-modes = "0.8.1"
 [dependencies.zeroize]
 version = "1.3.0"
 features = ["zeroize_derive"]
+
+[target.'cfg(not(windows))'.dependencies]
+rlimit = "0.5.4"
+
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "target-feature=+crt-static"]
