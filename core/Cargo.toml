@@ -35,6 +35,3 @@ features = ["zeroize_derive"]
 
 [target.'cfg(not(windows))'.dependencies]
 rlimit = "0.5.4"
-
-[target.x86_64-pc-windows-gnu]
-rustflags = ["-C", "target-feature=+crt-static"]
