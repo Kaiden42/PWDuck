@@ -1,10 +1,18 @@
 //! TODO
 
 use getset::{Getters, MutGetters, Setters};
-use iced::{Command, Container, Element, Length, Row, Text, button, text_input};
+use iced::{button, text_input, Command, Container, Element, Length, Row, Text};
 use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo};
 
-use crate::{DEFAULT_ROW_SPACING, error::PWDuckGuiError, password_score::PasswordScore, utils::{centered_container_with_column, default_text_input, default_vertical_space, estimate_password_strength, icon_button}};
+use crate::{
+    error::PWDuckGuiError,
+    password_score::PasswordScore,
+    utils::{
+        centered_container_with_column, default_text_input, default_vertical_space,
+        estimate_password_strength, icon_button,
+    },
+    DEFAULT_ROW_SPACING,
+};
 
 /// TODO
 #[derive(Getters, MutGetters, Setters)]
@@ -138,7 +146,10 @@ impl ModifyEntryView {
     }
 
     /// TODO
-    fn set_password_score(&mut self, password_info: Result<PasswordInfo, PWDuckCoreError>) -> Command<ModifyEntryMessage> {
+    fn set_password_score(
+        &mut self,
+        password_info: Result<PasswordInfo, PWDuckCoreError>,
+    ) -> Command<ModifyEntryMessage> {
         self.password_score = Some(PasswordScore::new(password_info));
         Command::none()
     }
@@ -156,13 +167,14 @@ impl ModifyEntryView {
             ModifyEntryMessage::PasswordInput(password) => Ok(self.update_password(password)),
             ModifyEntryMessage::PasswordShow => Ok(self.toggle_password_visibility()),
             ModifyEntryMessage::PasswordCopy => Ok(self.copy_password(clipboard)),
-            ModifyEntryMessage::PasswordScore(password_info) => Ok(self.set_password_score(password_info)),
+            ModifyEntryMessage::PasswordScore(password_info) => {
+                Ok(self.set_password_score(password_info))
+            }
             ModifyEntryMessage::PasswordGenerate
             | ModifyEntryMessage::Cancel
             | ModifyEntryMessage::Submit => {
                 PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into()
             }
-            
         }
     }
 
@@ -216,7 +228,7 @@ impl ModifyEntryView {
 
         let password_score: Element<_> = self.password_score.as_mut().map_or_else(
             || Container::new(default_vertical_space()).into(),
-            PasswordScore::view
+            PasswordScore::view,
         );
 
         let cancel =

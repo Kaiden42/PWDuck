@@ -9,7 +9,15 @@ use iced_aw::{Card, TabBar, TabLabel};
 use lazy_static::__Deref;
 use pwduck_core::{PWDuckCoreError, PasswordInfo, SecString};
 
-use crate::{DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING, error::PWDuckGuiError, password_score::PasswordScore, utils::{centered_container_with_column, default_vertical_space, estimate_password_strength, icon_button, vertical_space}};
+use crate::{
+    error::PWDuckGuiError,
+    password_score::PasswordScore,
+    utils::{
+        centered_container_with_column, default_vertical_space, estimate_password_strength,
+        icon_button, vertical_space,
+    },
+    DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
+};
 
 mod passphrase_tab;
 use passphrase_tab::{PassphraseTabMessage, PassphraseTabState};

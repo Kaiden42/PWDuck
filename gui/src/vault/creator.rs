@@ -2,11 +2,19 @@
 
 use std::path::PathBuf;
 
-use iced::{Button, Command, Container, Element, HorizontalAlignment, Length, Row, Text, TextInput, button, text_input};
+use iced::{
+    button, text_input, Button, Command, Container, Element, HorizontalAlignment, Length, Row,
+    Text, TextInput,
+};
 use pwduck_core::{PWDuckCoreError, PasswordInfo, SecString};
 use zeroize::Zeroize;
 
-use crate::{Component, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING, Platform, error::{NfdError, PWDuckGuiError}, password_score::PasswordScore, utils::{centered_container_with_column, default_vertical_space, estimate_password_strength}};
+use crate::{
+    error::{NfdError, PWDuckGuiError},
+    password_score::PasswordScore,
+    utils::{centered_container_with_column, default_vertical_space, estimate_password_strength},
+    Component, Platform, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
+};
 
 /// TODO
 #[derive(Debug, Default)]
@@ -79,7 +87,10 @@ impl VaultCreator {
         )
     }
 
-    fn set_password_score(&mut self, password_info: Result<PasswordInfo, PWDuckCoreError>) -> Command<VaultCreatorMessage> {
+    fn set_password_score(
+        &mut self,
+        password_info: Result<PasswordInfo, PWDuckCoreError>,
+    ) -> Command<VaultCreatorMessage> {
         self.password_score = Some(PasswordScore::new(password_info));
         Command::none()
     }
@@ -172,7 +183,9 @@ impl Component for VaultCreator {
 
             VaultCreatorMessage::Submit => self.submit(),
 
-            VaultCreatorMessage::PasswordScore(password_info) => self.set_password_score(password_info),
+            VaultCreatorMessage::PasswordScore(password_info) => {
+                self.set_password_score(password_info)
+            }
 
             VaultCreatorMessage::Cancel | VaultCreatorMessage::VaultCreated(_) => {
                 return PWDuckGuiError::Unreachable("VaultCreatorMessage".into()).into()

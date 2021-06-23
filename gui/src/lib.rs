@@ -160,9 +160,7 @@ impl<P: Platform + 'static> PWDuckGui<P> {
 
         // TODO: clean up
         Command::perform(
-            estimate_password_strength(
-                self.password_generator_state.inner().password().clone(),
-            ),
+            estimate_password_strength(self.password_generator_state.inner().password().clone()),
             PasswordGeneratorMessage::PasswordScore,
         )
         .map(Message::PasswordGenerator)
