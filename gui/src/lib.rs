@@ -67,7 +67,7 @@ mod pw_modal;
 mod utils;
 use pw_modal::{PasswordGeneratorMessage, PasswordGeneratorState, Target};
 
-use crate::vault::creator::VaultCreatorMessage;
+use crate::{utils::estimate_password_strength, vault::creator::VaultCreatorMessage};
 
 mod password_score;
 
@@ -160,7 +160,7 @@ impl<P: Platform + 'static> PWDuckGui<P> {
 
         // TODO: clean up
         Command::perform(
-            crate::pw_modal::estimate_password_strength(
+            estimate_password_strength(
                 self.password_generator_state.inner().password().clone(),
             ),
             PasswordGeneratorMessage::PasswordScore,

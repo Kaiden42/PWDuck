@@ -1,16 +1,10 @@
 //! TODO
 
 use getset::{Getters, MutGetters, Setters};
-use iced::{button, text_input, Command, Element, Length, Row, Text};
-use pwduck_core::{EntryBody, EntryHead};
+use iced::{Command, Container, Element, Length, Row, Text, button, text_input};
+use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo};
 
-use crate::{
-    error::PWDuckGuiError,
-    utils::{
-        centered_container_with_column, default_text_input, default_vertical_space, icon_button,
-    },
-    DEFAULT_ROW_SPACING,
-};
+use crate::{DEFAULT_ROW_SPACING, error::PWDuckGuiError, password_score::PasswordScore, utils::{centered_container_with_column, default_text_input, default_vertical_space, estimate_password_strength, icon_button}};
 
 /// TODO
 #[derive(Getters, MutGetters, Setters)]
@@ -41,6 +35,9 @@ pub struct ModifyEntryView {
     password_copy_state: button::State,
 
     /// TODO
+    password_score: Option<PasswordScore>,
+
+    /// TODO
     cancel_state: button::State,
     /// TODO
     submit_state: button::State,
@@ -65,6 +62,9 @@ pub enum ModifyEntryMessage {
     PasswordCopy,
 
     /// TODO
+    PasswordScore(Result<PasswordInfo, PWDuckCoreError>),
+
+    /// TODO
     Cancel,
     /// TODO
     Submit,
@@ -85,6 +85,8 @@ impl ModifyEntryView {
             password_show_state: button::State::new(),
             password_generate_state: button::State::new(),
             password_copy_state: button::State::new(),
+
+            password_score: Option::None,
 
             cancel_state: button::State::new(),
             submit_state: button::State::new(),
@@ -112,7 +114,7 @@ impl ModifyEntryView {
     /// TODO
     fn update_password(&mut self, password: String) -> Command<ModifyEntryMessage> {
         self.entry_body_mut().set_password(password);
-        Command::none()
+        self.estimate_password_strength()
     }
 
     /// TODO
@@ -124,6 +126,20 @@ impl ModifyEntryView {
     /// TODO
     fn copy_password(&self, clipboard: &mut iced::Clipboard) -> Command<ModifyEntryMessage> {
         clipboard.write(self.entry_body().password().clone());
+        Command::none()
+    }
+
+    /// TODO
+    fn estimate_password_strength(&self) -> Command<ModifyEntryMessage> {
+        Command::perform(
+            estimate_password_strength(self.entry_body.password().clone().into()),
+            ModifyEntryMessage::PasswordScore,
+        )
+    }
+
+    /// TODO
+    fn set_password_score(&mut self, password_info: Result<PasswordInfo, PWDuckCoreError>) -> Command<ModifyEntryMessage> {
+        self.password_score = Some(PasswordScore::new(password_info));
         Command::none()
     }
 
@@ -140,11 +156,13 @@ impl ModifyEntryView {
             ModifyEntryMessage::PasswordInput(password) => Ok(self.update_password(password)),
             ModifyEntryMessage::PasswordShow => Ok(self.toggle_password_visibility()),
             ModifyEntryMessage::PasswordCopy => Ok(self.copy_password(clipboard)),
+            ModifyEntryMessage::PasswordScore(password_info) => Ok(self.set_password_score(password_info)),
             ModifyEntryMessage::PasswordGenerate
             | ModifyEntryMessage::Cancel
             | ModifyEntryMessage::Submit => {
                 PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into()
             }
+            
         }
     }
 
@@ -196,6 +214,11 @@ impl ModifyEntryView {
             .width(Length::Shrink)
             .on_press(ModifyEntryMessage::PasswordCopy);
 
+        let password_score: Element<_> = self.password_score.as_mut().map_or_else(
+            || Container::new(default_vertical_space()).into(),
+            PasswordScore::view
+        );
+
         let cancel =
             icon_button(&mut self.cancel_state, "I", "Cancel").on_press(ModifyEntryMessage::Cancel);
 
@@ -221,6 +244,7 @@ impl ModifyEntryView {
                 .push(password_generate)
                 .push(password_copy)
                 .into(),
+            password_score,
             default_vertical_space().into(),
             Row::new()
                 .spacing(DEFAULT_ROW_SPACING)

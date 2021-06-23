@@ -67,3 +67,10 @@ pub fn default_vertical_space() -> Space {
 pub fn vertical_space(factor: u16) -> Space {
     Space::with_height(Length::Units(factor * DEFAULT_SPACE_HEIGHT))
 }
+
+/// TODO
+pub async fn estimate_password_strength(
+    password: pwduck_core::SecString,
+) -> Result<pwduck_core::PasswordInfo, pwduck_core::PWDuckCoreError> {
+    pwduck_core::password_entropy(&password)
+}

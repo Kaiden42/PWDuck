@@ -2,17 +2,11 @@
 
 use std::path::PathBuf;
 
-use iced::{
-    button, text_input, Button, Command, HorizontalAlignment, Length, Row, Text, TextInput,
-};
-use pwduck_core::SecString;
+use iced::{Button, Command, Container, Element, HorizontalAlignment, Length, Row, Text, TextInput, button, text_input};
+use pwduck_core::{PWDuckCoreError, PasswordInfo, SecString};
 use zeroize::Zeroize;
 
-use crate::{
-    error::{NfdError, PWDuckGuiError},
-    utils::{centered_container_with_column, default_vertical_space},
-    Component, Platform, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
-};
+use crate::{Component, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING, Platform, error::{NfdError, PWDuckGuiError}, password_score::PasswordScore, utils::{centered_container_with_column, default_vertical_space, estimate_password_strength}};
 
 /// TODO
 #[derive(Debug, Default)]
@@ -38,6 +32,8 @@ pub struct VaultCreator {
     /// TODO
     password_equal: bool,
     /// TODO
+    password_score: Option<PasswordScore>,
+    /// TODO
     cancel_state: button::State,
     /// TODO
     submit_state: button::State,
@@ -60,7 +56,7 @@ impl VaultCreator {
     fn update_password(&mut self, password: String) -> Command<VaultCreatorMessage> {
         self.password = password.into();
         self.check_password_equality();
-        Command::none()
+        self.estimate_password_strength()
     }
 
     /// TODO
@@ -73,6 +69,19 @@ impl VaultCreator {
     /// TODO
     fn check_password_equality(&mut self) {
         self.password_equal = !self.password.is_empty() && self.password == self.password_confirm;
+    }
+
+    /// TODO
+    fn estimate_password_strength(&self) -> Command<VaultCreatorMessage> {
+        Command::perform(
+            estimate_password_strength(self.password.clone()),
+            VaultCreatorMessage::PasswordScore,
+        )
+    }
+
+    fn set_password_score(&mut self, password_info: Result<PasswordInfo, PWDuckCoreError>) -> Command<VaultCreatorMessage> {
+        self.password_score = Some(PasswordScore::new(password_info));
+        Command::none()
     }
 
     /// TODO
@@ -122,6 +131,8 @@ pub enum VaultCreatorMessage {
     /// TODO
     PasswordConfirmInput(String),
     /// TODO
+    PasswordScore(Result<PasswordInfo, PWDuckCoreError>),
+    /// TODO
     Cancel,
     /// TODO
     Submit,
@@ -160,6 +171,8 @@ impl Component for VaultCreator {
             VaultCreatorMessage::PasswordConfirmInput(input) => self.update_password_confirm(input),
 
             VaultCreatorMessage::Submit => self.submit(),
+
+            VaultCreatorMessage::PasswordScore(password_info) => self.set_password_score(password_info),
 
             VaultCreatorMessage::Cancel | VaultCreatorMessage::VaultCreated(_) => {
                 return PWDuckGuiError::Unreachable("VaultCreatorMessage".into()).into()
@@ -208,6 +221,11 @@ impl Component for VaultCreator {
         .password()
         .padding(DEFAULT_TEXT_INPUT_PADDING);
 
+        let password_score: Element<_> = self.password_score.as_mut().map_or_else(
+            || Container::new(default_vertical_space()).into(),
+            PasswordScore::view,
+        );
+
         if !self.password.is_empty() && !self.password_equal {
             password_confirm = password_confirm.style(PasswordNotEqualStyle)
         }
@@ -250,6 +268,7 @@ impl Component for VaultCreator {
             default_vertical_space().into(),
             password.into(),
             password_confirm.into(),
+            password_score,
             default_vertical_space().into(),
             Row::new()
                 .spacing(DEFAULT_ROW_SPACING)
