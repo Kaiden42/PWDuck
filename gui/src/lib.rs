@@ -131,6 +131,8 @@ struct WindowSize {
 impl<P: Platform + 'static> PWDuckGui<P> {
     /// TODO
     pub fn start() -> Result<(), PWDuckGuiError> {
+        pwduck_core::try_to_prevent_core_dump()?;
+
         //Self::run(Settings::default())?;
         Self::run(Settings {
             exit_on_close_request: false,

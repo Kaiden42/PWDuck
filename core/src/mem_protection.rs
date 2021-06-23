@@ -189,6 +189,19 @@ impl From<SecString> for String {
     }
 }
 
+/// This function tries to configure the process to prevent the creation of a core dump once this process crashes.
+/// This should work on all Unix/Linux systems. On windows this will just silently fail.
+pub fn try_to_prevent_core_dump() -> Result<(), PWDuckCoreError> {
+    #[cfg(not(windows))]
+    rlimit::setrlimit(
+        rlimit::Resource::CORE,
+        rlimit::Rlim::from_usize(0),
+        rlimit::Rlim::from_usize(0),
+    )?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{MemKey, MIB_1};

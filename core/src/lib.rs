@@ -53,7 +53,7 @@ pub use error::PWDuckCoreError;
 mod io;
 
 mod mem_protection;
-pub use mem_protection::{MemKey, SecString, SecVec};
+pub use mem_protection::{try_to_prevent_core_dump, MemKey, SecString, SecVec};
 
 mod model;
 pub use model::{
