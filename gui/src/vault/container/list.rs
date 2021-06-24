@@ -6,6 +6,7 @@ use iced::{
 use pwduck_core::{EntryHead, Group, Vault};
 
 use crate::{
+    icons::Icon,
     utils::{default_vertical_space, icon_button, vertical_space},
     DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
@@ -107,13 +108,26 @@ impl ListView {
         )
         .padding(DEFAULT_TEXT_INPUT_PADDING);
 
-        let mut back = icon_button(&mut self.back_state, "I", "Back").width(Length::Shrink);
+        let mut back = icon_button(
+            &mut self.back_state,
+            Icon::Backspace,
+            "Back",
+            "Go to parent group",
+            false,
+        )
+        .width(Length::Shrink);
         if !selected_group.is_root() {
             back = back.on_press(ListMessage::Back);
         }
 
-        let mut edit_group =
-            icon_button(&mut self.edit_group_state, "I", "Edit").width(Length::Shrink);
+        let mut edit_group = icon_button(
+            &mut self.edit_group_state,
+            Icon::Pencil,
+            "Edit",
+            "Edit this group",
+            false,
+        )
+        .width(Length::Shrink);
         if !selected_group.is_root() {
             edit_group = edit_group.on_press(ListMessage::EditGroup);
         }

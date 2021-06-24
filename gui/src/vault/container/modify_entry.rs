@@ -1,11 +1,12 @@
 //! TODO
 
 use getset::{Getters, MutGetters, Setters};
-use iced::{button, text_input, Command, Container, Element, Length, Row, Text};
+use iced::{button, text_input, Command, Container, Element, Row, Text};
 use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo};
 
 use crate::{
     error::PWDuckGuiError,
+    icons::Icon,
     password_score::PasswordScore,
     utils::{
         centered_container_with_column, default_text_input, default_vertical_space,
@@ -193,9 +194,14 @@ impl ModifyEntryView {
             self.entry_body.username(),
             ModifyEntryMessage::UsernameInput,
         );
-        let username_copy = icon_button(&mut self.username_copy_state, "I", "C")
-            .width(Length::Shrink)
-            .on_press(ModifyEntryMessage::UsernameCopy);
+        let username_copy = icon_button(
+            &mut self.username_copy_state,
+            Icon::FileEarmarkPerson,
+            "Copy Username",
+            "Copy Username to clipboard",
+            true,
+        )
+        .on_press(ModifyEntryMessage::UsernameCopy);
 
         let mut password = default_text_input(
             &mut self.password_state,
@@ -207,48 +213,73 @@ impl ModifyEntryView {
             password = password.password();
         }
 
-        let password_show = icon_button(
-            &mut self.password_show_state,
-            "I",
-            if self.password_show {
-                // TODO
-                "H"
-            } else {
-                "S"
-            },
-        )
-        .width(Length::Shrink)
+        let password_show = if self.password_show {
+            icon_button(
+                &mut self.password_show_state,
+                Icon::EyeSlash,
+                "Hide password",
+                "Hide password",
+                true,
+            )
+        } else {
+            icon_button(
+                &mut self.password_show_state,
+                Icon::Eye,
+                "Show password",
+                "Show password",
+                true,
+            )
+        }
         .on_press(ModifyEntryMessage::PasswordShow);
-        let password_generate = icon_button(&mut self.password_generate_state, "I", "G")
-            .width(Length::Shrink)
-            .on_press(ModifyEntryMessage::PasswordGenerate);
-        let password_copy = icon_button(&mut self.password_copy_state, "I", "C")
-            .width(Length::Shrink)
-            .on_press(ModifyEntryMessage::PasswordCopy);
+        let password_generate = icon_button(
+            &mut self.password_generate_state,
+            Icon::Dice3,
+            "Generate Password",
+            "Generate a random password",
+            true,
+        )
+        .on_press(ModifyEntryMessage::PasswordGenerate);
+        let password_copy = icon_button(
+            &mut self.password_copy_state,
+            Icon::FileEarmarkLock,
+            "Copy Password",
+            "Copy Password to clipboard",
+            true,
+        )
+        .on_press(ModifyEntryMessage::PasswordCopy);
 
         let password_score: Element<_> = self.password_score.as_mut().map_or_else(
             || Container::new(default_vertical_space()).into(),
             PasswordScore::view,
         );
 
-        let cancel =
-            icon_button(&mut self.cancel_state, "I", "Cancel").on_press(ModifyEntryMessage::Cancel);
+        let cancel = icon_button(
+            &mut self.cancel_state,
+            Icon::XSquare,
+            "Cancel",
+            "Cancel changes",
+            false,
+        )
+        .on_press(ModifyEntryMessage::Cancel);
 
-        let submit =
-            icon_button(&mut self.submit_state, "I", "Submit").on_press(ModifyEntryMessage::Submit);
+        let submit = icon_button(
+            &mut self.submit_state,
+            Icon::Save,
+            "Submit",
+            "Submit changes",
+            false,
+        )
+        .on_press(ModifyEntryMessage::Submit);
 
         centered_container_with_column(vec![
             Text::new("Modify entry:").into(),
-            //default_vertical_space().into(),
             title.into(),
             default_vertical_space().into(),
-            //username.into(),
             Row::new()
                 .spacing(DEFAULT_ROW_SPACING)
                 .push(username)
                 .push(username_copy)
                 .into(),
-            //password.into(),
             Row::new()
                 .spacing(DEFAULT_ROW_SPACING)
                 .push(password)

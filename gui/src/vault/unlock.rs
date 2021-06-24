@@ -3,16 +3,18 @@
 use std::path::PathBuf;
 
 use iced::{
-    button, text_input, Button, Column, Command, Container, HorizontalAlignment, Length, Row,
-    Space, Text, TextInput,
+    button, text_input, Column, Command, Container, Length, Row,
+    Space, Text,
 };
 use pwduck_core::{PWDuckCoreError, SecString, Vault};
 use zeroize::Zeroize;
 
 use crate::{
-    error::PWDuckGuiError, Component, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING,
-    DEFAULT_HEADER_SIZE, DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
-    DEFAULT_TEXT_INPUT_PADDING,
+    error::PWDuckGuiError,
+    icons::Icon,
+    utils::{default_text_input, icon_button},
+    Component, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
+    DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
 };
 
 /// TODO
@@ -25,6 +27,10 @@ pub struct VaultUnlocker {
     /// TODO
     password_state: text_input::State,
     /// TODO
+    password_show: bool,
+    /// TODO
+    password_show_state: button::State,
+    /// TODO
     close_state: button::State,
     /// TODO
     submit_state: button::State,
@@ -34,6 +40,12 @@ impl VaultUnlocker {
     /// TODO
     fn update_password(&mut self, password: String) -> Command<VaultUnlockerMessage> {
         self.password = password.into();
+        Command::none()
+    }
+
+    /// TODO
+    fn toggle_password_visibility(&mut self) -> Command<VaultUnlockerMessage> {
+        self.password_show = !self.password_show;
         Command::none()
     }
 
@@ -62,6 +74,8 @@ pub enum VaultUnlockerMessage {
     /// TODO
     PasswordInput(String),
     /// TODO
+    PasswordShow,
+    /// TODO
     Close,
     /// TODO
     Submit,
@@ -88,6 +102,7 @@ impl Component for VaultUnlocker {
     ) -> Result<iced::Command<Self::Message>, PWDuckGuiError> {
         match message {
             VaultUnlockerMessage::PasswordInput(password) => Ok(self.update_password(password)),
+            VaultUnlockerMessage::PasswordShow => Ok(self.toggle_password_visibility()),
             VaultUnlockerMessage::Submit => Ok(self.submit()),
             VaultUnlockerMessage::Close | VaultUnlockerMessage::Unlocked(_) => {
                 PWDuckGuiError::Unreachable("VaultUnlockerMessage".into()).into()
@@ -104,31 +119,51 @@ impl Component for VaultUnlocker {
 
         let path = Text::new(self.path.to_str().unwrap_or("Invalid path"));
 
-        let password = TextInput::new(
+        let mut password = default_text_input(
             &mut self.password_state,
             "Enter password to unlock",
             &self.password,
-            Self::Message::PasswordInput,
-        )
-        .padding(DEFAULT_TEXT_INPUT_PADDING)
-        .password();
+            VaultUnlockerMessage::PasswordInput,
+        );
+        if !self.password_show {
+            password = password.password();
+        }
 
-        let close_button = Button::new(
+        let password_show = if self.password_show {
+            icon_button(
+                &mut self.password_show_state,
+                Icon::EyeSlash,
+                "Hide password",
+                "Hide password",
+                true,
+            )
+        } else {
+            icon_button(
+                &mut self.password_show_state,
+                Icon::Eye,
+                "Show password",
+                "Show password",
+                true,
+            )
+        }
+        .on_press(VaultUnlockerMessage::PasswordShow);
+
+        let close_button = icon_button(
             &mut self.close_state,
-            Text::new("Close")
-                .horizontal_alignment(HorizontalAlignment::Center)
-                .width(Length::Fill),
+            Icon::XSquare,
+            "Close",
+            "Close Vault",
+            false,
         )
-        .on_press(Self::Message::Close)
-        .width(Length::Fill);
+        .on_press(Self::Message::Close);
 
-        let mut submit_button = Button::new(
+        let mut submit_button = icon_button(
             &mut self.submit_state,
-            Text::new("Unlock")
-                .horizontal_alignment(HorizontalAlignment::Center)
-                .width(Length::Fill),
-        )
-        .width(Length::Fill);
+            Icon::Unlock,
+            "Unlock",
+            "Unlock Vault",
+            false,
+        );
 
         if !self.password.is_empty() {
             submit_button = submit_button.on_press(Self::Message::Submit);
@@ -142,7 +177,12 @@ impl Component for VaultUnlocker {
                 .push(Text::new(&format!("Unlock vault: {}", vault_name)).size(DEFAULT_HEADER_SIZE))
                 .push(path)
                 .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
-                .push(password)
+                .push(
+                    Row::new()
+                        .spacing(DEFAULT_ROW_SPACING)
+                        .push(password)
+                        .push(password_show),
+                )
                 .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
                 .push(
                     Row::new()

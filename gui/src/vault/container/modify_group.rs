@@ -6,6 +6,7 @@ use pwduck_core::{Group, Vault};
 
 use crate::{
     error::PWDuckGuiError,
+    icons::Icon,
     utils::{
         centered_container_with_column, default_text_input, default_vertical_space, icon_button,
     },
@@ -82,11 +83,23 @@ impl ModifyGroupView {
 
         let group = vault.groups().get(selected_group_uuid).unwrap();
 
-        let cancel =
-            icon_button(&mut self.cancel_state, "I", "Cancel").on_press(ModifyGroupMessage::Cancel);
+        let cancel = icon_button(
+            &mut self.cancel_state,
+            Icon::XSquare,
+            "Cancel",
+            "Cancel changes",
+            false,
+        )
+        .on_press(ModifyGroupMessage::Cancel);
 
-        let submit =
-            icon_button(&mut self.submit_state, "I", "Submit").on_press(ModifyGroupMessage::Submit);
+        let submit = icon_button(
+            &mut self.submit_state,
+            Icon::Save,
+            "Submit",
+            "Submit changes",
+            false,
+        )
+        .on_press(ModifyGroupMessage::Submit);
 
         let parent_name = if group.title().is_empty() {
             "Root"
@@ -96,7 +109,6 @@ impl ModifyGroupView {
 
         centered_container_with_column(vec![
             Text::new(format!("Add new sub group to: {}", parent_name)).into(),
-            //default_vertical_space().into(),
             name.into(),
             default_vertical_space().into(),
             Row::new()

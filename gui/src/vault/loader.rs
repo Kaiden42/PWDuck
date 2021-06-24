@@ -2,12 +2,13 @@
 
 use std::path::PathBuf;
 
-use iced::{button, text_input, Command, Length, Row, Text, TextInput};
+use iced::{button, text_input, Command, Row, Text, TextInput};
 use pwduck_core::{PWDuckCoreError, SecString, Vault};
 use zeroize::Zeroize;
 
 use crate::{
     error::{NfdError, PWDuckGuiError},
+    icons::Icon,
     utils::{centered_container_with_column, icon_button},
     Component, Platform, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
@@ -160,8 +161,13 @@ impl Component for VaultLoader {
         &mut self,
         //platform: &dyn Platform
     ) -> iced::Element<'_, Self::Message> {
-        let mut path_fd_button =
-            icon_button(&mut self.path_open_fd_state, "I", "Open").width(Length::Shrink);
+        let mut path_fd_button = icon_button(
+            &mut self.path_open_fd_state,
+            Icon::Folder,
+            "Open",
+            "Select directory of the vault",
+            true,
+        );
         if P::is_nfd_available() {
             path_fd_button = path_fd_button.on_press(VaultLoaderMessage::OpenFileDialog);
         }
@@ -185,23 +191,41 @@ impl Component for VaultLoader {
             password = password.password();
         }
 
-        let show_password = icon_button(
-            &mut self.show_password_state,
-            "I",
-            if self.show_password {
-                // TODO
-                "H"
-            } else {
-                "S"
-            },
-        )
-        .width(Length::Shrink)
+        let show_password = if self.show_password {
+            icon_button(
+                &mut self.show_password_state,
+                Icon::EyeSlash,
+                "Hide password",
+                "Hide password",
+                true,
+            )
+        } else {
+            icon_button(
+                &mut self.show_password_state,
+                Icon::Eye,
+                "Show password",
+                "Show password",
+                true,
+            )
+        }
         .on_press(VaultLoaderMessage::ShowPassword);
 
-        let create = icon_button(&mut self.create_state, "I", "Create new")
-            .on_press(VaultLoaderMessage::Create);
+        let create = icon_button(
+            &mut self.create_state,
+            Icon::Safe,
+            "Create new",
+            "Create a new vault",
+            false,
+        )
+        .on_press(VaultLoaderMessage::Create);
 
-        let mut unlock_vault = icon_button(&mut self.confirm_state, "I", "Unlock Vault");
+        let mut unlock_vault = icon_button(
+            &mut self.confirm_state,
+            Icon::Unlock,
+            "Unlock",
+            "Unlock vault",
+            false,
+        );
         if !self.path.is_empty() && !self.password.is_empty() {
             unlock_vault = unlock_vault.on_press(VaultLoaderMessage::Confirm);
         }

@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use iced::{
-    button, text_input, Button, Command, Container, Element, HorizontalAlignment, Length, Row,
+    button, text_input, Command, Container, Element, Row,
     Text, TextInput,
 };
 use pwduck_core::{PWDuckCoreError, PasswordInfo, SecString};
@@ -11,8 +11,12 @@ use zeroize::Zeroize;
 
 use crate::{
     error::{NfdError, PWDuckGuiError},
+    icons::Icon,
     password_score::PasswordScore,
-    utils::{centered_container_with_column, default_vertical_space, estimate_password_strength},
+    utils::{
+        centered_container_with_column, default_text_input, default_vertical_space,
+        estimate_password_strength, icon_button,
+    },
     Component, Platform, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
 
@@ -34,9 +38,17 @@ pub struct VaultCreator {
     /// TODO
     password_state: text_input::State,
     /// TODO
+    password_show: bool,
+    /// TODO
+    password_show_state: button::State,
+    /// TODO
     password_confirm: SecString,
     /// TODO
     password_confirm_state: text_input::State,
+    /// TODO
+    password_confirm_show: bool,
+    /// tODO
+    password_confirm_show_state: button::State,
     /// TODO
     password_equal: bool,
     /// TODO
@@ -68,9 +80,21 @@ impl VaultCreator {
     }
 
     /// TODO
+    fn toggle_password_visibility(&mut self) -> Command<VaultCreatorMessage> {
+        self.password_show = !self.password_show;
+        Command::none()
+    }
+
+    /// TODO
     fn update_password_confirm(&mut self, password: String) -> Command<VaultCreatorMessage> {
         self.password_confirm = password.into();
         self.check_password_equality();
+        Command::none()
+    }
+
+    /// TODO
+    fn toggle_password_confirm_visibility(&mut self) -> Command<VaultCreatorMessage> {
+        self.password_confirm_show = !self.password_confirm_show;
         Command::none()
     }
 
@@ -138,9 +162,13 @@ pub enum VaultCreatorMessage {
     /// TODO
     PasswordInput(String),
     /// TODO
+    PasswordShow,
+    /// TODO
     PathSelected(Result<PathBuf, NfdError>),
     /// TODO
     PasswordConfirmInput(String),
+    /// TODO
+    PasswordConfirmShow,
     /// TODO
     PasswordScore(Result<PasswordInfo, PWDuckCoreError>),
     /// TODO
@@ -179,7 +207,11 @@ impl Component for VaultCreator {
 
             VaultCreatorMessage::PasswordInput(input) => self.update_password(input),
 
+            VaultCreatorMessage::PasswordShow => self.toggle_password_visibility(),
+
             VaultCreatorMessage::PasswordConfirmInput(input) => self.update_password_confirm(input),
+
+            VaultCreatorMessage::PasswordConfirmShow => self.toggle_password_confirm_visibility(),
 
             VaultCreatorMessage::Submit => self.submit(),
 
@@ -211,28 +243,74 @@ impl Component for VaultCreator {
         )
         .padding(DEFAULT_TEXT_INPUT_PADDING);
 
-        let mut path_fd_button = Button::new(&mut self.path_open_fd_state, Text::new("Open"));
+        let mut path_fd_button = icon_button(
+            &mut self.path_open_fd_state,
+            Icon::Folder,
+            "Open",
+            "Choose the location to store your new Vault",
+            true,
+        );
         if P::is_nfd_available() {
             path_fd_button = path_fd_button.on_press(Self::Message::PathOpenFD);
         }
 
-        let password = TextInput::new(
+        let mut password = default_text_input(
             &mut self.password_state,
             "Enter your password",
             &self.password,
-            Self::Message::PasswordInput,
-        )
-        .password()
-        .padding(DEFAULT_TEXT_INPUT_PADDING);
+            VaultCreatorMessage::PasswordInput,
+        );
+        if !self.password_show {
+            password = password.password();
+        }
 
-        let mut password_confirm = TextInput::new(
+        let password_show = if self.password_show {
+            icon_button(
+                &mut self.password_show_state,
+                Icon::EyeSlash,
+                "Hide password",
+                "Hide password",
+                true,
+            )
+        } else {
+            icon_button(
+                &mut self.password_show_state,
+                Icon::Eye,
+                "Show password",
+                "Show password",
+                true,
+            )
+        }
+        .on_press(VaultCreatorMessage::PasswordShow);
+
+        let mut password_confirm = default_text_input(
             &mut self.password_confirm_state,
             "Confirm your password",
             &self.password_confirm,
-            Self::Message::PasswordConfirmInput,
-        )
-        .password()
-        .padding(DEFAULT_TEXT_INPUT_PADDING);
+            VaultCreatorMessage::PasswordConfirmInput,
+        );
+        if !self.password_confirm_show {
+            password_confirm = password_confirm.password();
+        }
+
+        let password_confirm_show = if self.password_confirm_show {
+            icon_button(
+                &mut self.password_confirm_show_state,
+                Icon::EyeSlash,
+                "Hide password",
+                "Hide password",
+                true,
+            )
+        } else {
+            icon_button(
+                &mut self.password_confirm_show_state,
+                Icon::Eye,
+                "Show password",
+                "Show password",
+                true,
+            )
+        }
+        .on_press(VaultCreatorMessage::PasswordConfirmShow);
 
         let password_score: Element<_> = self.password_score.as_mut().map_or_else(
             || Container::new(default_vertical_space()).into(),
@@ -243,22 +321,22 @@ impl Component for VaultCreator {
             password_confirm = password_confirm.style(PasswordNotEqualStyle)
         }
 
-        let cancel_button = Button::new(
+        let cancel_button = icon_button(
             &mut self.cancel_state,
-            Text::new("Cancel")
-                .horizontal_alignment(HorizontalAlignment::Center)
-                .width(Length::Fill),
+            Icon::XSquare,
+            "Cancel",
+            "Cancel creation of new Vault",
+            false,
         )
-        .on_press(Self::Message::Cancel)
-        .width(Length::Fill);
+        .on_press(Self::Message::Cancel);
 
-        let mut submit_button = Button::new(
+        let mut submit_button = icon_button(
             &mut self.submit_state,
-            Text::new("Submit")
-                .horizontal_alignment(HorizontalAlignment::Center)
-                .width(Length::Fill),
-        )
-        .width(Length::Fill);
+            Icon::Save,
+            "Submit",
+            "Submit creation of new Vault",
+            false,
+        );
         if self.password_equal
             && !self.password.is_empty()
             && !self.name.is_empty()
@@ -279,8 +357,16 @@ impl Component for VaultCreator {
                 .push(path_fd_button)
                 .into(),
             default_vertical_space().into(),
-            password.into(),
-            password_confirm.into(),
+            Row::new()
+                .spacing(DEFAULT_ROW_SPACING)
+                .push(password)
+                .push(password_show)
+                .into(),
+            Row::new()
+                .spacing(DEFAULT_ROW_SPACING)
+                .push(password_confirm)
+                .push(password_confirm_show)
+                .into(),
             password_score,
             default_vertical_space().into(),
             Row::new()

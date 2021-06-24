@@ -71,6 +71,8 @@ use crate::{utils::estimate_password_strength, vault::creator::VaultCreatorMessa
 
 mod password_score;
 
+mod icons;
+
 /// TODO
 const DEFAULT_MAX_WIDTH: u32 = 600;
 /// TODO
