@@ -7,7 +7,7 @@ use pwduck_core::{EntryHead, Group, Vault};
 
 use crate::{
     icons::Icon,
-    utils::{default_vertical_space, icon_button, vertical_space},
+    utils::{default_vertical_space, icon_button_with_width, icon_text, vertical_space, SomeIf},
     DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
 use getset::{Getters, Setters};
@@ -52,6 +52,7 @@ pub enum ListMessage {
     /// TODO
     ListItemMessage(ListItemMessage),
 }
+impl SomeIf for ListMessage {}
 
 impl ListView {
     /// TODO
@@ -108,29 +109,23 @@ impl ListView {
         )
         .padding(DEFAULT_TEXT_INPUT_PADDING);
 
-        let mut back = icon_button(
+        let back = icon_button_with_width(
             &mut self.back_state,
             Icon::Backspace,
             "Back",
             "Go to parent group",
-            false,
-        )
-        .width(Length::Shrink);
-        if !selected_group.is_root() {
-            back = back.on_press(ListMessage::Back);
-        }
+            ListMessage::Back.some_if_not(selected_group.is_root()),
+            Length::Shrink,
+        );
 
-        let mut edit_group = icon_button(
+        let edit_group = icon_button_with_width(
             &mut self.edit_group_state,
             Icon::Pencil,
             "Edit",
             "Edit this group",
-            false,
-        )
-        .width(Length::Shrink);
-        if !selected_group.is_root() {
-            edit_group = edit_group.on_press(ListMessage::EditGroup);
-        }
+            ListMessage::EditGroup.some_if_not(selected_group.is_root()),
+            Length::Shrink,
+        );
 
         let group_controls = Row::new()
             .spacing(2 * DEFAULT_ROW_SPACING)
@@ -207,7 +202,8 @@ impl ListGroupItem {
         Button::new(
             &mut self.state,
             Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
+                .spacing(2 * DEFAULT_ROW_SPACING)
+                .push(icon_text(Icon::Folder))
                 .push(Text::new(group.title())),
         )
         .padding(20)
@@ -231,7 +227,8 @@ impl ListEntryItem {
         Button::new(
             &mut self.state,
             Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
+                .spacing(2 * DEFAULT_ROW_SPACING)
+                .push(icon_text(Icon::Person))
                 .push(Text::new(entry.title())),
         )
         .padding(20)

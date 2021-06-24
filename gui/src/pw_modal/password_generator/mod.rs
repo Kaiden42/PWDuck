@@ -15,7 +15,7 @@ use crate::{
     password_score::PasswordScore,
     utils::{
         centered_container_with_column, default_vertical_space, estimate_password_strength,
-        icon_button, vertical_space,
+        icon_button, password_toggle, vertical_space,
     },
     DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
@@ -212,24 +212,11 @@ impl PasswordGeneratorState {
             password = password.password();
         }
 
-        let password_show = if self.password_show {
-            icon_button(
-                &mut self.password_show_state,
-                Icon::EyeSlash,
-                "Hide password",
-                "Hide password",
-                true,
-            )
-        } else {
-            icon_button(
-                &mut self.password_show_state,
-                Icon::Eye,
-                "Show password",
-                "Show password",
-                true,
-            )
-        }
-        .on_press(PasswordGeneratorMessage::PasswordShow);
+        let password_show = password_toggle(
+            &mut self.password_show_state,
+            self.password_show,
+            PasswordGeneratorMessage::PasswordShow,
+        );
 
         let password_copy = icon_button(
             &mut self.password_copy_state,
@@ -237,8 +224,8 @@ impl PasswordGeneratorState {
             "Copy Password",
             "Copy Password to clipboard",
             true,
-        )
-        .on_press(PasswordGeneratorMessage::PasswordCopy);
+            Some(PasswordGeneratorMessage::PasswordCopy),
+        );
 
         let password_reroll = icon_button(
             &mut self.password_reroll_state,
@@ -246,8 +233,8 @@ impl PasswordGeneratorState {
             "Reroll",
             "Reroll Password",
             true,
-        )
-        .on_press(PasswordGeneratorMessage::PasswordReroll);
+            Some(PasswordGeneratorMessage::PasswordReroll),
+        );
 
         let password_row = Row::new()
             .spacing(DEFAULT_ROW_SPACING)
@@ -282,28 +269,24 @@ impl PasswordGeneratorState {
 
         let mut buttons = Row::new().spacing(DEFAULT_ROW_SPACING);
 
-        buttons = buttons.push(
-            icon_button(
-                &mut self.cancel_state,
-                Icon::XSquare,
-                "Cancel",
-                "Cancel password generation",
-                false,
-            )
-            .on_press(PasswordGeneratorMessage::Cancel),
-        );
+        buttons = buttons.push(icon_button(
+            &mut self.cancel_state,
+            Icon::XSquare,
+            "Cancel",
+            "Cancel password generation",
+            false,
+            Some(PasswordGeneratorMessage::Cancel),
+        ));
 
         if self.target != Target::None {
-            buttons = buttons.push(
-                icon_button(
-                    &mut self.submit_state,
-                    Icon::Save,
-                    "Submit",
-                    "Submit generated password",
-                    false,
-                )
-                .on_press(PasswordGeneratorMessage::Submit),
-            );
+            buttons = buttons.push(icon_button(
+                &mut self.submit_state,
+                Icon::Save,
+                "Submit",
+                "Submit generated password",
+                false,
+                Some(PasswordGeneratorMessage::Submit),
+            ));
         }
 
         let body = centered_container_with_column(vec![

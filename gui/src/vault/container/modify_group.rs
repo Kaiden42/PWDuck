@@ -89,8 +89,8 @@ impl ModifyGroupView {
             "Cancel",
             "Cancel changes",
             false,
-        )
-        .on_press(ModifyGroupMessage::Cancel);
+            Some(ModifyGroupMessage::Cancel),
+        );
 
         let submit = icon_button(
             &mut self.submit_state,
@@ -98,8 +98,8 @@ impl ModifyGroupView {
             "Submit",
             "Submit changes",
             false,
-        )
-        .on_press(ModifyGroupMessage::Submit);
+            Some(ModifyGroupMessage::Submit),
+        );
 
         let parent_name = if group.title().is_empty() {
             "Root"

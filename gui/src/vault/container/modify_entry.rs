@@ -10,7 +10,7 @@ use crate::{
     password_score::PasswordScore,
     utils::{
         centered_container_with_column, default_text_input, default_vertical_space,
-        estimate_password_strength, icon_button,
+        estimate_password_strength, icon_button, password_toggle,
     },
     DEFAULT_ROW_SPACING,
 };
@@ -200,8 +200,8 @@ impl ModifyEntryView {
             "Copy Username",
             "Copy Username to clipboard",
             true,
-        )
-        .on_press(ModifyEntryMessage::UsernameCopy);
+            Some(ModifyEntryMessage::UsernameCopy),
+        );
 
         let mut password = default_text_input(
             &mut self.password_state,
@@ -213,40 +213,28 @@ impl ModifyEntryView {
             password = password.password();
         }
 
-        let password_show = if self.password_show {
-            icon_button(
-                &mut self.password_show_state,
-                Icon::EyeSlash,
-                "Hide password",
-                "Hide password",
-                true,
-            )
-        } else {
-            icon_button(
-                &mut self.password_show_state,
-                Icon::Eye,
-                "Show password",
-                "Show password",
-                true,
-            )
-        }
-        .on_press(ModifyEntryMessage::PasswordShow);
+        let password_show = password_toggle(
+            &mut self.password_show_state,
+            self.password_show,
+            ModifyEntryMessage::PasswordShow,
+        );
+
         let password_generate = icon_button(
             &mut self.password_generate_state,
             Icon::Dice3,
             "Generate Password",
             "Generate a random password",
             true,
-        )
-        .on_press(ModifyEntryMessage::PasswordGenerate);
+            Some(ModifyEntryMessage::PasswordGenerate),
+        );
         let password_copy = icon_button(
             &mut self.password_copy_state,
             Icon::FileEarmarkLock,
             "Copy Password",
             "Copy Password to clipboard",
             true,
-        )
-        .on_press(ModifyEntryMessage::PasswordCopy);
+            Some(ModifyEntryMessage::PasswordCopy),
+        );
 
         let password_score: Element<_> = self.password_score.as_mut().map_or_else(
             || Container::new(default_vertical_space()).into(),
@@ -259,8 +247,8 @@ impl ModifyEntryView {
             "Cancel",
             "Cancel changes",
             false,
-        )
-        .on_press(ModifyEntryMessage::Cancel);
+            Some(ModifyEntryMessage::Cancel),
+        );
 
         let submit = icon_button(
             &mut self.submit_state,
@@ -268,8 +256,8 @@ impl ModifyEntryView {
             "Submit",
             "Submit changes",
             false,
-        )
-        .on_press(ModifyEntryMessage::Submit);
+            Some(ModifyEntryMessage::Submit),
+        );
 
         centered_container_with_column(vec![
             Text::new("Modify entry:").into(),

@@ -2,17 +2,14 @@
 
 use std::path::PathBuf;
 
-use iced::{
-    button, text_input, Column, Command, Container, Length, Row,
-    Space, Text,
-};
+use iced::{button, text_input, Column, Command, Container, Length, Row, Space, Text};
 use pwduck_core::{PWDuckCoreError, SecString, Vault};
 use zeroize::Zeroize;
 
 use crate::{
     error::PWDuckGuiError,
     icons::Icon,
-    utils::{default_text_input, icon_button},
+    utils::{default_text_input, icon_button, password_toggle, SomeIf},
     Component, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
     DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
 };
@@ -82,6 +79,7 @@ pub enum VaultUnlockerMessage {
     /// TODO
     Unlocked(Result<Box<Vault>, PWDuckCoreError>),
 }
+impl SomeIf for VaultUnlockerMessage {}
 
 impl Component for VaultUnlocker {
     type Message = VaultUnlockerMessage;
@@ -129,24 +127,11 @@ impl Component for VaultUnlocker {
             password = password.password();
         }
 
-        let password_show = if self.password_show {
-            icon_button(
-                &mut self.password_show_state,
-                Icon::EyeSlash,
-                "Hide password",
-                "Hide password",
-                true,
-            )
-        } else {
-            icon_button(
-                &mut self.password_show_state,
-                Icon::Eye,
-                "Show password",
-                "Show password",
-                true,
-            )
-        }
-        .on_press(VaultUnlockerMessage::PasswordShow);
+        let password_show = password_toggle(
+            &mut self.password_show_state,
+            self.password_show,
+            VaultUnlockerMessage::PasswordShow,
+        );
 
         let close_button = icon_button(
             &mut self.close_state,
@@ -154,20 +139,17 @@ impl Component for VaultUnlocker {
             "Close",
             "Close Vault",
             false,
-        )
-        .on_press(Self::Message::Close);
+            Some(Self::Message::Close),
+        );
 
-        let mut submit_button = icon_button(
+        let submit_button = icon_button(
             &mut self.submit_state,
             Icon::Unlock,
             "Unlock",
             "Unlock Vault",
             false,
+            VaultUnlockerMessage::Submit.some_if_not(self.password.is_empty()),
         );
-
-        if !self.password.is_empty() {
-            submit_button = submit_button.on_press(Self::Message::Submit);
-        }
 
         Container::new(
             Column::new()
