@@ -65,8 +65,11 @@ impl VaultContainer {
             String::new(),
         );
 
-        self.modify_group_view = Some(Box::new(ModifyGroupView::with(group)));
-        self.current_view = CurrentView::CreateGroup;
+        self.modify_group_view = Some(Box::new(ModifyGroupView::with(
+            modify_group::State::Create,
+            group,
+        )));
+        self.current_view = CurrentView::ModifyGroup;
         Command::none()
     }
 
@@ -84,7 +87,11 @@ impl VaultContainer {
             entry_body.uuid().as_string(),
         );
 
-        self.modify_entry_view = Some(Box::new(ModifyEntryView::with(entry_head, entry_body)));
+        self.modify_entry_view = Some(Box::new(ModifyEntryView::with(
+            modify_entry::State::Create,
+            entry_head,
+            entry_body,
+        )));
         self.current_view = CurrentView::ModifyEntry;
 
         Command::none()
@@ -155,14 +162,18 @@ impl VaultContainer {
             .get(self.list_view.selected_group_uuid())
             .ok_or(PWDuckGuiError::Option)?
             .clone();
-        self.modify_group_view = Some(Box::new(ModifyGroupView::with(group)));
-        self.current_view = CurrentView::CreateGroup;
+        self.modify_group_view = Some(Box::new(ModifyGroupView::with(
+            modify_group::State::Modify,
+            group,
+        )));
+        self.current_view = CurrentView::ModifyGroup;
         Ok(Command::none())
     }
 
     /// TODO
     fn select_group(&mut self, uuid: String) -> Command<VaultContainerMessage> {
         self.list_view.set_selected_group_uuid(uuid);
+        self.list_view.search_mut().clear();
         self.list_view.resize(&self.vault);
         Command::none()
     }
@@ -196,7 +207,11 @@ impl VaultContainer {
                 |dto| pwduck_core::EntryBody::decrypt(dto, &masterkey),
             )?;
 
-        self.modify_entry_view = Some(Box::new(ModifyEntryView::with(entry_head, entry_body)));
+        self.modify_entry_view = Some(Box::new(ModifyEntryView::with(
+            modify_entry::State::Modify,
+            entry_head,
+            entry_body,
+        )));
         self.current_view = CurrentView::ModifyEntry;
         Ok(Command::none())
     }
@@ -314,7 +329,7 @@ enum CurrentView {
     /// TODO
     ListView,
     /// TODO
-    CreateGroup,
+    ModifyGroup,
     /// TODO
     ModifyEntry,
 }
@@ -390,7 +405,7 @@ impl Component for VaultContainer {
                 .view(&self.vault)
                 .map(VaultContainerMessage::List),
 
-            CurrentView::CreateGroup => match &mut self.modify_group_view {
+            CurrentView::ModifyGroup => match &mut self.modify_group_view {
                 Some(modify_group_view) => modify_group_view
                     .view(&self.vault, self.list_view.selected_group_uuid())
                     .map(VaultContainerMessage::CreateGroup),

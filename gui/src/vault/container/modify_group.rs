@@ -17,6 +17,9 @@ use crate::{
 #[derive(Debug, Getters, MutGetters, Setters)]
 pub struct ModifyGroupView {
     /// TODO
+    state: State,
+
+    /// TODO
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     group: Group,
 
@@ -42,8 +45,10 @@ pub enum ModifyGroupMessage {
 
 impl ModifyGroupView {
     /// TODO
-    pub fn with(group: Group) -> Self {
+    pub fn with(state: State, group: Group) -> Self {
         Self {
+            state,
+
             group,
 
             group_name_state: text_input::State::new(),
@@ -76,7 +81,10 @@ impl ModifyGroupView {
     ) -> Element<ModifyGroupMessage> {
         let name = default_text_input(
             &mut self.group_name_state,
-            "Enter the name of the new Group",
+            match self.state {
+                State::Create => "Enter the name of the new Group",
+                State::Modify => "Enter the name of the Group",
+            },
             self.group.title(),
             ModifyGroupMessage::GroupNameInput,
         );
@@ -108,7 +116,11 @@ impl ModifyGroupView {
         };
 
         centered_container_with_column(vec![
-            Text::new(format!("Add new sub group to: {}", parent_name)).into(),
+            Text::new(match self.state {
+                State::Create => format!("Add new sub group to: {}", parent_name),
+                State::Modify => format!("Edit group:"),
+            })
+            .into(),
             name.into(),
             default_vertical_space().into(),
             Row::new()
@@ -119,4 +131,11 @@ impl ModifyGroupView {
         ])
         .into()
     }
+}
+
+/// TODO
+#[derive(Clone, Copy, Debug)]
+pub enum State {
+    Create,
+    Modify,
 }

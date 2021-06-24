@@ -10,10 +10,10 @@ use crate::{
     utils::{default_vertical_space, icon_button_with_width, icon_text, vertical_space, SomeIf},
     DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
-use getset::{Getters, Setters};
+use getset::{Getters, MutGetters, Setters};
 
 /// TODO
-#[derive(Debug, Getters, Setters)]
+#[derive(Debug, Getters, MutGetters, Setters)]
 pub struct ListView {
     /// TODO
     #[getset(get = "pub", set = "pub")]
@@ -26,7 +26,7 @@ pub struct ListView {
     entry_items: Vec<ListEntryItem>,
 
     /// TODO
-    #[getset(get = "pub", set = "pub")]
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     search: String,
     /// TODO
     search_state: text_input::State,

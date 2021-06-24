@@ -19,6 +19,9 @@ use crate::{
 #[derive(Getters, MutGetters, Setters)]
 pub struct ModifyEntryView {
     /// TODO
+    state: State,
+
+    /// TODO
     #[getset(get = "pub", get_mut = "pub")]
     entry_head: EntryHead,
     /// TODO
@@ -81,8 +84,10 @@ pub enum ModifyEntryMessage {
 
 impl ModifyEntryView {
     /// TODO
-    pub fn with(entry_head: EntryHead, entry_body: EntryBody) -> Self {
+    pub fn with(state: State, entry_head: EntryHead, entry_body: EntryBody) -> Self {
         Self {
+            state,
+
             entry_head,
             entry_body,
 
@@ -260,7 +265,11 @@ impl ModifyEntryView {
         );
 
         centered_container_with_column(vec![
-            Text::new("Modify entry:").into(),
+            Text::new(match self.state {
+                State::Create => "Create new entry:",
+                State::Modify => "Edit entry:",
+            })
+            .into(),
             title.into(),
             default_vertical_space().into(),
             Row::new()
@@ -291,4 +300,11 @@ impl std::fmt::Debug for ModifyEntryView {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("No debug info available for ModifyEntryView")
     }
+}
+
+/// TODO
+#[derive(Clone, Copy, Debug)]
+pub enum State {
+    Create,
+    Modify,
 }
