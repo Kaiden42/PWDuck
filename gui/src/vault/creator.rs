@@ -108,6 +108,7 @@ impl VaultCreator {
         )
     }
 
+    /// TODO
     fn set_password_score(
         &mut self,
         password_info: Result<PasswordInfo, PWDuckCoreError>,
@@ -232,52 +233,26 @@ impl Component for VaultCreator {
             VaultCreatorMessage::NameInput,
         );
 
-        let path = default_text_input(
+        let path_row = path_row::<P>(
             &mut self.path_state,
-            "Choose the location for your new vault",
-            &self.name,
-            VaultCreatorMessage::PathInput,
-        );
-
-        let path_fd_button = icon_button(
+            &self.path,
             &mut self.path_open_fd_state,
-            Icon::Folder,
-            "Open",
-            "Choose the location to store your new Vault",
-            true,
-            VaultCreatorMessage::PathOpenFD.some_if(P::is_nfd_available()),
         );
 
-        let mut password = default_text_input(
+        let password_row = password_row(
             &mut self.password_state,
-            "Enter your password",
             &self.password,
-            VaultCreatorMessage::PasswordInput,
-        );
-        if !self.password_show {
-            password = password.password();
-        }
-
-        let password_show = password_toggle(
-            &mut self.password_show_state,
             self.password_show,
-            VaultCreatorMessage::PasswordShow,
+            &mut self.password_show_state,
         );
 
-        let mut password_confirm = default_text_input(
+        let password_confirm_row = password_confirm_row(
             &mut self.password_confirm_state,
-            "Confirm your password",
             &self.password_confirm,
-            VaultCreatorMessage::PasswordConfirmInput,
-        );
-        if !self.password_confirm_show {
-            password_confirm = password_confirm.password();
-        }
-
-        let password_confirm_show = password_toggle(
-            &mut self.password_confirm_show_state,
             self.password_confirm_show,
-            VaultCreatorMessage::PasswordConfirmShow,
+            &mut self.password_confirm_show_state,
+            self.password.is_empty(),
+            self.password_equal,
         );
 
         let password_score: Element<_> = self.password_score.as_mut().map_or_else(
@@ -285,31 +260,13 @@ impl Component for VaultCreator {
             PasswordScore::view,
         );
 
-        if !self.password.is_empty() && !self.password_equal {
-            password_confirm = password_confirm.style(PasswordNotEqualStyle)
-        }
-
-        let cancel_button = icon_button(
+        let button_row = button_row(
             &mut self.cancel_state,
-            Icon::XSquare,
-            "Cancel",
-            "Cancel creation of new Vault",
-            false,
-            Some(Self::Message::Cancel),
-        );
-
-        let submit_button = icon_button(
             &mut self.submit_state,
-            Icon::Save,
-            "Submit",
-            "Submit creation of new Vault",
-            false,
-            VaultCreatorMessage::Submit.some_if(
-                self.password_equal
-                    && !self.password.is_empty()
-                    && !self.name.is_empty()
-                    && !self.path.is_empty(),
-            ),
+            self.password_equal
+                && !self.password.is_empty()
+                && !self.name.is_empty()
+                && !self.path.is_empty(),
         );
 
         centered_container_with_column(vec![
@@ -318,32 +275,142 @@ impl Component for VaultCreator {
                 .into(),
             name.into(),
             default_vertical_space().into(),
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(path)
-                .push(path_fd_button)
-                .into(),
+            path_row,
             default_vertical_space().into(),
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(password)
-                .push(password_show)
-                .into(),
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(password_confirm)
-                .push(password_confirm_show)
-                .into(),
+            password_row,
+            password_confirm_row,
             password_score,
             default_vertical_space().into(),
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(cancel_button)
-                .push(submit_button)
-                .into(),
+            button_row,
         ])
         .into()
     }
+}
+
+/// TODO
+fn path_row<'a, P: Platform + 'static>(
+    path_state: &'a mut text_input::State,
+    path: &'a str,
+    path_open_fd_state: &'a mut button::State,
+) -> Element<'a, VaultCreatorMessage> {
+    let path = default_text_input(
+        path_state,
+        "Choose the location for your new vault",
+        path,
+        VaultCreatorMessage::PathInput,
+    );
+
+    let path_fd_button = icon_button(
+        path_open_fd_state,
+        Icon::Folder,
+        "Open",
+        "Choose the location to store your new Vault",
+        true,
+        VaultCreatorMessage::PathOpenFD.some_if(P::is_nfd_available()),
+    );
+
+    Row::new()
+        .spacing(DEFAULT_ROW_SPACING)
+        .push(path)
+        .push(path_fd_button)
+        .into()
+}
+
+/// TODO
+fn password_row<'a>(
+    password_state: &'a mut text_input::State,
+    password: &'a str,
+    password_show: bool,
+    password_show_state: &'a mut button::State,
+) -> Element<'a, VaultCreatorMessage> {
+    let mut password = default_text_input(
+        password_state,
+        "Enter your password",
+        password,
+        VaultCreatorMessage::PasswordInput,
+    );
+    if !password_show {
+        password = password.password();
+    }
+
+    let password_show = password_toggle(
+        password_show_state,
+        password_show,
+        VaultCreatorMessage::PasswordShow,
+    );
+
+    Row::new()
+        .spacing(DEFAULT_ROW_SPACING)
+        .push(password)
+        .push(password_show)
+        .into()
+}
+
+/// TODO
+fn password_confirm_row<'a>(
+    password_confirm_state: &'a mut text_input::State,
+    password_confirm: &str,
+    password_confirm_show: bool,
+    password_confirm_show_state: &'a mut button::State,
+    password_empty: bool,
+    password_equal: bool,
+) -> Element<'a, VaultCreatorMessage> {
+    let mut password_confirm = default_text_input(
+        password_confirm_state,
+        "Confirm your password",
+        password_confirm,
+        VaultCreatorMessage::PasswordConfirmInput,
+    );
+    if !password_confirm_show {
+        password_confirm = password_confirm.password();
+    }
+
+    let password_confirm_show = password_toggle(
+        password_confirm_show_state,
+        password_confirm_show,
+        VaultCreatorMessage::PasswordConfirmShow,
+    );
+
+    if !password_empty && !password_equal {
+        password_confirm = password_confirm.style(PasswordNotEqualStyle)
+    }
+
+    Row::new()
+        .spacing(DEFAULT_ROW_SPACING)
+        .push(password_confirm)
+        .push(password_confirm_show)
+        .into()
+}
+
+/// TODO
+fn button_row<'a>(
+    cancel_state: &'a mut button::State,
+    submit_state: &'a mut button::State,
+    can_submit: bool,
+) -> Element<'a, VaultCreatorMessage> {
+    let cancel_button = icon_button(
+        cancel_state,
+        Icon::XSquare,
+        "Cancel",
+        "Cancel creation of new Vault",
+        false,
+        Some(VaultCreatorMessage::Cancel),
+    );
+
+    let submit_button = icon_button(
+        submit_state,
+        Icon::Save,
+        "Submit",
+        "Submit creation of new Vault",
+        false,
+        VaultCreatorMessage::Submit.some_if(can_submit),
+    );
+
+    Row::new()
+        .spacing(DEFAULT_ROW_SPACING)
+        .push(cancel_button)
+        .push(submit_button)
+        .into()
 }
 
 /// TODO

@@ -61,6 +61,7 @@ pub enum Icon {
     XSquare,
 }
 
+/// TODO
 pub const fn icon_to_char(icon: Icon) -> char {
     match icon {
         Icon::ArrowClockwise => '\u{FA0}',

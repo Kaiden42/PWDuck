@@ -47,10 +47,11 @@ pub fn icon_button<'a, Message: 'a + Clone>(
     }
 
     Tooltip::new(button, tooltip.into(), tooltip::Position::FollowCursor)
-        .style(ToolTipStyle)
+        .style(TooltipStyle)
         .into()
 }
 
+/// TODO
 pub fn icon_button_with_width<'a, Message: 'a + Clone>(
     state: &'a mut button::State,
     icon: Icon,
@@ -78,14 +79,16 @@ pub fn icon_button_with_width<'a, Message: 'a + Clone>(
     }
 
     Tooltip::new(button, tooltip.into(), tooltip::Position::FollowCursor)
-        .style(ToolTipStyle)
+        .style(TooltipStyle)
         .into()
 }
 
+/// TODO
 pub fn icon_text(icon: Icon) -> Text {
     Text::new(icon).width(Length::Shrink).font(ICON_FONT)
 }
 
+/// TODO
 pub fn password_toggle<'a, Message: 'a + Clone>(
     state: &'a mut button::State,
     show_password: bool,
@@ -165,7 +168,9 @@ pub async fn estimate_password_strength(
     pwduck_core::password_entropy(&password)
 }
 
+/// TODO
 pub trait SomeIf {
+    /// TODO
     fn some_if(self, predicate: bool) -> Option<Self>
     where
         Self: Sized,
@@ -177,6 +182,7 @@ pub trait SomeIf {
         }
     }
 
+    /// TODO
     fn some_if_not(self, predicate: bool) -> Option<Self>
     where
         Self: Sized,
@@ -189,10 +195,11 @@ pub trait SomeIf {
     }
 }
 
+/// TODO
 #[derive(Clone, Copy, Debug, Default)]
-struct ToolTipStyle;
+struct TooltipStyle;
 
-impl container::StyleSheet for ToolTipStyle {
+impl container::StyleSheet for TooltipStyle {
     fn style(&self) -> container::Style {
         container::Style {
             text_color: Some(iced::Color::BLACK),

@@ -118,7 +118,7 @@ impl ModifyGroupView {
         centered_container_with_column(vec![
             Text::new(match self.state {
                 State::Create => format!("Add new sub group to: {}", parent_name),
-                State::Modify => format!("Edit group:"),
+                State::Modify => "Edit group:".into(),
             })
             .into(),
             name.into(),
@@ -136,6 +136,8 @@ impl ModifyGroupView {
 /// TODO
 #[derive(Clone, Copy, Debug)]
 pub enum State {
+    /// TODO
     Create,
+    /// TODO
     Modify,
 }

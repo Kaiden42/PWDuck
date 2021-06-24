@@ -305,6 +305,8 @@ impl std::fmt::Debug for ModifyEntryView {
 /// TODO
 #[derive(Clone, Copy, Debug)]
 pub enum State {
+    /// TODO
     Create,
+    /// TODO
     Modify,
 }

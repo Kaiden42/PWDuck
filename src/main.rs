@@ -64,10 +64,10 @@ impl Platform for Desktop {
     }
 
     async fn nfd_choose_folder() -> Result<PathBuf, pwduck_gui::error::NfdError> {
-        use dirs;
         let file = AsyncFileDialog::new()
             .set_directory(
-                dirs::document_dir().unwrap_or_else(|| dirs::home_dir().unwrap_or("".into())),
+                dirs::document_dir()
+                    .unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| "".into())),
             )
             .pick_folder()
             .await

@@ -111,12 +111,12 @@ impl ToolBar {
         );
 
         Row::with_children(vec![
-            save.into(),
-            new_group.into(),
-            new_entry.into(),
-            copy_username.into(),
-            copy_password.into(),
-            lock_vault.into(),
+            save,
+            new_group,
+            new_entry,
+            copy_username,
+            copy_password,
+            lock_vault,
         ])
         .spacing(DEFAULT_ROW_SPACING)
         .width(Length::Fill)
