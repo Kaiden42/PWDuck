@@ -25,73 +25,73 @@ use passphrase_tab::{PassphraseTabMessage, PassphraseTabState};
 mod password_tab;
 use password_tab::{PasswordTabMessage, PasswordTabState};
 
-/// TODO
+/// The state of the password generator.
 #[derive(Debug, Default, Getters, Setters)]
 pub struct PasswordGeneratorState {
-    /// TODO
+    /// The generated password.
     #[getset(get = "pub")]
     password: SecString,
-    /// TODO
+    /// The state of the password [`TextInput`](TextInput).
     password_state: text_input::State,
-    /// TODO
+    /// The visibility of the password.
     password_show: bool,
-    /// TODO
+    /// The state of the password toggle [`Button`](iced::Button).
     password_show_state: button::State,
-    /// TODO
+    /// The state of the password copy [`Button`](iced::Button).
     password_copy_state: button::State,
-    /// TODO
+    /// The state of the password reroll [`Button`](iced::Button).
     password_reroll_state: button::State,
 
-    /// TODO
+    /// The estimated password score.
     password_score: Option<PasswordScore>,
 
-    /// TODO
+    /// The index of the active tab.
     active_tab: usize,
-    /// TODO
+    /// The state of the password generator tab.
     password_tab_state: PasswordTabState,
-    /// TODO
+    /// The state of the passphrase generator tab.
     passphrase_tab_state: PassphraseTabState,
 
-    /// TODO
+    /// The state of the cancel [`Button`](iced::Button).
     cancel_state: button::State,
-    /// TODO
+    /// The state of the submit [`Button`](iced::Button).
     submit_state: button::State,
 
-    /// TODO
+    /// The target to generate the password for.
     #[getset(get = "pub", set = "pub")]
     target: Target,
 }
 
-/// TODO
+/// The message that is send by the password generator.
 #[derive(Clone, Debug)]
 pub enum PasswordGeneratorMessage {
-    /// TODO
+    /// The [`TextInput`](TextInput) for the password changed the value.
     PasswordInput(String),
-    /// TODO
+    /// Toggle the password visibility.
     PasswordShow,
-    /// TODO
+    /// Copy the password.
     PasswordCopy,
-    /// TODO
+    /// Reroll the password.
     PasswordReroll,
 
-    /// TODO
+    /// The estimated password score.
     PasswordScore(Result<pwduck_core::PasswordInfo, pwduck_core::PWDuckCoreError>),
 
-    /// TODO
+    /// A tab was selected.
     TabSelected(usize),
-    /// TODO
+    /// A message produced by the password tab.
     PasswordTabMessage(PasswordTabMessage),
-    /// TODO
+    /// A message produced by the passphrase tab.
     PassphraseTabMessage(PassphraseTabMessage),
 
-    /// TODO
+    /// The cancel [`Button`](iced::Button) was pressed.
     Cancel,
-    /// TODO
+    /// The submit [`Button`](iced::Button) was pressed.
     Submit,
 }
 
 impl PasswordGeneratorState {
-    /// TODO
+    /// Create a new [`PasswordGeneratorState`](PasswordGeneratorState).
     pub fn new() -> Self {
         Self {
             password_tab_state: PasswordTabState::new(),
@@ -99,7 +99,7 @@ impl PasswordGeneratorState {
         }
     }
 
-    /// TODO
+    /// Calculate the strength of the generated password.
     fn estimate_password_strength(&self) -> Command<PasswordGeneratorMessage> {
         Command::perform(
             estimate_password_strength(self.password.clone()),
@@ -107,31 +107,31 @@ impl PasswordGeneratorState {
         )
     }
 
-    /// TODO
+    /// Update the password and replace it with the given value.
     fn update_password(&mut self, password: String) -> Command<PasswordGeneratorMessage> {
         self.password = password.into();
         self.estimate_password_strength()
     }
 
-    /// TODO
+    /// Toggle the visibility of the password.
     fn toogle_password_visibility(&mut self) -> Command<PasswordGeneratorMessage> {
         self.password_show = !self.password_show;
         Command::none()
     }
 
-    /// TODO
+    /// Copy the password to clipboard.
     fn copy_password(&self, clipboard: &mut iced::Clipboard) -> Command<PasswordGeneratorMessage> {
         clipboard.write(self.password.deref().clone());
         Command::none()
     }
 
-    /// TODO
+    /// Reroll the password.
     fn reroll_password(&mut self) -> Command<PasswordGeneratorMessage> {
         self.generate_and_update_password();
         Command::none()
     }
 
-    /// TODO
+    /// Set the estimated score of the password.
     fn set_password_score(
         &mut self,
         score: Result<PasswordInfo, PWDuckCoreError>,
@@ -140,13 +140,13 @@ impl PasswordGeneratorState {
         Command::none()
     }
 
-    /// TODO
+    /// Select the tab identified by the given index.
     fn select_tab(&mut self, index: usize) -> Command<PasswordGeneratorMessage> {
         self.active_tab = index;
         self.reroll_password()
     }
 
-    /// TODO
+    /// Update the password tab with the given message.
     fn update_password_tab(
         &mut self,
         message: &PasswordTabMessage,
@@ -159,7 +159,7 @@ impl PasswordGeneratorState {
         Ok(self.estimate_password_strength())
     }
 
-    /// TODO
+    /// Update the passphrase tab with the given message.
     fn update_passphrase_tab(
         &mut self,
         message: &PassphraseTabMessage,
@@ -172,7 +172,7 @@ impl PasswordGeneratorState {
         Ok(self.estimate_password_strength())
     }
 
-    /// TODO
+    /// Update the [`PasswordGeneratorState`](PasswordGeneratorState) with the given message.
     pub fn update(
         &mut self,
         message: PasswordGeneratorMessage,
@@ -197,7 +197,7 @@ impl PasswordGeneratorState {
         }
     }
 
-    /// TODO
+    /// Create the view of the [`PasswordGeneratorState`](PasswordGeneratorState).
     pub fn view(&mut self) -> Element<PasswordGeneratorMessage> {
         let head = Text::new("Generate new password");
 
@@ -304,7 +304,7 @@ impl PasswordGeneratorState {
             .into()
     }
 
-    /// TODO
+    /// Generate a new random password.
     pub fn generate_and_update_password(&mut self) {
         self.password = match self.active_tab {
             0 => self.password_tab_state.generate(),
@@ -314,7 +314,7 @@ impl PasswordGeneratorState {
     }
 }
 
-/// TODO
+/// The style of the tab container.
 #[derive(Debug, Default)]
 struct TabContainerStyle;
 
@@ -330,14 +330,14 @@ impl container::StyleSheet for TabContainerStyle {
     }
 }
 
-/// TODO
+/// The target to generate the password for.
 #[derive(Debug, PartialEq)]
 pub enum Target {
-    /// TODO
+    /// Crate a new password for the [`VaultCreator`](crate::vault::creator::VaultCreator)
     Creator,
-    /// TODO
+    /// Create a new password for the [`ModifyEntryView`](crate::vault::container::ModifyEntryView)
     EntryModifier,
-    /// TODO
+    /// No target specified.
     None,
 }
 

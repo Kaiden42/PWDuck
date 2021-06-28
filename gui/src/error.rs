@@ -1,21 +1,21 @@
-//! TODO
+//! This module contains everything related to errors occurring in the gui.
 
 use std::sync::PoisonError;
 
 use pwduck_core::PWDuckCoreError;
 
-/// TODO
+/// An error thrown in the gui.
 #[derive(Debug)]
 pub enum PWDuckGuiError {
-    /// TODO
+    /// An error thrown by Iced.
     Iced(iced::Error),
-    /// TODO
+    /// Locking a mutex failed.
     Mutex(String),
-    /// TODO
+    /// An expected `Some(_)` was not present.
     Option,
-    /// TODO
+    /// An error bubbled up from the core.
     PWDuckCoreError(PWDuckCoreError),
-    /// TODO
+    /// An unreachable path was reached.
     Unreachable(String),
 }
 
@@ -37,10 +37,10 @@ impl From<PWDuckCoreError> for PWDuckGuiError {
     }
 }
 
-/// TODO
+/// An error thrown by the natve file dialog.
 #[derive(Clone, Debug)]
 pub enum NfdError {
-    /// TODO
+    /// The native file dialog was not available.
     Null,
 }
 

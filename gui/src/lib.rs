@@ -65,6 +65,7 @@ use vault::{
 
 mod pw_modal;
 mod utils;
+
 use pw_modal::{PasswordGeneratorMessage, PasswordGeneratorState, Target};
 
 use crate::{utils::estimate_password_strength, vault::creator::VaultCreatorMessage};
@@ -73,19 +74,19 @@ mod password_score;
 
 mod icons;
 
-/// TODO
+/// The default maximum width of a [`Container`](iced::Container).
 const DEFAULT_MAX_WIDTH: u32 = 600;
-/// TODO
+/// The default padding of a [`Column`](iced::Column).
 const DEFAULT_COLUMN_PADDING: u16 = 16;
-/// TODO
+/// The default spacing of a [`Column`](iced::Column).
 const DEFAULT_COLUMN_SPACING: u16 = 5;
-/// TODO
+/// The default spacing of a [`Row`](iced::Row).
 const DEFAULT_ROW_SPACING: u16 = 5;
-/// TODO
+/// The default padding of a [`TextInput`](iced::TextInput).
 const DEFAULT_TEXT_INPUT_PADDING: u16 = 5;
-/// TODO
+/// The default height fo a [`Space`](iced::Space).
 const DEFAULT_SPACE_HEIGHT: u16 = 5;
-/// TODO
+/// The default font size of a header [`Text`](Text).
 const DEFAULT_HEADER_SIZE: u16 = 25;
 
 lazy_static! {
@@ -95,43 +96,43 @@ lazy_static! {
     //static ref MEM_KEY: Arc<RwLock<pwduck_core::MemKey>> = Arc::new(RwLock::new(MemKey::new()));
 }
 
-/// TODO
+/// The state of the GUI.
 #[derive(Debug)]
 pub struct PWDuckGui<P: Platform + 'static> {
-    /// TODO
+    /// The state of the error dialog.
     error_dialog_state: modal::State<ErrorDialogState>,
-    /// TODO
+    /// The state of the password generator.
     password_generator_state: modal::State<PasswordGeneratorState>,
-    /// TODO
+    /// The tabs of open vaults.
     tabs: Vec<VaultTab>,
 
-    /// TODO
+    /// The size of the window.
     windo_size: WindowSize,
-    /// TODO
+    /// If the application can exit.
     can_exit: bool,
 
-    /// TODO
+    /// PhantomData for the [`Platform`](Platform) information.
     phantom: PhantomData<P>,
 }
 
-/// TODO
+/// The state of the error dialog.
 #[derive(Debug, Default)]
 struct ErrorDialogState {
-    /// TODO
+    /// The text of the error.
     error: String,
 }
 
-/// TODO
+/// The size of the window.
 #[derive(Debug, Default)]
 struct WindowSize {
-    /// TODO
+    /// The width of the window.
     width: u32,
-    /// TODO
+    /// The height of the window.
     height: u32,
 }
 
 impl<P: Platform + 'static> PWDuckGui<P> {
-    /// TODO
+    /// Start the gui application.
     pub fn start() -> Result<(), PWDuckGuiError> {
         pwduck_core::try_to_prevent_core_dump()?;
 
@@ -143,7 +144,7 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         Ok(())
     }
 
-    /// TODO
+    /// Show the password generator.
     fn password_generator_show(&mut self, message: &Message) -> iced::Command<Message> {
         self.password_generator_state
             .inner_mut()
@@ -168,13 +169,13 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         .map(Message::PasswordGenerator)
     }
 
-    /// TODO
+    /// Hide the password generator.
     fn password_generator_cancel(&mut self) -> iced::Command<Message> {
         self.password_generator_state.show(false);
         Command::none()
     }
 
-    /// TODO
+    /// Process the submission of the password generator.
     fn password_generator_submit(&mut self) -> Result<iced::Command<Message>, PWDuckGuiError> {
         self.password_generator_state.show(false);
         // TODO: clean up
@@ -196,7 +197,7 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         ))
     }
 
-    /// TODO
+    /// Update the state of the password generator.
     fn update_password_generator(
         &mut self,
         message: PasswordGeneratorMessage,
@@ -208,14 +209,14 @@ impl<P: Platform + 'static> PWDuckGui<P> {
             .map(|cmd| cmd.map(Message::PasswordGenerator))
     }
 
-    /// TODO
+    /// Hide the error dialog.
     fn close_error_dialog(&mut self) -> iced::Command<Message> {
         self.error_dialog_state.inner_mut().error.clear();
         self.error_dialog_state.show(false);
         Command::none()
     }
 
-    /// TODO
+    /// Catch and handle an [`Event`](iced_native::Event) thrown by iced.
     fn catch_iced_event<Message>(&mut self, event: iced_native::Event) -> iced::Command<Message> {
         match event {
             iced_native::Event::Window(event) => match event {
@@ -236,7 +237,7 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         }
     }
 
-    /// TODO
+    /// Update the tab of a vault identified by the given message.
     fn update_vault_tab(
         &mut self,
         message: VaultTabMessage,
@@ -248,16 +249,16 @@ impl<P: Platform + 'static> PWDuckGui<P> {
     }
 }
 
-/// TODO
+/// The messages of the application.
 #[derive(Clone, Debug)]
 pub enum Message {
-    /// TODO
+    /// Close the error dialog.
     ErrorDialogClose,
-    /// TODO
+    /// Messages related to the password generator.
     PasswordGenerator(PasswordGeneratorMessage),
-    /// TODO
+    /// Messages related to iced [`Event`](iced_native::Event)s.
     IcedEvent(iced_native::Event),
-    /// TODO
+    /// Messages related to the tabs of the vaults.
     VaultTab(VaultTabMessage),
 }
 
@@ -341,7 +342,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
     }
 }
 
-/// TODO
+/// Create the view of the password generator.
 fn password_modal<'a, P: Platform + 'static>(
     state: &'a mut modal::State<pw_modal::PasswordGeneratorState>,
     body: Element<'a, Message>,
@@ -352,7 +353,7 @@ fn password_modal<'a, P: Platform + 'static>(
     .into()
 }
 
-/// TODO
+/// Create the view of the error dialog.
 fn error_modal<'a, P: Platform + 'static>(
     state: &'a mut modal::State<ErrorDialogState>,
     body: Element<'a, Message>,
@@ -368,36 +369,33 @@ fn error_modal<'a, P: Platform + 'static>(
     .into()
 }
 
-/// TODO
+/// Component trait to define components of this gui.
 trait Component {
-    /// TODO
+    /// Message produced by this [`Component`](Component).
     type Message: 'static;
-    /// TODO
+    /// Parameters expected by the constructor of this [`Component`](Component).
     type ConstructorParam;
 
-    /// TODO
+    /// Create a new [`Component`](Component).
     fn new(t: Self::ConstructorParam) -> Self;
 
-    /// TODO
+    /// Update this [`Component`](Component).
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,
         clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Self::Message>, PWDuckGuiError>;
 
-    /// TODO
+    /// Create the view of this [`Component`](Component).
     fn view<P: Platform + 'static>(&mut self) -> iced::Element<'_, Self::Message>;
 }
 
-/// TODO
+/// Platform related implementations.
 #[async_trait]
 pub trait Platform {
-    /// TODO
-    //fn new() -> Self;
-
-    /// TODO
+    /// True, if the native file dialog is available on this [`Platform`](Platform).
     fn is_nfd_available() -> bool;
 
-    /// TODO
+    /// Open the choose folder dialog of the native file dialog on this [`Platform`](Platform).
     async fn nfd_choose_folder() -> Result<PathBuf, NfdError>;
 }

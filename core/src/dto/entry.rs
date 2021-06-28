@@ -2,39 +2,39 @@
 use getset::Getters;
 use serde::{Deserialize, Serialize};
 
-/// TODO
+/// The encrypted head of an entry as a data-transfer-object (dto).
 #[derive(Clone, Debug, Deserialize, Serialize, Getters)]
 pub struct EntryHead {
-    /// TODO
+    /// The iv used to encrypt this entry head.
     #[getset(get = "pub")]
     iv: String,
 
-    /// tODO
+    /// The encrypted content of this entry head.
     #[getset(get = "pub")]
     content: String,
 }
 
 impl EntryHead {
-    /// TODO
+    /// Create a new [`EntryHead`](EntryHead).
     pub const fn new(iv: String, head: String) -> Self {
         Self { iv, content: head }
     }
 }
 
-/// TODO
+/// The encrypted body of an entry as a data-transfer-object (dto).
 #[derive(Clone, Debug, Deserialize, Serialize, Getters)]
 pub struct EntryBody {
-    /// TODO
+    /// The iv used to encrypt this entry body.
     #[getset(get = "pub")]
     iv: String,
 
-    /// TODO
+    /// The encrypted content of this entry body.
     #[getset(get = "pub")]
     content: String,
 }
 
 impl EntryBody {
-    /// TODO
+    /// Create a new [`EntryBody`](EntryBody).
     pub const fn new(iv: String, body: String) -> Self {
         Self { iv, content: body }
     }

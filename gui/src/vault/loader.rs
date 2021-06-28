@@ -15,52 +15,52 @@ use crate::{
     Component, Platform, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING,
 };
 
-/// TODO
+/// The state of the vault loader.
 #[derive(Debug, Default)]
 pub struct VaultLoader {
-    /// TODO
+    /// The path of the vault to load.
     path: String,
-    /// TODO
+    /// The state of the [`TextInput`](iced::TextInput) of the path.
     path_state: text_input::State,
 
-    /// TODO
+    /// The password of the vault.
     password: SecString,
-    /// TODO
+    /// The state of the [`TextInput`](iced::TextInput) of the password.
     password_state: text_input::State,
-    /// TODO
+    /// The visibility of the password.
     show_password: bool,
-    /// TOOD
+    /// The state of the [`Button`](iced::Button) to toggle the visibility.
     show_password_state: button::State,
 
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to show the vault creator.
     create_state: button::State,
-    /// TODO
+    /// The state of teh [`Button`](iced::Button) to confirm the loading of the vault.
     confirm_state: button::State,
 
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to open the native file dialog.
     path_open_fd_state: button::State,
 }
 
 impl VaultLoader {
-    /// TODO
+    /// Update the path and replace it by the new value.
     fn update_path(&mut self, path: String) -> Command<VaultLoaderMessage> {
         self.path = path;
         Command::none()
     }
 
-    /// TODO
+    /// Update the password and replace it by the new value.
     fn update_password(&mut self, password: String) -> Command<VaultLoaderMessage> {
         self.password = password.into();
         Command::none()
     }
 
-    /// TODO
+    /// Toggle the visibility of the password.
     fn toggle_password_visibility(&mut self) -> Command<VaultLoaderMessage> {
         self.show_password = !self.show_password;
         Command::none()
     }
 
-    /// TODO
+    /// Confirm the loading of the vault.
     fn confirm(&mut self) -> Command<VaultLoaderMessage> {
         Command::perform(
             {
@@ -82,30 +82,30 @@ impl VaultLoader {
         )
     }
 
-    /// TODO
+    /// Open the native file dialog of the [`Platform`](Platform).
     fn open_file_dialog<P: Platform + 'static>() -> Command<VaultLoaderMessage> {
         Command::perform(P::nfd_choose_folder(), VaultLoaderMessage::PathSelected)
     }
 }
 
-/// TODO
+/// The message created by the vault loader.
 #[derive(Clone, Debug)]
 pub enum VaultLoaderMessage {
-    /// TODO
+    /// Change the path to the new value.
     PathInput(String),
-    /// TODO
+    /// Change the password to the new value.
     PasswordInput(String),
-    /// TODO
+    /// Toggle the visibility of the password.
     ShowPassword,
-    /// TODO
+    /// Show the vault creator.
     Create,
-    /// TODO
+    /// Confirm the loading of the vault.
     Confirm,
-    /// TODO
+    /// Open the native file dialog.
     OpenFileDialog,
-    /// TODO
+    /// The path was selected by the native file dialog.
     PathSelected(Result<PathBuf, NfdError>),
-    /// TODO
+    /// The vault was loaded successfully.
     Loaded(Result<Box<Vault>, PWDuckCoreError>),
 }
 impl SomeIf for VaultLoaderMessage {}

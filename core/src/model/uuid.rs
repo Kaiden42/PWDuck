@@ -6,21 +6,23 @@ use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
 use crate::io::generate_uuid;
-/// TODO
+/// Universally Unique Identifier (UUID) of each data element of the [`Vault`](crate::Vault).
+///
+/// See: [`Group`](crate::Group), [`EntryHead`](crate::EntryHead) and [`EntryBody`](crate::EntryBody).
 #[derive(Clone, Debug, Deserialize, Serialize, Zeroize)]
 pub struct Uuid {
-    /// TODO
+    /// The UUID.
     id: Vec<u8>,
 }
 
 impl Uuid {
-    /// TODO
+    /// Generate a new UUID for the given path.
     #[must_use]
     pub fn new(path: &Path) -> Self {
         generate_uuid(path)
     }
 
-    /// TODO
+    /// Returns the Base64 encoded SHA-256 hash of this [`Uuid`](Uuid).
     #[must_use]
     pub fn as_string(&self) -> String {
         base64::encode(sha256::digest_bytes(&self.id))

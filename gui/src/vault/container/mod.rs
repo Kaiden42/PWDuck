@@ -25,31 +25,31 @@ use crate::{
 
 use self::list::ListItemMessage;
 
-/// TODO
+/// The state of the vault container.
 #[derive(Debug, Getters)]
 pub struct VaultContainer {
-    /// TODO
+    /// The unlocked vault.
     #[getset(get = "pub")]
     vault: Box<Vault>,
 
-    /// TODO
+    /// The state of the [`ToolBar`](ToolBar).
     tool_bar: ToolBar,
 
-    /// TODO
+    /// The state of the current view.
     current_view: CurrentView,
 
-    /// TODO
+    /// The state of the list view.
     list_view: ListView,
 
-    /// TODO
+    /// The state of the group modification view.
     modify_group_view: Option<Box<ModifyGroupView>>,
 
-    /// TODO
+    /// The state of the entry modification view.
     modify_entry_view: Option<Box<ModifyEntryView>>,
 }
 
 impl VaultContainer {
-    /// TODO
+    /// Save the vault to disk.
     fn save(&mut self) -> Result<Command<ToolBarMessage>, PWDuckGuiError> {
         // TODO: find a way to do this async
         let mem_key = crate::MEM_KEY.lock()?;
@@ -57,7 +57,7 @@ impl VaultContainer {
         Ok(Command::none())
     }
 
-    /// TODO
+    /// Create a new group and switch to the [`ModifyGroupView`](ModifyGroupView) as the current view.
     fn create_group(&mut self) -> Command<ToolBarMessage> {
         let group = Group::new(
             pwduck_core::Uuid::new(self.vault.path()),
@@ -73,7 +73,7 @@ impl VaultContainer {
         Command::none()
     }
 
-    /// TODO
+    /// Create a new entry and switch to the [`ModifyEntryView`](ModifyEntryView) as the current view.
     fn create_entry(&mut self) -> Command<ToolBarMessage> {
         let entry_body = EntryBody::new(
             pwduck_core::Uuid::new(self.vault.path()),
@@ -97,7 +97,7 @@ impl VaultContainer {
         Command::none()
     }
 
-    /// TODO
+    /// Copy the username to the clipboard.
     fn copy_username(&self, clipboard: &mut iced::Clipboard) -> Command<ToolBarMessage> {
         if let Some(modify_entry_view) = self.modify_entry_view.as_ref() {
             clipboard.write(modify_entry_view.entry_body().username().clone());
@@ -106,7 +106,7 @@ impl VaultContainer {
         Command::none()
     }
 
-    /// TODO
+    /// Copy the password to the clipboard.
     fn copy_password(&self, clipboard: &mut iced::Clipboard) -> Command<ToolBarMessage> {
         if let Some(modify_entry_view) = self.modify_entry_view.as_ref() {
             clipboard.write(modify_entry_view.entry_body().password().clone());
@@ -115,7 +115,7 @@ impl VaultContainer {
         Command::none()
     }
 
-    /// TODO
+    /// Update the [`ToolBar`](ToolBar) with the given message.
     fn update_toolbar(
         &mut self,
         message: &ToolBarMessage,
@@ -134,14 +134,14 @@ impl VaultContainer {
         .map(|cmd| cmd.map(VaultContainerMessage::ToolBar))
     }
 
-    /// TODO
+    /// Update the search and replace it with the given value. The [`ListView`](ListView) will be resized.
     fn update_search(&mut self, search: String) -> Command<VaultContainerMessage> {
         self.list_view.set_search(search);
         self.list_view.resize(&self.vault);
         Command::none()
     }
 
-    /// TODO
+    /// Go back to the parent group of the currently selected group of the unlocked vault.
     fn go_to_parent_group(&mut self) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         let group = self
             .vault
@@ -154,7 +154,7 @@ impl VaultContainer {
         Ok(Command::none())
     }
 
-    /// TODO
+    /// Edit the currently selected group of the unlocked vault.
     fn edit_group(&mut self) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         let group = self
             .vault
@@ -170,7 +170,7 @@ impl VaultContainer {
         Ok(Command::none())
     }
 
-    /// TODO
+    /// Select the group identified by the UUID.
     fn select_group(&mut self, uuid: String) -> Command<VaultContainerMessage> {
         self.list_view.set_selected_group_uuid(uuid);
         self.list_view.search_mut().clear();
@@ -178,7 +178,8 @@ impl VaultContainer {
         Command::none()
     }
 
-    /// TODO
+    /// Select the entry identified by the UUID. It will be loaded, decrypted
+    /// and finally displayed in the [`ModifyEntryView`](ModifyEntryView).
     fn select_entry(
         &mut self,
         uuid: &str,
@@ -216,7 +217,7 @@ impl VaultContainer {
         Ok(Command::none())
     }
 
-    /// TODO
+    /// Handle the message that was send by the list items.
     fn update_list_items(
         &mut self,
         message: ListItemMessage,
@@ -227,7 +228,7 @@ impl VaultContainer {
         }
     }
 
-    /// TODO
+    /// Handle the message that was send by the [`ListView`](ListView).
     fn update_list(
         &mut self,
         message: ListMessage,
@@ -241,7 +242,7 @@ impl VaultContainer {
         }
     }
 
-    /// TODO
+    /// Handle the massage that was send by the [`ModifyGroupView`](ModifyGroupView).
     fn update_modify_group(
         &mut self,
         message: ModifyGroupMessage,
@@ -270,11 +271,11 @@ impl VaultContainer {
                     || Ok(Command::none()),
                     |view| view.update(message, clipboard),
                 )
-                .map(|cmd| cmd.map(VaultContainerMessage::CreateGroup)),
+                .map(|cmd| cmd.map(VaultContainerMessage::ModifyGroup)),
         }
     }
 
-    /// TODO
+    /// Handle the message that was send by the [`ModifyEntryView`](ModifyEntryView).
     fn update_modify_entry(
         &mut self,
         message: ModifyEntryMessage,
@@ -323,27 +324,27 @@ impl VaultContainer {
     }
 }
 
-/// TODO
+/// The current view to display.
 #[derive(Debug)]
 enum CurrentView {
-    /// TODO
+    /// Display the [`ListView`](ListView).
     ListView,
-    /// TODO
+    /// Display the [`ModifyGroupView`](ModifyGroupView).
     ModifyGroup,
-    /// TODO
+    /// Display the [`ModifyEntryView`](ModifyEntryView).
     ModifyEntry,
 }
 
-/// TODO
+/// The message that is send by the vault container.
 #[derive(Clone, Debug)]
 pub enum VaultContainerMessage {
-    /// TODO
+    /// The message that is send by the ToolBar.
     ToolBar(ToolBarMessage),
-    /// TODO
+    /// The message that is send by the ListView`.
     List(ListMessage),
-    /// TODO
-    CreateGroup(ModifyGroupMessage),
-    /// TODO
+    /// The message that is send by the ModifyGroupView.
+    ModifyGroup(ModifyGroupMessage),
+    /// The message that is send by the ModifyEntryView.
     ModifyEntry(ModifyEntryMessage),
 }
 
@@ -377,7 +378,7 @@ impl Component for VaultContainer {
 
             VaultContainerMessage::List(message) => self.update_list(message, clipboard),
 
-            VaultContainerMessage::CreateGroup(message) => {
+            VaultContainerMessage::ModifyGroup(message) => {
                 self.update_modify_group(message, clipboard)
             }
 
@@ -408,7 +409,7 @@ impl Component for VaultContainer {
             CurrentView::ModifyGroup => match &mut self.modify_group_view {
                 Some(modify_group_view) => modify_group_view
                     .view(&self.vault, self.list_view.selected_group_uuid())
-                    .map(VaultContainerMessage::CreateGroup),
+                    .map(VaultContainerMessage::ModifyGroup),
                 None => unreachable!(),
             },
 

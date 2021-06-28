@@ -11,57 +11,57 @@ use crate::{
     error::PWDuckGuiError, utils::vertical_space, DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING,
 };
 
-/// TODO
+/// The state of the password generator tab.
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Default)]
 pub struct PasswordTabState {
-    /// TODO
+    /// The length of the password to generate.
     length: u8,
-    /// TODO
+    /// The state of the [`Slider`](Slider) to set the length.
     length_slider_state: slider::State,
-    /// TODO
+    /// The state of the [`NumberInput`](NumberInput) to set the length.
     length_input_state: number_input::State,
 
-    /// TODO
+    /// If the generator has to include upper case latin characters to the pool.
     include_upper: bool,
-    /// TODO
+    /// The state of the [`Button`](Button) to toggle the inclusion of upper case characters.
     include_upper_state: button::State,
 
-    /// TODO
+    /// If the generator has to include lower case latin characters to the pool.
     include_lower: bool,
-    /// TODO
+    /// The state of the [`Button`](Button) to toggle the inclusion of lower case characters.
     include_lower_state: button::State,
 
-    /// TODO
+    /// If the generator has to include digitals (`0-9`) to the pool.
     include_numbers: bool,
-    /// TODO
+    /// The state of the [`Button`](Button) to toggle the inclusion of digits.
     include_numbers_state: button::State,
 
-    /// TODO
+    /// If the generator has to include special characters (`\/{>():...`) to the pool.
     include_special: bool,
-    /// TODO
+    /// The state of the [`Button`](Button) to toggle the inclusion of special characters.
     include_special_state: button::State,
 }
 
-/// TODO
+/// The message produced by the password generator tab.
 #[derive(Clone, Debug)]
 pub enum PasswordTabMessage {
-    /// TODO
+    /// The length slider modified the length's value.
     LengthSlider(u8),
-    /// TODO
+    /// The length number input modified the length's value.
     LengthInput(u8),
-    /// TODO
+    /// Toggle the inclusion of upper case latin characters.
     IncludeUpper,
-    /// TODO
+    /// Toggle the inclusion of lower case latin characters.
     IncludeLower,
-    /// TODO
+    /// Toggle the inclusion of digits.
     IncludeNumbers,
-    /// TODO
+    /// Toggle the inclusion of special characters.
     IncludeSpecial,
 }
 
 impl PasswordTabState {
-    /// TODO
+    /// Create a new [`PasswordTabState`](PasswordTabState).
     pub fn new() -> Self {
         Self {
             length: 32,
@@ -73,7 +73,7 @@ impl PasswordTabState {
         }
     }
 
-    /// TODO
+    /// Update the [`PasswordTabState`](PasswordTabState) with the given message.
     pub fn update(
         &mut self,
         message: &PasswordTabMessage,
@@ -104,7 +104,7 @@ impl PasswordTabState {
         Ok(cmd)
     }
 
-    /// TODO
+    /// Create the view of the [`PasswordTabState`](PasswordTabState).
     pub fn view(&mut self) -> Element<PasswordTabMessage> {
         let length = Text::new("Length:");
 
@@ -177,7 +177,7 @@ impl PasswordTabState {
             .into()
     }
 
-    /// TODO
+    /// Generate a new random password.
     pub fn generate(&self) -> String {
         use pwduck_core::Symbols;
 
@@ -200,7 +200,7 @@ impl PasswordTabState {
     }
 }
 
-/// TODO
+/// The style of the toggle buttons.
 #[derive(Debug, Default)]
 struct ActivatedButtonStyle;
 

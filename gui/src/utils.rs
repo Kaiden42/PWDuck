@@ -1,4 +1,4 @@
-//! TODO
+//! Utility functions.
 
 use iced::{
     button, container, text_input, tooltip, Button, Column, Container, Element, Length, Row, Space,
@@ -11,7 +11,15 @@ use crate::{
     DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING,
 };
 
-/// TODO
+/// Create a [`Button`] with an [`Icon`](Icon) and a [`Text`](iced::Text).
+///
+/// It expects:
+///     - The [`State`](button::State) of the [`Button`](Button)
+///     - The [`Icon`](Icon) of the [`Button`](Button)
+///     - The text of the [`Button`](Button)
+///     - The tooltip of the [`Button`](Button)
+///     - If only the [`Icon`](Icon) of the [`Button`](Button) should be visible
+///     - The message that the [`Button`](Button) sends if the user presses on it
 pub fn icon_button<'a, Message: 'a + Clone>(
     state: &'a mut button::State,
     icon: Icon,
@@ -51,7 +59,15 @@ pub fn icon_button<'a, Message: 'a + Clone>(
         .into()
 }
 
-/// TODO
+/// Create a [`Button`](Button) with an [`Icon`](Icon), a [`Text`](iced::Text) and a specified width.
+///
+/// It expects:
+///     - The [`State`](button::State) of the [`Button`](Button)
+///     - The [`Icon`](Icon) of the [`Button`](Button)
+///     - The text of the [`Button`](Button)
+///     - The tooltip of the [`Button`](Button)
+///     - The message that the [`Button`](Button) sends if the user presses on it
+///     - The width of the [`Button`](Button)
 pub fn icon_button_with_width<'a, Message: 'a + Clone>(
     state: &'a mut button::State,
     icon: Icon,
@@ -83,12 +99,17 @@ pub fn icon_button_with_width<'a, Message: 'a + Clone>(
         .into()
 }
 
-/// TODO
+/// Create a label containing an Icon with the default `ICON_FONT`.
 pub fn icon_text(icon: Icon) -> Text {
     Text::new(icon).width(Length::Shrink).font(ICON_FONT)
 }
 
-/// TODO
+/// Create a toggle button to toggle the password visibility.
+///
+/// It expects:
+///     - The [`State`](button::State) of the [`Button`](Button)
+///     - The state of the password visibility
+///     - The message that the [`Button`](Button) sends if the user presses on it
 pub fn password_toggle<'a, Message: 'a + Clone>(
     state: &'a mut button::State,
     show_password: bool,
@@ -115,14 +136,20 @@ pub fn password_toggle<'a, Message: 'a + Clone>(
     }
 }
 
-/// TODO
+/// Create text that is horizontally centered.
 pub fn horizontal_centered_text(label: impl Into<String>) -> Text {
     Text::new(label)
         .horizontal_alignment(iced::HorizontalAlignment::Center)
         .width(Length::Fill)
 }
 
-/// TODO
+/// Create a default [`TextInput`](TextInput).
+///
+/// It expects:
+///     - The [`State`](text_input::State) of the [`TextInput`](TextInput)
+///     - The placeholder of the [`TextInput`](TextInput)
+///     - The value of the [`TextInput`](TextInput)
+///     - The message that the [`TextInput`](TextInput) sends if the value is changed
 pub fn default_text_input<'a, F, Message: Clone>(
     state: &'a mut text_input::State,
     placeholder: &str,
@@ -135,7 +162,7 @@ where
     TextInput::new(state, placeholder, value, on_change).padding(DEFAULT_TEXT_INPUT_PADDING)
 }
 
-/// TODO
+/// Create a default container.
 pub fn centered_container_with_column<'a, Message: 'a>(
     children: Vec<Element<'a, Message>>,
 ) -> Container<'a, Message> {
@@ -151,43 +178,43 @@ pub fn centered_container_with_column<'a, Message: 'a>(
     .center_y()
 }
 
-/// TODO
+/// Create a default vertical [`Space`](Space).
 pub fn default_vertical_space() -> Space {
     vertical_space(1)
 }
 
-/// TODO
+/// Create a vertical [`Space`] that is `factor` times larger than the default [`Space`](Space).
 pub fn vertical_space(factor: u16) -> Space {
     Space::with_height(Length::Units(factor * DEFAULT_SPACE_HEIGHT))
 }
 
-/// TODO
+/// Calculate the strength of the given password.
 pub async fn estimate_password_strength(
     password: pwduck_core::SecString,
 ) -> Result<pwduck_core::PasswordInfo, pwduck_core::PWDuckCoreError> {
     pwduck_core::password_entropy(&password)
 }
 
-/// TODO
+/// Shortcut trait to create `Some(value)` or `None` based on a condition.
 pub trait SomeIf {
-    /// TODO
-    fn some_if(self, predicate: bool) -> Option<Self>
+    /// Returns `Some(self)` if the `condition` is true, `None` if not.
+    fn some_if(self, condition: bool) -> Option<Self>
     where
         Self: Sized,
     {
-        if predicate {
+        if condition {
             Some(self)
         } else {
             None
         }
     }
 
-    /// TODO
-    fn some_if_not(self, predicate: bool) -> Option<Self>
+    /// Returns `Some(self)` if the `condition` is not true, `None` if it is.
+    fn some_if_not(self, condition: bool) -> Option<Self>
     where
         Self: Sized,
     {
-        if predicate {
+        if condition {
             None
         } else {
             Some(self)
@@ -195,7 +222,7 @@ pub trait SomeIf {
     }
 }
 
-/// TODO
+/// The default style of a [`Tooltip`](iced::Tooltip).
 #[derive(Clone, Copy, Debug, Default)]
 struct TooltipStyle;
 

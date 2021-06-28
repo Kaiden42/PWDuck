@@ -12,50 +12,57 @@ use crate::{
 };
 use getset::{Getters, MutGetters, Setters};
 
-/// TODO
+/// The state of the list view inside the vault container.
+///
+/// See: [`VaultContainer`](crate::vault::container::VaultContainer)
 #[derive(Debug, Getters, MutGetters, Setters)]
 pub struct ListView {
-    /// TODO
+    /// The UUID of the selected group.
     #[getset(get = "pub", set = "pub")]
     selected_group_uuid: String,
-    /// TODO
+    /// The sub-groups of the selected group.
     #[getset(get)]
     group_items: Vec<ListGroupItem>,
-    /// TODO
+    /// The entries of the selected group.
     #[getset(get)]
     entry_items: Vec<ListEntryItem>,
 
-    /// TODO
+    /// The search string to search for groups / entries.
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     search: String,
-    /// TODO
+    /// The state of teh [`TextInput`](TextInput) of the search.
     search_state: text_input::State,
 
-    /// TODO
+    /// The state of the back [`Button`](Button).
     back_state: button::State,
-    /// TODO
+    /// The state of the edit [`Button`](Button)
     edit_group_state: button::State,
 
-    /// TODO
+    /// The state of the [`Scrollable`](iced::Scrollable).
     scroll_state: scrollable::State,
 }
 
-/// TODO
+/// The message that is send by the list view.
 #[derive(Clone, Debug)]
 pub enum ListMessage {
-    /// TODO
+    /// Change the search to the new value.
     SearchInput(String),
-    /// TODO
+    /// Go pack to the parent group.
     Back,
-    /// TODO
+    /// Edit the currently selected group.
     EditGroup,
-    /// TODO
+    /// Message that is send by the list items.
     ListItemMessage(ListItemMessage),
 }
 impl SomeIf for ListMessage {}
 
 impl ListView {
-    /// TODO
+    /// Create a new [`ListView`](ListView).
+    ///
+    /// It expects:
+    ///     - The UUID of the root group of the vault
+    ///     - The number of sub-groups in the root group.
+    ///     - The number of entries in the root group.
     pub fn new(root_uuid: String, group_count: usize, entry_count: usize) -> Self {
         Self {
             selected_group_uuid: root_uuid,
@@ -72,7 +79,7 @@ impl ListView {
         }
     }
 
-    /// TODO
+    /// Resize the number of sub-groups and entries to the current configuration.
     pub fn resize(&mut self, vault: &Vault) {
         // TODO: remove
         let search = if self.search().is_empty() {
@@ -88,7 +95,7 @@ impl ListView {
         self.entry_items = vec![ListEntryItem::default(); new_entry_count];
     }
 
-    /// TODO
+    /// Create the view of the [`ListView`](ListView).
     pub fn view<'a>(&'a mut self, vault: &'a Vault) -> Element<'a, ListMessage> {
         let current_item_list = vault.get_item_list_for(
             &self.selected_group_uuid,
@@ -189,15 +196,15 @@ impl ListView {
     }
 }
 
-/// TODO
+/// The state of a sub-group list item.
 #[derive(Clone, Debug, Default)]
 struct ListGroupItem {
-    /// TODO
+    /// The state of the [`Button`](Button) of the list item.
     state: button::State,
 }
 
 impl ListGroupItem {
-    /// TODO
+    /// Create the view of the [`ListGroupItem`](ListGroupItem).
     fn view<'a>(&'a mut self, group: &'a Group) -> Element<'a, ListItemMessage> {
         Button::new(
             &mut self.state,
@@ -214,15 +221,15 @@ impl ListGroupItem {
     }
 }
 
-/// TODO
+/// The state of an entry list item.
 #[derive(Clone, Debug, Default)]
 struct ListEntryItem {
-    /// TODO
+    /// The state of the [`Button`](Button) of the list item.
     state: button::State,
 }
 
 impl ListEntryItem {
-    /// TODO
+    /// Create the view of the [`ListEntryItem`](ListEntryItem).
     fn view<'a>(&'a mut self, entry: &'a EntryHead) -> Element<'a, ListItemMessage> {
         Button::new(
             &mut self.state,
@@ -239,16 +246,16 @@ impl ListEntryItem {
     }
 }
 
-/// TODO
+/// The message that is send by the list item.
 #[derive(Clone, Debug)]
 pub enum ListItemMessage {
-    /// TODO
+    /// Select the group identified by it's UUID.
     GroupSelected(String),
-    /// TODO
+    /// Select the entry identified by it's UUID.
     EntrySelected(String),
 }
 
-/// TODO
+/// The style of the [`ListGroupItem`](ListGroupItem)s.
 #[derive(Debug, Default)]
 struct ListGroupStyle;
 
@@ -265,7 +272,7 @@ impl button::StyleSheet for ListGroupStyle {
     }
 }
 
-/// TODO
+/// The style of the [`ListEntryItem`](ListEntryItem)s.
 #[derive(Debug, Default)]
 struct ListEntryStyle;
 

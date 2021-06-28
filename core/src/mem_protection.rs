@@ -11,13 +11,13 @@ use seckey::SecBytes;
 
 use crate::{cryptography::fill_random_bytes, error::PWDuckCoreError};
 
-/// TODO
+/// The size of a 1 MiB block.
 const MIB_1: usize = 0x0010_0000;
 
-/// TODO
+/// Memory key used for in memory encryption. It is protected and locked in memory.
 #[derive(Debug)]
 pub struct MemKey {
-    /// TODO
+    /// The bytes of the memory key.
     key: SecBytes,
 }
 
@@ -34,13 +34,13 @@ impl Drop for MemKey {
 }
 
 impl MemKey {
-    /// TODO
+    /// Create a new random memory key with the default size.
     #[must_use]
     pub fn new() -> Self {
         Self::with_length(MIB_1)
     }
 
-    /// TODO
+    /// Create a new random memory key with the given size.
     #[must_use]
     pub fn with_length(length: usize) -> Self {
         Self {
@@ -76,7 +76,7 @@ impl DerefMut for MemKey {
     }
 }
 
-/// TODO
+/// Wrapper around a [`Vec`](Vec). It zeroizes itself automatically at drop.
 #[derive(PartialEq, Eq, Zeroize)]
 //#[zeroize(drop)]
 #[allow(missing_debug_implementations)]
@@ -84,13 +84,13 @@ impl DerefMut for MemKey {
 pub struct SecVec<T: Zeroize>(Vec<T>);
 
 impl<T: Zeroize> SecVec<T> {
-    /// TODO
+    /// Create a new empty [`SecVec`](SecVec).
     #[must_use]
     pub fn new() -> Self {
         Self(Vec::new())
     }
 
-    /// TODO
+    /// Create a new [`SecVec`](SecVec) with the given capacity.
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self(Vec::with_capacity(capacity))
@@ -130,14 +130,15 @@ impl<T: Zeroize> From<Vec<T>> for SecVec<T> {
     }
 }
 
-/// TODO
+/// Wrapper around a [`String`](String). It zeroizes itself automatically at drop.
 #[derive(Clone, Default, PartialEq, Eq, Zeroize)]
 #[zeroize(drop)]
 #[allow(missing_debug_implementations)]
 pub struct SecString(String);
 
 impl SecString {
-    /// TODO
+    /// Create a new [`SecString`](SecString) from a [`SecVec`](SecVec) containing
+    /// UTF-8 encoded text.
     pub fn from_utf8(v: SecVec<u8>) -> Result<Self, PWDuckCoreError> {
         let raw = v.to_vec();
         drop(v);

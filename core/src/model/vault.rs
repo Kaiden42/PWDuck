@@ -17,49 +17,52 @@ use crate::{
 use super::{entry::EntryBody, entry::EntryHead, group::Group, master_key::MasterKey};
 use getset::{Getters, MutGetters};
 
-/// TODO
+/// The in-memory representation of a vault.
 #[derive(Clone, Debug, Getters, MutGetters)]
 pub struct Vault {
-    /// TODO
+    /// The masterkey used to encrypt the data of this [`Vault`](Vault)
     #[getset(get = "pub")]
     masterkey: MasterKey,
 
-    /// TODO
+    /// The salt to derive the key to decrypt the in-memory encrypted masterkey.
     #[getset(get = "pub")]
     salt: String,
 
-    /// TODO
+    /// The nonce used to decrypt the in-memory encrypted masterkey.
     #[getset(get = "pub")]
     nonce: Vec<u8>,
 
-    /// TODO
+    /// The [`PathBuf`](PathBuf) of the location of this [`Vault`](Vault).
     #[getset(get = "pub")]
     path: PathBuf,
 
-    /// TODO
+    /// The [`Group`](Group)s of this [`Vault`](Vault).
     #[getset(get = "pub", get_mut = "pub")]
     groups: HashMap<String, Group>,
 
-    /// TODO
+    /// The [`EntryHead`](EntryHead)s of this vault.
     #[getset(get = "pub")]
     entries: HashMap<String, EntryHead>,
 
-    /// TODO
+    /// The encrypted data-transfer-objects (dtos) of unsaved [`EntryBody`](EntryBody)s.
     #[getset(get = "pub")]
     unsaved_entry_bodies: HashMap<String, crate::dto::entry::EntryBody>,
 }
 
 impl Vault {
-    /// TODO
+    /// Generate a new [`Vault`](Vault).
+    ///
+    /// It expects:
+    ///     - The password to encrypt the masterkey of the new [`Vault`](Vault)
+    ///     - The memory key to protect the new generated masterkey of the new [`Vault`](Vault)
+    ///     - The path as the location of the new [`Vault`](Vault)
     pub fn generate<P>(password: &str, mem_key: &MemKey, path: P) -> Result<Self, PWDuckCoreError>
     where
         P: Into<PathBuf>,
     {
         let path = path.into();
-        println!("Create vault dir");
         create_new_vault_dir(&path)?;
 
-        println!("Generate password");
         let masterkey_dto = generate_masterkey(password)?;
 
         let salt = generate_argon2_salt();
@@ -91,7 +94,10 @@ impl Vault {
         Ok(vault)
     }
 
-    /// TODO
+    /// Save the vault to disk.
+    ///
+    /// It expects:
+    ///     - The [`MemKey`](MemKey) to decrypt the in-memory encrypted masterkey of the [`Vault`](Vault).
     pub fn save(&mut self, mem_key: &MemKey) -> Result<(), PWDuckCoreError> {
         let path = self.path.clone();
         let mut masterkey = unprotect_masterkey(
@@ -125,7 +131,12 @@ impl Vault {
         unsaved_entry_bodies_result.and(group_result.and(entry_result))
     }
 
-    /// TODO
+    /// Load a [`Vault`](Vault) from disk.
+    ///
+    /// It expects:
+    ///     - The password to decrypt the masterkey of the [`Vault`](Vault)
+    ///     - The [`MemKey`] to re-encrypt the decrypted masterkey in memory
+    ///     - The path as the location of the vault
     pub fn load<P>(password: &str, mem_key: &MemKey, path: P) -> Result<Self, PWDuckCoreError>
     where
         P: Into<PathBuf>,
@@ -164,7 +175,7 @@ impl Vault {
         Ok(vault)
     }
 
-    /// TODO
+    /// Get the name of this [`Vault`](Vault).
     #[must_use]
     pub fn get_name(&self) -> &str {
         self.path
@@ -173,7 +184,7 @@ impl Vault {
             .unwrap_or("Name of Vault")
     }
 
-    /// TODO
+    /// Get the UUID of the root [`Group`](Group) of this [`Vault`](Vault).
     #[must_use]
     pub fn get_root_uuid(&self) -> Option<String> {
         //println!("groups: {:?}", self.get_groups());
@@ -184,12 +195,17 @@ impl Vault {
             .map(|(_uuid, group)| group.uuid().as_string())
     }
 
-    /// TODO
+    /// Insert a new [`Group`](Group) into this [`Vault`](Vault).
     pub fn insert_group(&mut self, group: Group) {
         drop(self.groups.insert(group.uuid().as_string(), group));
     }
 
-    /// TODO
+    /// Insert a new entry into this [`Vault`](Vault).
+    ///
+    /// It expects:
+    ///     - The [`EntryHead`] of the new entry
+    ///     - The [`EntryBody`] of the new entry
+    ///     - The masterkey to decrypt the [`EntryBody`](EntryBody)
     pub fn insert_entry(
         &mut self,
         entry_head: EntryHead,
@@ -209,7 +225,7 @@ impl Vault {
         Ok(())
     }
 
-    /// TODO
+    /// Get all [`Group`](Group)s in this [`Vault`] that are the children of the specified parent [`Group`](Group).
     #[must_use]
     pub fn get_groups_of(&self, parent_uuid: &str) -> Vec<&Group> {
         self.groups
@@ -219,7 +235,7 @@ impl Vault {
             .collect()
     }
 
-    /// TODO
+    /// Get all [`EntryHead`](EntryHead)s in this [`Vault`] that are children of the specified parent [`Group`](Group).
     #[must_use]
     pub fn get_entries_of(&self, parent_uuid: &str) -> Vec<&EntryHead> {
         self.entries
@@ -229,7 +245,7 @@ impl Vault {
             .collect()
     }
 
-    /// TODO
+    /// Trie, if this [`Vault`](Vault) contains unsaved changes.
     #[must_use]
     pub fn contains_unsaved_changes(&self) -> bool {
         self.groups.iter().any(|(_uuid, group)| group.is_modified())
@@ -240,7 +256,11 @@ impl Vault {
             || !self.unsaved_entry_bodies.is_empty()
     }
 
-    /// TODO
+    /// Returns the [`ItemList`](ItemList) containing [`Group`](Group)s and [`EntryHead`](EntryHead) based on the given filters.
+    ///
+    /// It expects:
+    ///     - The UUID of the current selected [`Group`](Group)
+    ///     - The optional search filter
     #[must_use]
     pub fn get_item_list_for<'a>(
         &'a self,
@@ -278,20 +298,21 @@ impl Vault {
     }
 }
 
-/// TODO
+/// Filtered collection of [`Group`](Group)s and [`EntryHead`](EntryHead)s.
 #[derive(Debug, Getters)]
 pub struct ItemList<'a> {
-    /// TODO
+    /// Collection of [`Group`](Group)s.
     #[getset(get = "pub")]
     groups: Vec<&'a Group>,
 
-    /// TODO
+    /// Collection of [`EntryHead`](EntryHead)s.
     #[getset(get = "pub")]
     entries: Vec<&'a EntryHead>,
 }
 
 impl<'a> ItemList<'a> {
-    /// TODO
+    /// Trie, if this [`ItemList`](ItemList) is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.groups.is_empty() && self.entries.is_empty()
     }

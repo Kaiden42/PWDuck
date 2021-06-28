@@ -15,15 +15,15 @@ use super::{
     unlock::{VaultUnlocker, VaultUnlockerMessage},
 };
 
-/// TODO
+/// The state of a vault tab.
 #[derive(Debug)]
 pub struct VaultTab {
-    /// TODO
+    /// The state of the tab content.
     state: VaultTabState,
 }
 
 impl VaultTab {
-    /// TODO
+    /// True, if the tab contains unsaved changes.
     #[must_use]
     pub fn contains_unsaved_changes(&self) -> bool {
         match &self.state {
@@ -32,31 +32,31 @@ impl VaultTab {
         }
     }
 
-    /// TODO
+    /// Change the content of the tab to the [`VaultCreator`](VaultCreator).
     fn change_to_create_state(&mut self) -> Command<VaultTabMessage> {
         self.state = VaultTabState::Create(Box::new(VaultCreator::new(())));
         Command::none()
     }
 
-    /// TODO
+    /// Change the content of the tab to the [`VaultLoader`](VaultLoader).
     fn change_to_empty_state(&mut self) -> Command<VaultTabMessage> {
         self.state = VaultTabState::Empty(VaultLoader::new(()));
         Command::none()
     }
 
-    /// TODO
+    /// Change the content of the tab to the [`VaultUnlocker`](VaultUnlocker).
     fn change_to_unlock_state(&mut self, vault: PathBuf) -> Command<VaultTabMessage> {
         self.state = VaultTabState::Unlock(VaultUnlocker::new(vault));
         Command::none()
     }
 
-    /// TODO
+    /// Change the content of the tab to the [`VaultContainer`](VaultContainer).
     fn change_to_open_state(&mut self, vault: Box<Vault>) -> Command<VaultTabMessage> {
         self.state = VaultTabState::Open(VaultContainer::new(vault));
         Command::none()
     }
 
-    /// TODO
+    /// Update the tab state.
     fn update_state<P: Platform + 'static>(
         &mut self,
         message: VaultTabMessage,
@@ -80,29 +80,29 @@ impl VaultTab {
     }
 }
 
-/// TODO
+/// The message produced by the [`VaultTab`](VaultTab).
 #[derive(Clone, Debug)]
 pub enum VaultTabMessage {
-    /// TODO
+    /// The message produced by the [`VaultLoader`](VaultLoader).
     Loader(VaultLoaderMessage),
-    /// TODO
+    /// The message produced by the [`VaultCreator`](VaultCreator).
     Creator(VaultCreatorMessage),
-    /// TODO
+    /// The message produced by the [`VaultContainer`](VaultContainer).
     Container(VaultContainerMessage),
-    /// TODO
+    /// The message produced by the [`VaultUnlocker`](VaultUnlocker).
     Unlocker(VaultUnlockerMessage),
 }
 
-/// TODO
+/// The states of the tab content.
 #[derive(Debug)]
 pub enum VaultTabState {
-    /// TODO
+    /// The state of the [`VaultLoader`](VaultLoader).
     Empty(VaultLoader),
-    /// TODO
+    /// The state of the [`VaultCreator`](VaultCreator).
     Create(Box<VaultCreator>),
-    /// TODO
+    /// The state of the [`VaultContainer`](VaultCreator).
     Open(VaultContainer),
-    /// TODO
+    /// The state of the [`VaultUnlocker`](VaultUnlocker).
     Unlock(VaultUnlocker),
 }
 

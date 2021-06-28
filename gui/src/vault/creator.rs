@@ -17,90 +17,90 @@ use crate::{
     Component, Platform, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING,
 };
 
-/// TODO
+/// The state of the vault creator.
 #[derive(Debug, Default)]
 pub struct VaultCreator {
-    /// TODO
+    /// The name of the new vault.
     name: String,
-    /// TODO
+    /// The state of the [`TextInput`](iced::TextInput) for the name.
     name_state: text_input::State,
-    /// TODO
+    /// The location of the new vault.
     path: String,
-    /// TODO
+    /// The state of the [`TextInput`](iced::TextInput) for the location.
     path_state: text_input::State,
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to open the native file dialog.
     path_open_fd_state: button::State,
-    /// TODO
+    /// The password of the new vault.
     password: SecString,
-    /// TODO
+    /// The state of the [`TextInput`](iced::TextInput) for the password.
     password_state: text_input::State,
-    /// TODO
+    /// The visibility of the password.
     password_show: bool,
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to toggle the visibility of the password.
     password_show_state: button::State,
-    /// TODO
+    /// The confirmation of the password.
     password_confirm: SecString,
-    /// TODO
+    /// The state of the [`TextInput`](iced::TextInput) for the password confirmation.
     password_confirm_state: text_input::State,
-    /// TODO
+    /// The visibility of the password confirmation.
     password_confirm_show: bool,
-    /// tODO
+    /// The state of the [`Button`](iced::Button) to toggle the visibility of the password confirmation.
     password_confirm_show_state: button::State,
-    /// TODO
+    /// If the password equals the password confirmation.
     password_equal: bool,
-    /// TODO
+    /// The estimated score of the password.
     password_score: Option<PasswordScore>,
-    /// TODO
+    /// The state of the cancel [`Button`](iced::Button).
     cancel_state: button::State,
-    /// TODO
+    /// The state of the submit [`Button`](iced::Button).
     submit_state: button::State,
 }
 
 impl VaultCreator {
-    /// TODO
+    /// Update the name and replace it with the given value.
     fn update_name(&mut self, name: String) -> Command<VaultCreatorMessage> {
         self.name = name;
         Command::none()
     }
 
-    /// TODO
+    /// Update the path and replace it with the given value.
     fn update_path(&mut self, path: String) -> Command<VaultCreatorMessage> {
         self.path = path;
         Command::none()
     }
 
-    /// TODO
+    /// Update the password and replace it with the given value.
     fn update_password(&mut self, password: String) -> Command<VaultCreatorMessage> {
         self.password = password.into();
         self.check_password_equality();
         self.estimate_password_strength()
     }
 
-    /// TODO
+    /// Toggle the visibility of the password.
     fn toggle_password_visibility(&mut self) -> Command<VaultCreatorMessage> {
         self.password_show = !self.password_show;
         Command::none()
     }
 
-    /// TODO
+    /// Update the password confirmation and replace it with the given value.
     fn update_password_confirm(&mut self, password: String) -> Command<VaultCreatorMessage> {
         self.password_confirm = password.into();
         self.check_password_equality();
         Command::none()
     }
 
-    /// TODO
+    /// Toggle the visibility of the password confirmation.
     fn toggle_password_confirm_visibility(&mut self) -> Command<VaultCreatorMessage> {
         self.password_confirm_show = !self.password_confirm_show;
         Command::none()
     }
 
-    /// TODO
+    /// Check if the password equals the password confirmation.
     fn check_password_equality(&mut self) {
         self.password_equal = !self.password.is_empty() && self.password == self.password_confirm;
     }
 
-    /// TODO
+    /// Estimate the strength of the password.
     fn estimate_password_strength(&self) -> Command<VaultCreatorMessage> {
         Command::perform(
             estimate_password_strength(self.password.clone()),
@@ -108,7 +108,7 @@ impl VaultCreator {
         )
     }
 
-    /// TODO
+    /// Set the estimated score of the password.
     fn set_password_score(
         &mut self,
         password_info: Result<PasswordInfo, PWDuckCoreError>,
@@ -117,7 +117,7 @@ impl VaultCreator {
         Command::none()
     }
 
-    /// TODO
+    /// Submit the creation of the new vault.
     fn submit(&mut self) -> Command<VaultCreatorMessage> {
         Command::perform(
             {
@@ -142,38 +142,38 @@ impl VaultCreator {
         )
     }
 
-    /// TODO
+    /// Open the native file dialog of the [`Platform`](Platform).
     fn open_file_dialog<P: Platform + 'static>() -> Command<VaultCreatorMessage> {
         Command::perform(P::nfd_choose_folder(), VaultCreatorMessage::PathSelected)
     }
 }
 
-/// TODO
+/// The message that is send by the vault creator.
 #[derive(Clone, Debug)]
 pub enum VaultCreatorMessage {
-    /// TODO
+    /// Change the name to the new value.
     NameInput(String),
-    /// TODO
+    /// Change the path to the new value.
     PathInput(String),
-    /// TODO
+    /// Open the native file dialog.
     PathOpenFD,
-    /// TODO
+    /// Change the password to the new value.
     PasswordInput(String),
-    /// TODO
+    /// Toggle the visibility of the password.
     PasswordShow,
-    /// TODO
+    /// The path was selected by the native file dialog.
     PathSelected(Result<PathBuf, NfdError>),
-    /// TODO
+    /// Change the password confirmation to the new value.
     PasswordConfirmInput(String),
-    /// TODO
+    /// Toggle the visibility of the password.
     PasswordConfirmShow,
-    /// TODO
+    /// Set the password score to the new estimated value.
     PasswordScore(Result<PasswordInfo, PWDuckCoreError>),
-    /// TODO
+    /// Cancel the creation of the new vault.
     Cancel,
-    /// TODO
+    /// Submit the creation of the new vault.
     Submit,
-    /// TODO
+    /// The vault was successfully created.
     VaultCreated(Result<PathBuf, pwduck_core::PWDuckCoreError>),
 }
 impl SomeIf for VaultCreatorMessage {}
@@ -287,7 +287,12 @@ impl Component for VaultCreator {
     }
 }
 
-/// TODO
+/// Create the view of the path selection.
+///
+/// It expects:
+///     - The state of the [`TextInput`](iced::TextInput)
+///     - The value of the path
+///     - The state of the [`Button`](iced::Button) to open the native file dialog
 fn path_row<'a, P: Platform + 'static>(
     path_state: &'a mut text_input::State,
     path: &'a str,
@@ -316,7 +321,13 @@ fn path_row<'a, P: Platform + 'static>(
         .into()
 }
 
-/// TODO
+/// Create the view of the password selection.
+///
+/// It expects:
+///     - The state of the [`TextInput`](iced::TextInput)
+///     - The value of the password
+///     - The visibility of the password
+///     - The state of the [`Button`](iced::Button) to toggle the visibility
 fn password_row<'a>(
     password_state: &'a mut text_input::State,
     password: &'a str,
@@ -346,7 +357,15 @@ fn password_row<'a>(
         .into()
 }
 
-/// TODO
+/// Create the view of the password confirmation selection.
+///
+/// It expects:
+///     - The state of the [`TextInput`](TextInput)
+///     - The value of the password confirmation
+///     - The visibility of the password confirmation
+///     - The state of the [`Button`] to toggle the visibility
+///     - True, if the password is empty
+///     - True, if the password equals the password confirmation
 fn password_confirm_row<'a>(
     password_confirm_state: &'a mut text_input::State,
     password_confirm: &str,
@@ -382,7 +401,12 @@ fn password_confirm_row<'a>(
         .into()
 }
 
-/// TODO
+/// Create the view of the submit and cancel button.
+///
+/// It expects:
+///     - The state of the cancel [`Button`](iced::Button)
+///     - The state of the submit [`Button`](iced::Button)
+///     - True, if the creation can be submitted.
 fn button_row<'a>(
     cancel_state: &'a mut button::State,
     submit_state: &'a mut button::State,
@@ -413,7 +437,7 @@ fn button_row<'a>(
         .into()
 }
 
-/// TODO
+/// The style of the password confirmation if the passwords are not equal.
 #[derive(Default)]
 struct PasswordNotEqualStyle;
 

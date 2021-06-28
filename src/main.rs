@@ -53,7 +53,7 @@ fn main() {
     PWDuckGui::<Desktop>::start().expect("Should not fail");
 }
 
-/// TODO
+/// An empty placeholder struct to implement the [`Platform`](Platform) trait for.
 #[derive(Default)]
 struct Desktop;
 

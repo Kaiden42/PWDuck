@@ -15,75 +15,80 @@ use crate::{
     DEFAULT_ROW_SPACING,
 };
 
-/// TODO
+/// The state of the modify entry view.
 #[derive(Getters, MutGetters, Setters)]
 pub struct ModifyEntryView {
-    /// TODO
+    /// The entry was newly created or an existing entry will be modified.
     state: State,
 
-    /// TODO
+    /// The decrypted head of the entry to modify.
     #[getset(get = "pub", get_mut = "pub")]
     entry_head: EntryHead,
-    /// TODO
+    /// The decrypted body of the entry to modify.
     #[getset(get = "pub", get_mut = "pub")]
     entry_body: EntryBody,
 
-    /// TODO
+    /// The state of the [`TextInput`](iced::TextInput) of the title.
     title_state: text_input::State,
-    /// TODO
+    /// The state of the [`TextInput`](iced::TextInput) of the usermane.
     username_state: text_input::State,
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to copy the username.
     username_copy_state: button::State,
-    /// TODO
+    /// The state of the [`TextInput`](iced::TextInput) of the password.
     password_state: text_input::State,
-    /// TODO
+    /// The visibility of the password.
     #[getset(get = "pub", set = "pub")]
     password_show: bool,
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to toggle the visibility of the password.
     password_show_state: button::State,
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to open the password generator.
     password_generate_state: button::State,
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to copy the password.
     password_copy_state: button::State,
 
-    /// TODO
+    /// The estimated password score.
     password_score: Option<PasswordScore>,
 
-    /// TODO
+    /// The state of the cancel [`Button`](iced::Button).
     cancel_state: button::State,
-    /// TODO
+    /// The state of the submit [`Button`](iced::Button).
     submit_state: button::State,
 }
 
-/// TODO
+/// The message that is send by the `ModifyEntryView`.
 #[derive(Clone, Debug)]
 pub enum ModifyEntryMessage {
-    /// TODO
+    /// Change the title to the new value.
     TitleInput(String),
-    /// TODO
+    /// Change the username to the new value.
     UsernameInput(String),
-    /// TODO
+    /// Copy the username.
     UsernameCopy,
-    /// TODO
+    /// Change the password to the new value.
     PasswordInput(String),
-    /// TODO
+    /// Toggle the visibility of the password.
     PasswordShow,
-    /// TODO
+    /// Open the password generator.
     PasswordGenerate,
-    /// TODO
+    /// Copy the password.
     PasswordCopy,
 
-    /// TODO
+    /// Set the password score tho the new value.
     PasswordScore(Result<PasswordInfo, PWDuckCoreError>),
 
-    /// TODO
+    /// Cancel the modification of the entry.
     Cancel,
-    /// TODO
+    /// Submit the modification of the entry.
     Submit,
 }
 
 impl ModifyEntryView {
-    /// TODO
+    /// Create a new [`ModifyEntryView`](ModifyEntryView).
+    ///
+    /// It expects:
+    ///     - A new entry was created or an existing will be modified.
+    ///     - The head of the entry to modify.
+    ///     - The body of teh entry to modify.
     pub fn with(state: State, entry_head: EntryHead, entry_body: EntryBody) -> Self {
         Self {
             state,
@@ -107,43 +112,43 @@ impl ModifyEntryView {
         }
     }
 
-    /// TODO
+    /// Update the title and replace it with the given value.
     fn update_title(&mut self, title: String) -> Command<ModifyEntryMessage> {
         self.entry_head_mut().set_title(title);
         Command::none()
     }
 
-    /// TODO
+    /// Update the username and replace it with the given value.
     fn update_username(&mut self, username: String) -> Command<ModifyEntryMessage> {
         self.entry_body_mut().set_username(username);
         Command::none()
     }
 
-    /// TODO
+    /// Copy the username to clipboard.
     fn copy_username(&self, clipboard: &mut iced::Clipboard) -> Command<ModifyEntryMessage> {
         clipboard.write(self.entry_body().username().clone());
         Command::none()
     }
 
-    /// TODO
+    /// Update the password and replace it with the given value.
     fn update_password(&mut self, password: String) -> Command<ModifyEntryMessage> {
         self.entry_body_mut().set_password(password);
         self.estimate_password_strength()
     }
 
-    /// TODO
+    /// Toggle the visibility of the password.
     fn toggle_password_visibility(&mut self) -> Command<ModifyEntryMessage> {
         self.password_show = !self.password_show;
         Command::none()
     }
 
-    /// TODO
+    /// Copy the password to the clipboard.
     fn copy_password(&self, clipboard: &mut iced::Clipboard) -> Command<ModifyEntryMessage> {
         clipboard.write(self.entry_body().password().clone());
         Command::none()
     }
 
-    /// TODO
+    /// Estimate the strength of the password.
     fn estimate_password_strength(&self) -> Command<ModifyEntryMessage> {
         Command::perform(
             estimate_password_strength(self.entry_body.password().clone().into()),
@@ -151,7 +156,7 @@ impl ModifyEntryView {
         )
     }
 
-    /// TODO
+    /// Set the estimated password score.
     fn set_password_score(
         &mut self,
         password_info: Result<PasswordInfo, PWDuckCoreError>,
@@ -160,7 +165,7 @@ impl ModifyEntryView {
         Command::none()
     }
 
-    /// TODO
+    /// Update the state of the [`ModifyEntryView`](ModifyEntryView).
     pub fn update(
         &mut self,
         message: ModifyEntryMessage,
@@ -184,7 +189,7 @@ impl ModifyEntryView {
         }
     }
 
-    /// TODO
+    /// Create the view of the [`ModifyEntryView`](ModifyEntryView).
     pub fn view(&mut self, _selected_group_uuid: &str) -> Element<ModifyEntryMessage> {
         let title = default_text_input(
             &mut self.title_state,
@@ -302,11 +307,11 @@ impl std::fmt::Debug for ModifyEntryView {
     }
 }
 
-/// TODO
+/// The state of the entry
 #[derive(Clone, Copy, Debug)]
 pub enum State {
-    /// TODO
+    /// The entry was created.
     Create,
-    /// TODO
+    /// An existing entry will be modified.
     Modify,
 }

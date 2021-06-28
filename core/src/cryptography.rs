@@ -18,28 +18,28 @@ use crate::{
     mem_protection::{MemKey, SecVec},
 };
 
-/// TODO
+/// The length of the initialization vector for the AES encryption.
 const AES_IV_LENGTH: usize = 16;
-/// TODO
+/// The length of the nonce for the `ChaCha20` encryption.
 const CHACHA20_NONCE_LENGTH: usize = 12;
 
-/// TODO
+/// Generate a new random initialization vector for the AES encryption.
 pub fn generate_aes_iv() -> Vec<u8> {
     generate_iv(AES_IV_LENGTH)
 }
 
-/// TODO
+/// Generate a new random nonce (number-used-once) for the `ChaCha20` encryption.
 pub fn generate_chacha20_nonce() -> Vec<u8> {
     generate_iv(CHACHA20_NONCE_LENGTH)
 }
 
-/// TODO
+/// Generate a new random salt for the Argon2 key derivation.
 pub fn generate_argon2_salt() -> String {
     // TODO
     SaltString::generate(&mut OsRng).as_str().to_owned()
 }
 
-/// TODO
+/// Generate a new random iv with the given length.
 fn generate_iv(length: usize) -> Vec<u8> {
     let mut iv: Vec<u8> = vec![0_u8; length];
     //OsRng.fill_bytes(&mut iv);
@@ -47,24 +47,24 @@ fn generate_iv(length: usize) -> Vec<u8> {
     iv
 }
 
-/// TODO
+/// Fill the given slice of bytes with random values.
 pub fn fill_random_bytes(buf: &mut [u8]) {
     //let mut iv = vec![0u8; length];
     let mut rng = ChaCha20Rng::from_entropy();
     rng.fill_bytes(buf);
 }
 
-/// TODO
+/// Hash the password.
 pub fn hash_password(password: &str, salt: &str) -> Result<SecVec<u8>, PWDuckCoreError> {
     derive_key(password.as_bytes(), salt)
 }
 
-/// TODO
+/// Derive a memory key.
 pub fn derive_key_protection(mem_key: &MemKey, salt: &str) -> Result<SecVec<u8>, PWDuckCoreError> {
     derive_key(&mem_key.read(), salt)
 }
 
-/// TODO
+/// Derive a key from date based on the given salt.
 pub fn derive_key(data: &[u8], salt: &str) -> Result<SecVec<u8>, PWDuckCoreError> {
     let password_hash = Argon2::default().hash_password(
         data,
@@ -82,7 +82,7 @@ pub fn derive_key(data: &[u8], salt: &str) -> Result<SecVec<u8>, PWDuckCoreError
         .into())
 }
 
-/// TODO
+/// Generate a new masterkey which will be encrypted with the given password after creation.
 pub fn generate_masterkey(password: &str) -> Result<MasterKey, PWDuckCoreError> {
     // Generate random salt
     let salt = SaltString::generate(&mut OsRng);
@@ -109,7 +109,7 @@ pub fn generate_masterkey(password: &str) -> Result<MasterKey, PWDuckCoreError> 
     ))
 }
 
-/// TODO
+/// Decrypt a masterkey with the given password and encrypt it with the given memory key.
 pub fn decrypt_masterkey(
     masterkey: &MasterKey,
     password: &str,
@@ -133,7 +133,7 @@ pub fn decrypt_masterkey(
     Ok(protected_key.into())
 }
 
-/// TODO
+/// Protect the masterkey by encrypting it with the given key.
 pub fn protect_masterkey(
     master_key: &[u8],
     key_protection: &[u8],
@@ -142,7 +142,7 @@ pub fn protect_masterkey(
     chacha20_encrypt(master_key, key_protection, nonce)
 }
 
-/// TODO
+/// Unprotect the masterkey by decrypting it with the given key.
 pub fn unprotect_masterkey(
     master_key: &[u8],
     key_protection: &[u8],
@@ -151,13 +151,23 @@ pub fn unprotect_masterkey(
     chacha20_decrypt(master_key, key_protection, nonce)
 }
 
-/// TODO
+/// Encrypt the data with the AES block cipher in CBC mode.
+///
+/// It expects:
+///     - The data to encrypt
+///     - The key for the encryption
+///     - The iv for the CBC mode
 pub fn aes_cbc_encrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>, PWDuckCoreError> {
     let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(key, iv)?;
     Ok(cipher.encrypt_vec(data))
 }
 
-/// TODO
+/// Decrypt the data with the AES block cipher in CBC mode.
+///
+/// It expects:
+///     - The data to decrypt
+///     - The key for the decryption
+///     - The iv for the CBC mode
 pub fn aes_cbc_decrypt(
     encrypted_data: &[u8],
     key: &[u8],
@@ -167,7 +177,12 @@ pub fn aes_cbc_decrypt(
     Ok(cipher.decrypt_vec(encrypted_data)?.into())
 }
 
-/// TODO
+/// Encrypt the data with the `ChaCHa20` stream cipher.
+///
+/// It expects:
+///     - The data to encrypt
+///     - The key for the encryption
+///     - A nonce (number-used-once)
 pub fn chacha20_encrypt(data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>, PWDuckCoreError> {
     let mut cipher = ChaCha20::new(Key::from_slice(key), Nonce::from_slice(nonce));
 
@@ -177,7 +192,12 @@ pub fn chacha20_encrypt(data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>
     Ok(result)
 }
 
-/// TODO
+/// Decrypt the data with the `ChaCha20` stream cipher.
+///
+/// It expects:
+///     - The data to decrypt
+///     - The key for the decryption
+///     - A nonce (number-used-once)
 pub fn chacha20_decrypt(
     encrypted_data: &[u8],
     key: &[u8],

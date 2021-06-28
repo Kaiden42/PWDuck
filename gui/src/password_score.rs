@@ -1,24 +1,24 @@
-//! TODO
+//! Displays the score of the password.
 
 use iced::{container, Column, Container, Element, Length, Row, Text};
 
 use crate::{utils::default_vertical_space, DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING};
 
-/// TODO
+/// Displays the score of the password.
 #[derive(Debug)]
 pub struct PasswordScore {
-    /// TODO
+    /// The info about the password.
     password_info: Result<pwduck_core::PasswordInfo, pwduck_core::PWDuckCoreError>,
 }
 impl PasswordScore {
-    /// TODO
+    /// Create a new [`PasswordScore`](PasswordScore).
     pub const fn new(
         password_info: Result<pwduck_core::PasswordInfo, pwduck_core::PWDuckCoreError>,
     ) -> Self {
         Self { password_info }
     }
 
-    /// TODO
+    /// Create the view of this [`PasswordScore`](PasswordScore).
     pub fn view<'a, Message: 'a + Clone>(&'a mut self) -> Element<Message> {
         match self.password_info.as_ref() {
             Ok(password_info) => {
@@ -53,7 +53,7 @@ impl PasswordScore {
     }
 }
 
-/// TODO
+/// Create the view of the strength bar based on the given strength.
 fn create_strength_bar<'a, Message>(password_strength: PasswordStrength) -> Row<'a, Message>
 where
     Message: 'a + Clone,
@@ -74,7 +74,13 @@ where
     }
 }
 
-/// TODO
+/// Fill the strength bar.
+///
+/// It expects:
+///     - A mutable reference on the strength bar to fill
+///     - The amount of colored parts contained in this bar
+///     - The amount of uncolored parts contained in this bar
+///     - The style to color the colored parts with
 fn fill_strength_bar<'a, Style: 'static, Message>(
     mut strength_bar: Row<'a, Message>,
     colored: usize,
@@ -104,7 +110,7 @@ where
     strength_bar
 }
 
-/// TODO
+/// The style of the uncolored parts of the strength bar.
 #[derive(Copy, Clone, Debug, Default)]
 struct ClearStyle;
 
@@ -120,7 +126,7 @@ impl container::StyleSheet for ClearStyle {
     }
 }
 
-/// TODO
+/// The style of the colored parts of the strength bar if the strength of the password is bad.
 #[derive(Copy, Clone, Debug, Default)]
 struct BadStyle;
 
@@ -136,7 +142,7 @@ impl container::StyleSheet for BadStyle {
     }
 }
 
-/// TODO
+/// The style of the colored parts of the strength bar if the strength of the password is weak.
 #[derive(Copy, Clone, Debug, Default)]
 struct WeakStyle;
 
@@ -152,7 +158,7 @@ impl container::StyleSheet for WeakStyle {
     }
 }
 
-/// TODO
+/// The style of the colored parts of the strength bar if the strength of the password is good.
 #[derive(Copy, Clone, Debug, Default)]
 struct GoodStyle;
 
@@ -168,7 +174,7 @@ impl container::StyleSheet for GoodStyle {
     }
 }
 
-/// TODO
+/// The style of the colored parts of the strength bar if the strength of the password is strong.
 #[derive(Copy, Clone, Debug, Default)]
 struct StrongStyle;
 
@@ -184,7 +190,7 @@ impl container::StyleSheet for StrongStyle {
     }
 }
 
-/// TODO
+/// The style of the colored parts of the strength bar if the strength of the password is awesome.
 #[derive(Copy, Clone, Debug, Default)]
 struct AwesomeStyle;
 
@@ -200,23 +206,23 @@ impl container::StyleSheet for AwesomeStyle {
     }
 }
 
-/// TODO
+/// The strength of the password
 #[derive(Clone, Copy, Debug)]
 enum PasswordStrength {
-    /// TODO
+    /// The strength of the password is bad.
     Bad,
-    /// TODO
+    /// The strength of the password is weak.
     Weak,
-    /// TODO
+    /// The strength of the password is good.
     Good,
-    /// TODO
+    /// The strength of the password is strong.
     Strong,
-    /// TODO
+    /// The strength of the password is awesome.
     Awesome,
 }
 
 impl PasswordStrength {
-    /// TODO
+    /// Calculate the strength based on the given entropy.
     const fn from_entropy(entropy: f64) -> Self {
         match entropy as u32 {
             0..=50 => Self::Bad,

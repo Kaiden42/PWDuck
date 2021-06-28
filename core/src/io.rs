@@ -19,16 +19,16 @@ pub const GROUPS_DIR: &str = "groups";
 /// The directory name of the entries
 pub const ENTRIES_DIR: &str = "entries";
 
-/// TODO
+/// The directory name of the entry heads.
 pub const HEAD: &str = "head";
 
-/// TODO
+/// The directory name of the entry bodies.
 pub const BODY: &str = "body";
 
 /// The file name of the master key
 pub const MASTERKEY_NAME: &str = "masterkey.pwduck";
 
-/// TODO
+/// Generate a random UUID for the given path.
 pub fn generate_uuid(path: &Path) -> Uuid {
     let mut uuid = vec![0_u8; 16];
 
@@ -47,7 +47,7 @@ pub fn generate_uuid(path: &Path) -> Uuid {
     uuid.into()
 }
 
-/// TODO
+/// Create the directory structure of a new [Vault](Vault) on the given path.
 pub fn create_new_vault_dir(path: &Path) -> Result<(), PWDuckCoreError> {
     fs::create_dir_all(path)?;
     fs::create_dir_all(path.join(GROUPS_DIR))?;
@@ -57,7 +57,12 @@ pub fn create_new_vault_dir(path: &Path) -> Result<(), PWDuckCoreError> {
     Ok(())
 }
 
-/// TODO
+/// Save the [`EntryHead`](EntryHead) to disk.
+///
+/// It expects:
+///     - The [`Path`](Path) as the location of the [Vault](Vault)
+///     - The UUID as the identifier of the [`EntryHead`](EntryHead)
+///     - The [`EntryHead`](EntryHead) to save
 pub fn save_entry_head(
     path: &Path,
     uuid: &str,
@@ -70,14 +75,21 @@ pub fn save_entry_head(
     )
 }
 
-/// TODO
+/// Load the [`EntryHead`](EntryHead) from disk.
+///
+/// It expects:
+///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///     - The UUID as the identifier of the [`EntryHead`](EntryHead)
 pub fn load_entry_head(path: &Path, uuid: &str) -> Result<EntryHead, PWDuckCoreError> {
     let file_name = sha256::digest(uuid);
     let content = fs::read_to_string(path.join(ENTRIES_DIR).join(HEAD).join(file_name))?;
     Ok(ron::from_str(&content)?)
 }
 
-/// TODO
+/// Load all [`EntryHead`](EntryHead)s of a vault.
+///
+/// It expects:
+///     The [`Path`](Path) as the location of the [`Vault`](Vault)
 pub fn load_all_entry_heads(path: &Path) -> Result<Vec<EntryHead>, PWDuckCoreError> {
     let directory = path.join(ENTRIES_DIR).join(HEAD);
 
@@ -98,7 +110,12 @@ pub fn load_all_entry_heads(path: &Path) -> Result<Vec<EntryHead>, PWDuckCoreErr
         .collect()
 }
 
-/// TODO
+/// Save the [`EntryBody`](EntryBody) to disk.
+///
+/// It expects:
+///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///     - The UUID as the identifier of the [`EntryBody`](EntryBody)
+///     - The [`EntryBody`](EntryBody) to save
 pub fn save_entry_body(
     path: &Path,
     uuid: &str,
@@ -111,21 +128,35 @@ pub fn save_entry_body(
     )
 }
 
-/// TODO
+/// Load the [`EntryBody`](EntryBody) from disk.
+///
+/// It expects:
+///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///     - The UUID as the identifier of the [`EntryBody`](EntryBody)
 pub fn load_entry_body(path: &Path, uuid: &str) -> Result<EntryBody, PWDuckCoreError> {
     let file_name = sha256::digest(uuid);
     let content = fs::read_to_string(path.join(ENTRIES_DIR).join(BODY).join(file_name))?;
     Ok(ron::from_str(&content)?)
 }
 
-/// TODO
+/// Save the entry to disk.
+///
+/// It expects:
+///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///     - The UUID as the identifier of the entry
+///     - The content of the entry
 fn save_entry(path: &Path, uuid: &str, content: String) -> Result<(), PWDuckCoreError> {
     let file_name = sha256::digest(uuid);
     fs::write(path.join(file_name), content)?;
     Ok(())
 }
 
-/// TODO
+/// Save the [`Group`](Group) to disk.
+///
+/// It expects:
+///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///     - The UUID as the identifier of the [`Group`](Group)
+///     - The [`Group`](Group) to save
 pub fn save_group(path: &Path, uuid: &str, group: &Group) -> Result<(), PWDuckCoreError> {
     let file_name = sha256::digest(uuid);
     fs::write(
@@ -135,14 +166,21 @@ pub fn save_group(path: &Path, uuid: &str, group: &Group) -> Result<(), PWDuckCo
     Ok(())
 }
 
-/// TODO
+/// Load the [`Group`](Group) from disk.
+///
+/// It expects:
+///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///     - The UUID as the identifier of the [`Group`](Group)
 pub fn load_group(path: &Path, uuid: &str) -> Result<Group, PWDuckCoreError> {
     let file_name = sha256::digest(uuid);
     let content = fs::read_to_string(path.join(GROUPS_DIR).join(file_name))?;
     Ok(ron::from_str(&content)?)
 }
 
-/// TODO
+/// Load all [`Group`](Group)s of a vault.
+///
+/// It expects:
+///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
 pub fn load_all_groups(path: &Path) -> Result<Vec<Group>, PWDuckCoreError> {
     let directory = path.join(GROUPS_DIR);
 
@@ -163,14 +201,21 @@ pub fn load_all_groups(path: &Path) -> Result<Vec<Group>, PWDuckCoreError> {
         .collect()
 }
 
-/// TODO
+/// Save the [`MasterKey`](MasterKey) to disk.
+///
+/// It expects:
+///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///     - The [`MasterKey`](MasterKey) to save
 pub fn save_masterkey(path: &Path, masterkey: MasterKey) -> Result<(), PWDuckCoreError> {
     fs::write(path.join(MASTERKEY_NAME), ron::to_string(&masterkey)?)?;
     drop(masterkey);
     Ok(())
 }
 
-/// TODO
+/// Load the [`MasterKey`](MasterKey) from disk.
+///
+/// It expects:
+///     - The [`Path`](Path) as the location of the _`Vault`](Vault)
 pub fn load_masterkey(path: &Path) -> Result<MasterKey, PWDuckCoreError> {
     let content = fs::read_to_string(path.join(MASTERKEY_NAME))?;
     Ok(ron::from_str(&content)?)

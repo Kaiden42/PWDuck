@@ -11,35 +11,34 @@ use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
 use super::uuid::Uuid;
-
-/// TODO
+/// The in-memory representation of an entry head.
 #[derive(Clone, Debug, Deserialize, Serialize, Zeroize)]
 #[zeroize(drop)]
 #[derive(Getters, Setters)]
 pub struct EntryHead {
-    /// TODO
+    /// The UUID of this head.
     #[getset(get = "pub")]
     uuid: Uuid,
 
-    /// TODO
+    /// The UUID of the parent [`Group`](crate::model::group::Group) of this head.
     #[getset(get = "pub")]
     parent: String,
 
-    /// TODO
+    /// The title of this entry.
     #[getset(get = "pub", set = "pub")]
     title: String,
 
-    /// TODO
+    /// The UUID of the body of this entry.
     #[getset(get = "pub")]
     body: String,
 
-    /// TODO
+    /// If the head was modified.
     #[serde(skip)]
     modified: bool,
 }
 
 impl EntryHead {
-    /// TODO
+    /// Create a new [`EntryHead`](EntryHead).
     #[must_use]
     pub const fn new(uuid: Uuid, parent: String, title: String, body: String) -> Self {
         Self {
@@ -51,7 +50,11 @@ impl EntryHead {
         }
     }
 
-    /// TODO
+    /// Save the [`EntryHead`] to disk.
+    ///
+    /// It expects:
+    ///     - The [`Path`](Path) as the location of the [`Vault](crate::Vault).
+    ///     - The masterkey to encrypt the head.
     pub fn save(&mut self, path: &Path, masterkey: &[u8]) -> Result<(), PWDuckCoreError> {
         let entry_head = self.encrypt(masterkey)?;
         crate::io::save_entry_head(path, &self.uuid.as_string(), &entry_head)?;
@@ -59,7 +62,7 @@ impl EntryHead {
         Ok(())
     }
 
-    /// TODO
+    /// Encrypt this [`EntryHead`](EntryHead) with the given masterkey.
     fn encrypt(&self, masterkey: &[u8]) -> Result<crate::dto::entry::EntryHead, PWDuckCoreError> {
         let iv = generate_aes_iv();
         let mut content = ron::to_string(self)?;
@@ -71,13 +74,22 @@ impl EntryHead {
         ))
     }
 
-    /// TODO
+    /// Load an [`EntryHead`](EntryHead) from disk.
+    ///
+    /// It expects:
+    ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
+    ///     - The UUID as the identifier of the [`EntryHead`](EntryHead)
+    ///     - The masterkey to decrypt the [`EntryHead`](EntryHead)
     pub fn load(path: &Path, uuid: &str, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_entry_head(path, uuid)?;
         Self::decrypt(&dto, masterkey)
     }
 
-    /// TODO
+    /// Load all [`EntryHead`](EntryHead)s from disk.
+    ///
+    /// It expects:
+    ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
+    ///     - The masterkey to decrypt the [`EntryHead`](EntryHead)s
     pub fn load_all(
         path: &Path,
         masterkey: &[u8],
@@ -96,7 +108,7 @@ impl EntryHead {
         Ok(results)
     }
 
-    /// TODO
+    /// Decrypt the data-transfer-object (dto) of the [`EntryHead`] with the given masterkey.
     fn decrypt(
         dto: &crate::dto::entry::EntryHead,
         masterkey: &[u8],
@@ -113,38 +125,38 @@ impl EntryHead {
         Ok(head)
     }
 
-    /// TODO
+    /// True, if the [`EntryHead`](EntryHead) was modified.
     #[must_use]
     pub const fn is_modified(&self) -> bool {
         self.modified
     }
 }
 
-/// TODO
+/// The in-memory representation of an entry body.
 #[allow(missing_debug_implementations)]
 #[derive(Clone, Deserialize, Serialize, Zeroize)]
 #[zeroize(drop)]
 #[derive(Getters)]
 pub struct EntryBody {
-    /// TODO
+    /// The UUID of this body.
     #[getset(get = "pub")]
     uuid: Uuid,
 
-    /// TODO
+    /// The username of this entry.
     #[getset(get = "pub")]
     username: String,
 
-    /// TODO
+    /// the password of this entry.
     #[getset(get = "pub")]
     password: String,
 
-    /// TODO
+    /// If the body was modified.
     #[serde(skip)]
     modified: bool,
 }
 
 impl EntryBody {
-    /// TODO
+    /// Create a new [`EntryBody`](EntryBody).
     #[must_use]
     pub const fn new(uuid: Uuid, username: String, password: String) -> Self {
         Self {
@@ -155,7 +167,7 @@ impl EntryBody {
         }
     }
 
-    /// TODO
+    /// Encrypt this [`EntryBody`](EntryBody) with the given masterkey.
     pub fn encrypt(
         &self,
         master_key: &[u8],
@@ -170,14 +182,19 @@ impl EntryBody {
         ))
     }
 
-    /// TODO
+    /// Load an [`EntryBody`](EntryBody) from disk.
+    ///
+    /// It expects:
+    ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
+    ///     - The UUID as the identifier of the [`EntryBody`](EntryBody)
+    ///     - The masterkey to decrypt the [`EntryBody`](EntryBody)
     pub fn load(path: &Path, uuid: &str, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_entry_body(path, uuid)?;
         let body = Self::decrypt(&dto, masterkey)?;
         Ok(body)
     }
 
-    /// TODO
+    /// Decrypt the data-transfer-object (dto) of the [`EntryBody`](EntryBody) with the given masterkey.
     pub fn decrypt(
         dto: &crate::dto::entry::EntryBody,
         masterkey: &[u8],
@@ -194,21 +211,21 @@ impl EntryBody {
         Ok(body)
     }
 
-    /// TODO
+    /// Set the username of this entry.
     pub fn set_username(&mut self, username: String) -> &mut Self {
         self.username.zeroize();
         self.username = username;
         self
     }
 
-    /// TODO
+    /// Set the password of this entry.
     pub fn set_password(&mut self, password: String) -> &mut Self {
         self.password.zeroize();
         self.password = password;
         self
     }
 
-    /// TODO
+    /// True, if the [`EntryBody`](EntryBody) was modified.
     #[must_use]
     pub const fn is_modified(&self) -> bool {
         self.modified

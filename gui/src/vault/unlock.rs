@@ -14,39 +14,39 @@ use crate::{
     DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
 };
 
-/// TODO
+/// The state of the vault unlocker.
 #[derive(Debug, Default)]
 pub struct VaultUnlocker {
-    /// TODO
+    /// The location of the vault to unlock.
     path: PathBuf,
-    /// TODO
+    /// The password to unlock the vault.
     password: SecString,
-    /// TODO
+    /// The state of the [`TextInput`](iced::TextInput) for the password.
     password_state: text_input::State,
-    /// TODO
+    /// The visibility of the password.
     password_show: bool,
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to toggle the visibility.
     password_show_state: button::State,
-    /// TODO
+    /// The state of the close [`Button`](iced::Button).
     close_state: button::State,
-    /// TODO
+    /// The state of the submit [`Button`](iced::Button).
     submit_state: button::State,
 }
 
 impl VaultUnlocker {
-    /// TODO
+    /// Update the password and replace it with the given value.
     fn update_password(&mut self, password: String) -> Command<VaultUnlockerMessage> {
         self.password = password.into();
         Command::none()
     }
 
-    /// TODO
+    /// Toggle the visibility of the password.
     fn toggle_password_visibility(&mut self) -> Command<VaultUnlockerMessage> {
         self.password_show = !self.password_show;
         Command::none()
     }
 
-    /// TODO
+    /// Submit the unlocking of the vault.
     fn submit(&mut self) -> Command<VaultUnlockerMessage> {
         Command::perform(
             {
@@ -65,18 +65,18 @@ impl VaultUnlocker {
     }
 }
 
-/// TODO
+/// The message that is send by the vault unlocker.
 #[derive(Clone, Debug)]
 pub enum VaultUnlockerMessage {
-    /// TODO
+    /// Change the password to the new value.
     PasswordInput(String),
-    /// TODO
+    /// Toggle the visibility of the password.
     PasswordShow,
-    /// TODO
+    /// Cancel the unlocking of the vault.
     Close,
-    /// TODO
+    /// Submit the unlocking of the vault.
     Submit,
-    /// TODO
+    /// The vault was successfully unlocked.
     Unlocked(Result<Box<Vault>, PWDuckCoreError>),
 }
 impl SomeIf for VaultUnlockerMessage {}

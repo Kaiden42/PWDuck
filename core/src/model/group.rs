@@ -13,30 +13,30 @@ use crate::{
 
 use super::uuid::Uuid;
 
-/// TODO
+/// The in-memory representation of a group.
 #[derive(Clone, Debug, Deserialize, Serialize, Zeroize)]
 #[zeroize(drop)]
 #[derive(Getters, Setters)]
 pub struct Group {
-    /// TODO
+    /// The UUID of this group.
     #[getset(get = "pub")]
     uuid: Uuid,
 
-    /// TODO
+    /// The UUID of the parent of this group.
     #[getset(get = "pub")]
     parent: String,
 
-    /// TODO
+    /// The title of this group.
     #[getset(get = "pub", set = "pub")]
     title: String,
 
-    /// TODO
+    /// If the group was modified.
     #[serde(skip)]
     modified: bool,
 }
 
 impl Group {
-    /// TODO
+    /// Create an new [`Group`](Group).
     #[must_use]
     pub const fn new(uuid: Uuid, parent: String, title: String) -> Self {
         Self {
@@ -47,7 +47,11 @@ impl Group {
         }
     }
 
-    /// TODO
+    /// Save the [`Group`](Group) to disk.
+    ///
+    /// It expects:
+    ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
+    ///     - The masterkey to encrypt the group
     pub fn save(&mut self, path: &Path, masterkey: &[u8]) -> Result<(), PWDuckCoreError> {
         let group = self.encrypt(masterkey)?;
         crate::io::save_group(path, &self.uuid.as_string(), &group)?;
@@ -55,7 +59,7 @@ impl Group {
         Ok(())
     }
 
-    /// TODO
+    /// Encrypt this [`Group`](Group) with the given masterkey.
     fn encrypt(&self, masterkey: &[u8]) -> Result<crate::dto::group::Group, PWDuckCoreError> {
         let iv = generate_aes_iv();
         let mut content = ron::to_string(self)?;
@@ -67,13 +71,22 @@ impl Group {
         ))
     }
 
-    /// TODO
+    /// Load a [`Group`](Group) from disk.
+    ///
+    /// It expects:
+    ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
+    ///     - The UUID as the identifier of the [`Group`](Group)
+    ///     - The masterkey to decrypt the [`Group`](Group)
     pub fn load(path: &Path, uuid: &str, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_group(path, uuid)?;
         Self::decrypt(&dto, masterkey)
     }
 
-    /// TODO
+    /// Load all [`Group`](Group)s from disk.
+    ///
+    /// It expects:
+    ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
+    ///     - The masterkey to decrypt the [`Group`](Group)s
     pub fn load_all(
         path: &Path,
         masterkey: &[u8],
@@ -92,7 +105,7 @@ impl Group {
         Ok(results)
     }
 
-    /// TODO
+    /// Decrypt the data-transfer-object (dto) of the [`Group`](Group) with the given masterkey.
     fn decrypt(dto: &crate::dto::group::Group, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
         let decrypted_content = aes_cbc_decrypt(
             &base64::decode(dto.content())?,
@@ -106,7 +119,7 @@ impl Group {
         Ok(group)
     }
 
-    /// TODO
+    /// Create a new root group on the given path.
     #[must_use]
     pub fn create_root_for(path: &Path) -> Self {
         Self {
@@ -117,13 +130,13 @@ impl Group {
         }
     }
 
-    /// TODO
+    /// True, if this group is the root.
     #[must_use]
     pub fn is_root(&self) -> bool {
         self.parent.is_empty()
     }
 
-    /// TODO
+    /// True, if this group was modified.
     #[must_use]
     pub const fn is_modified(&self) -> bool {
         self.modified

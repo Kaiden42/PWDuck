@@ -8,43 +8,43 @@ use crate::{
     DEFAULT_ROW_SPACING,
 };
 
-/// TODO
+/// The state of the toolbar.
 #[derive(Debug, Default)]
 pub struct ToolBar {
-    /// TODO
+    /// The state of the save [`Button`](iced::Button).
     save_state: button::State,
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to create a new group.
     new_group_state: button::State,
-    /// TODO
+    /// The state of the [`Button`](iced:Button) to create a new entry.
     new_entry_state: button::State,
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to copy the username.
     copy_username_state: button::State,
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to copy the password.
     copy_password_state: button::State,
-    /// TODO
+    /// The state of the lock [`Button`](iced::Button).
     lock_vault_state: button::State,
 }
 
-/// TODO
+/// The message that is send by the toolbar.
 #[derive(Clone, Debug)]
 pub enum ToolBarMessage {
-    /// TODO
+    /// Save the vault.
     Save,
-    /// TODO
+    /// Create a new group.
     NewGroup,
-    /// TODO
+    /// Create a new entry.
     NewEntry,
-    /// TODO
+    /// Copy the username.
     CopyUsername,
-    /// TODO
+    /// Copy the password.
     CopyPassword,
-    /// TODO
+    /// Lock the vault.
     LockVault,
 }
 impl SomeIf for ToolBarMessage {}
 
 impl ToolBar {
-    /// TODO
+    /// Create the view of the [`ToolBar`](ToolBar).
     pub fn view(
         &mut self,
         vault_contains_unsaved_changes: bool,

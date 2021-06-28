@@ -13,59 +13,62 @@ use crate::{
     DEFAULT_ROW_SPACING,
 };
 
-/// TODO
+/// The state of the modify group view.
 #[derive(Debug, Getters, MutGetters, Setters)]
 pub struct ModifyGroupView {
-    /// TODO
+    /// The group was newly created or an existing group will be modified.
     state: State,
 
-    /// TODO
+    /// The group to modify.
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     group: Group,
 
-    /// TODO
-    group_name_state: text_input::State,
+    /// The state of the [`TextInput`](iced::TextInput) of the title.
+    title_state: text_input::State,
 
-    /// TODO
+    /// The state of the cancel [`Button`](iced::Button).
     cancel_state: button::State,
-    /// TODO
+    /// The state of the submit [`Button`](iced::Button).
     submit_state: button::State,
 }
 
-/// TODO
+/// The message that is send by the [`ModifyGroupView`](ModifyGroupView).
 #[derive(Clone, Debug)]
 pub enum ModifyGroupMessage {
-    /// TODO
-    GroupNameInput(String),
-    /// TODO
+    /// Change the title to the new value.
+    TitleInput(String),
+    /// Cancel the modification of the group.
     Cancel,
-    /// TODO
+    /// Submit the modification of the group.
     Submit,
 }
 
 impl ModifyGroupView {
-    /// TODO
+    /// Create a new [`ModifyGroupView`](ModifyGroupView).
+    ///
+    /// It expects:
+    ///     - The group to modify.
     pub fn with(state: State, group: Group) -> Self {
         Self {
             state,
 
             group,
 
-            group_name_state: text_input::State::new(),
+            title_state: text_input::State::new(),
 
             cancel_state: button::State::new(),
             submit_state: button::State::new(),
         }
     }
 
-    /// TODO
+    /// Update the state of the [`ModifyGroupView`](ModifyGroupView).
     pub fn update(
         &mut self,
         message: ModifyGroupMessage,
         _clipboard: &mut iced::Clipboard,
     ) -> Result<Command<ModifyGroupMessage>, PWDuckGuiError> {
         match message {
-            ModifyGroupMessage::GroupNameInput(password) => {
+            ModifyGroupMessage::TitleInput(password) => {
                 self.group_mut().set_title(password);
                 Ok(Command::none())
             }
@@ -73,20 +76,20 @@ impl ModifyGroupView {
         }
     }
 
-    /// TODO
+    /// Create the view of the [`ModifyGroupView`](ModifyGroupView).
     pub fn view(
         &mut self,
         vault: &Vault,
         selected_group_uuid: &str,
     ) -> Element<ModifyGroupMessage> {
         let name = default_text_input(
-            &mut self.group_name_state,
+            &mut self.title_state,
             match self.state {
                 State::Create => "Enter the name of the new Group",
                 State::Modify => "Enter the name of the Group",
             },
             self.group.title(),
-            ModifyGroupMessage::GroupNameInput,
+            ModifyGroupMessage::TitleInput,
         );
 
         let group = vault.groups().get(selected_group_uuid).unwrap();
@@ -133,11 +136,11 @@ impl ModifyGroupView {
     }
 }
 
-/// TODO
+/// The state of the group.
 #[derive(Clone, Copy, Debug)]
 pub enum State {
-    /// TODO
+    /// The group was created.
     Create,
-    /// TODO
+    /// An existing group will be modified.
     Modify,
 }

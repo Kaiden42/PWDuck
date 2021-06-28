@@ -1,67 +1,71 @@
-//! TODO
+//! Icon definitions used in the gui.
 
 use iced::Font;
 
-/// TODO
+/// The font containing the icons generated from the Bootstrap Icons.
+///
+/// See: <https://icons.getbootstrap.com>
 pub const ICON_FONT: Font = Font::External {
     name: "Icons",
     bytes: include_bytes!("../font/pwduck-icons.ttf"),
 };
 
 #[derive(Clone, Copy, Debug)]
-/// TODO
+/// An enumeration of all available icons in the [`ICON_FONT`](ICON_FONT).
+///
+/// See: <https://icons.getbootstrap.com>
 pub enum Icon {
-    /// TODO
+    /// arrow-clockwise
     ArrowClockwise,
-    /// TODO
+    /// arrow-left
     ArrowLeft,
-    /// TODO
+    /// backspace
     Backspace,
-    /// TODO
+    /// dash-square
     DashSquare,
-    /// TODO
+    /// dice-3
     Dice3,
-    /// TODO
+    /// eye-slash
     EyeSlash,
-    /// TODO
+    /// eye
     Eye,
-    /// TODO
+    /// file-earmark-lock
     FileEarmarkLock,
-    /// TODO
+    /// file-earmark-person
     FileEarmarkPerson,
-    /// TODO
+    /// folder-plus
     FolderPlus,
-    /// TODO
+    /// folder
     Folder,
-    /// TODO
+    /// gear
     Gear,
-    /// TODO
+    /// key
     Key,
-    /// TODO
+    /// list
     List,
-    /// TODO
+    /// lock
     Lock,
-    /// TODO
+    /// pencil
     Pencil,
-    /// TODO
+    /// person-plus
     PersonPlus,
-    /// TODO
+    /// person
     Person,
-    /// TODO
+    /// plus-square
     PlusSquare,
-    /// TODO
+    /// safe
     Safe,
-    /// TODO
+    /// save
     Save,
-    /// TODO
+    /// three-dots-vertical
     ThreeDotsVertical,
-    /// TODO
+    /// unlock
     Unlock,
-    /// TODO
+    /// x-square
     XSquare,
 }
 
-/// TODO
+/// Map the [`Icon`](Icon) to the associated character.
 pub const fn icon_to_char(icon: Icon) -> char {
     match icon {
         Icon::ArrowClockwise => '\u{FA0}',

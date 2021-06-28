@@ -1,30 +1,27 @@
-//! TODO
+//! This module contains everything related to errors occurring in the core.
 
 use std::sync::PoisonError;
-/// TODO
+/// An error thrown in the core.
 #[derive(Debug)]
 pub enum PWDuckCoreError {
-    /// TODO
+    /// Key derivation with Argon2 failed.
     Argon2(argon2::password_hash::Error),
-    /// TODO
-    /// TODO
+    /// Encoding or decoding with Base64 failed.
     Base64(base64::DecodeError),
-    /// TODO
+    /// Encrypting or Decrypting with AES failed.
     BlockMode(block_modes::BlockModeError),
-    /// TODO
+    /// Error thrown by an invalid length for the AES IV.
     BlockModeIV(block_modes::InvalidKeyIvLength),
-    /// TODO
+    /// A generic error.
     Error(String),
-    /// TODO
+    /// Reading or writing a file failed.
     IO(std::io::Error),
-    /// TODO
+    /// Locking a mutex failed.
     Mutex(String),
-    /// TODO
+    /// Serializing or deserializing with RON failed.
     Ron(ron::Error),
-    /// TODO
+    /// Wrong UFT8 encoding.
     Utf8(std::string::FromUtf8Error),
-    //// TODO
-    //ZxcvbnError(zxcvbn::ZxcvbnError),
 }
 
 impl Clone for PWDuckCoreError {
@@ -39,7 +36,6 @@ impl Clone for PWDuckCoreError {
             Self::Mutex(error) => Self::Mutex(error.clone()),
             Self::Ron(error) => Self::Ron(error.clone()),
             Self::Utf8(error) => Self::Utf8(error.clone()),
-            //Self::ZxcvbnError(error) => Self::ZxcvbnError(error.clone()),
         }
     }
 }
@@ -97,9 +93,3 @@ impl From<std::string::FromUtf8Error> for PWDuckCoreError {
         Self::Utf8(error)
     }
 }
-
-/*impl From<zxcvbn::ZxcvbnError> for PWDuckCoreError {
-    fn from(error: zxcvbn::ZxcvbnError) -> Self {
-        Self::ZxcvbnError(error)
-    }
-}*/

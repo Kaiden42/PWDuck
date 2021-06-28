@@ -61,7 +61,7 @@ pub use model::{
     group::Group,
     master_key::MasterKey,
     uuid::Uuid,
-    vault::Vault,
+    vault::{ItemList, Vault},
 };
 
 mod passwords;
