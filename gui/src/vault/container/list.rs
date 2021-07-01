@@ -11,8 +11,11 @@ use pwduck_core::{EntryHead, Group, Vault};
 use crate::{
     error::PWDuckGuiError,
     icons::{Icon, ICON_FONT},
-    utils::{default_vertical_space, icon_button_with_width, icon_text, vertical_space, SomeIf},
-    DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
+    utils::{
+        default_vertical_space, icon_button, icon_button_with_width, icon_text, vertical_space,
+        SomeIf,
+    },
+    Viewport, DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
 use getset::{Getters, MutGetters, Setters};
 
@@ -127,7 +130,11 @@ impl ListView {
     }
 
     /// Create the view of the [`ListView`](ListView).
-    pub fn view<'a>(&'a mut self, vault: &'a Vault) -> Element<'a, ListMessage> {
+    pub fn view<'a>(
+        &'a mut self,
+        vault: &'a Vault,
+        viewport: &Viewport,
+    ) -> Element<'a, ListMessage> {
         let search_bar = TextInput::new(
             &mut self.search_state,
             "Search",
@@ -135,6 +142,8 @@ impl ListView {
             ListMessage::SearchInput,
         )
         .padding(DEFAULT_TEXT_INPUT_PADDING);
+
+        let hide_group_tree = viewport.width < 600;
 
         let group_view = group_view(
             vault,
@@ -145,23 +154,39 @@ impl ListView {
             &mut self.item_scroll_state,
             &mut self.group_items,
             &mut self.entry_items,
+            &crate::Viewport {
+                width: if hide_group_tree {
+                    viewport.width
+                } else {
+                    self.split_state.divider_position().map_or_else(
+                        || viewport.width / 2,
+                        |position| viewport.width - u32::from(position),
+                    )
+                },
+                height: viewport.height,
+            },
         );
 
-        let tree_view = tree_view(vault, &mut self.tree_scroll_state, &mut self.group_tree);
+        let content: Element<_> = if hide_group_tree {
+            group_view
+        } else {
+            let tree_view = tree_view(vault, &mut self.tree_scroll_state, &mut self.group_tree);
 
-        let split = Split::new(
-            &mut self.split_state,
-            tree_view,
-            group_view,
-            ListMessage::SplitResize,
-        )
-        .padding(5.0);
+            Split::new(
+                &mut self.split_state,
+                tree_view,
+                group_view,
+                ListMessage::SplitResize,
+            )
+            .padding(5.0)
+            .into()
+        };
 
         Container::new(
             Column::new()
                 .push(search_bar)
                 .push(vertical_space(2))
-                .push(split),
+                .push(content),
         )
         .width(Length::Fill)
         .height(Length::Fill)
@@ -193,8 +218,13 @@ fn group_view<'a>(
     scroll_state: &'a mut scrollable::State,
     group_items: &'a mut [ListGroupItem],
     entry_items: &'a mut [ListEntryItem],
+    viewport: &Viewport,
 ) -> Element<'a, ListMessage> {
     let selected_group = vault.groups().get(selected_group_uuid).unwrap();
+
+    //let icon_only = viewport.width < 1000; // TODO
+    let icon_only = true;
+    let no_buttons = viewport.width < 400;
 
     let current_item_list = vault.get_item_list_for(
         selected_group_uuid,
@@ -263,7 +293,10 @@ fn group_view<'a>(
             .iter_mut()
             .zip(current_item_list.entries().iter())
             .fold(list, |list, (item, entry)| {
-                list.push(item.view(entry).map(ListMessage::ListItemMessage))
+                list.push(
+                    item.view(entry, icon_only, no_buttons)
+                        .map(ListMessage::ListItemMessage),
+                )
             });
 
         list.into()
@@ -306,17 +339,60 @@ impl ListGroupItem {
 struct ListEntryItem {
     /// The state of the [`Button`](Button) of the list item.
     state: button::State,
+    /// The state of the [`Button`](Button) to copy the username.
+    copy_username_state: button::State,
+    /// The state of the [`Button`](Button) to copy the password.
+    copy_password_state: button::State,
+    /// The state of the [`Button`](Button) to autofill the credentials.
+    autofill_state: button::State,
 }
 
 impl ListEntryItem {
     /// Create the view of the [`ListEntryItem`](ListEntryItem).
-    fn view<'a>(&'a mut self, entry: &'a EntryHead) -> Element<'a, ListItemMessage> {
+    fn view<'a>(
+        &'a mut self,
+        entry: &'a EntryHead,
+        icon_only: bool,
+        no_buttons: bool,
+    ) -> Element<'a, ListItemMessage> {
         Button::new(
             &mut self.state,
             Row::new()
+                .align_items(iced::Align::Center)
                 .spacing(2 * DEFAULT_ROW_SPACING)
                 .push(icon_text(Icon::Person))
-                .push(Text::new(entry.title())),
+                .push(Text::new(entry.title()).width(Length::Fill))
+                .push(if no_buttons {
+                    Row::new()
+                } else {
+                    Row::new()
+                        .width(Length::Shrink)
+                        .spacing(DEFAULT_ROW_SPACING)
+                        .push(icon_button(
+                            &mut self.copy_username_state,
+                            Icon::FileEarmarkPerson,
+                            "Username",
+                            "Copy username",
+                            icon_only,
+                            Some(ListItemMessage::CopyUsername(entry.body().clone())),
+                        ))
+                        .push(icon_button(
+                            &mut self.copy_password_state,
+                            Icon::FileEarmarkLock,
+                            "Password",
+                            "Copy password",
+                            icon_only,
+                            Some(ListItemMessage::CopyPassword(entry.body().clone())),
+                        ))
+                        .push(icon_button(
+                            &mut self.autofill_state,
+                            Icon::Gear, // TODO
+                            "Autofill",
+                            "Autofill credentials to the target window",
+                            icon_only,
+                            None,
+                        ))
+                }),
         )
         .padding(20)
         .width(Length::Fill)
@@ -333,6 +409,12 @@ pub enum ListItemMessage {
     GroupSelected(String),
     /// Select the entry identified by it's UUID.
     EntrySelected(String),
+    /// Copy the username from the entry body identified by it's UUID.
+    CopyUsername(String),
+    /// Copy the password from the entry body identified by it's UUID.
+    CopyPassword(String),
+    /// Autofill credentials from the entry body identified by it's UUID  to the target.
+    Autofill(String),
 }
 
 /// The style of the [`ListGroupItem`](ListGroupItem)s.

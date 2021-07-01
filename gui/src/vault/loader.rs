@@ -12,7 +12,7 @@ use crate::{
     utils::{
         centered_container_with_column, default_text_input, icon_button, password_toggle, SomeIf,
     },
-    Component, Platform, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING,
+    Component, Platform, Viewport, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING,
 };
 
 /// The state of the vault loader.
@@ -162,6 +162,7 @@ impl Component for VaultLoader {
 
     fn view<P: Platform + 'static>(
         &mut self,
+        _viewport: &Viewport,
         //platform: &dyn Platform
     ) -> iced::Element<'_, Self::Message> {
         let path_fd_button = icon_button(

@@ -107,7 +107,7 @@ pub struct PWDuckGui<P: Platform + 'static> {
     tabs: Vec<VaultTab>,
 
     /// The size of the window.
-    windo_size: WindowSize,
+    window_size: Viewport,
     /// If the application can exit.
     can_exit: bool,
 
@@ -122,13 +122,13 @@ struct ErrorDialogState {
     error: String,
 }
 
-/// The size of the window.
+/// The size of the viewport.
 #[derive(Debug, Default)]
-struct WindowSize {
-    /// The width of the window.
-    width: u32,
-    /// The height of the window.
-    height: u32,
+pub struct Viewport {
+    /// The width of the viewport.
+    pub(crate) width: u32,
+    /// The height of the viewport.
+    pub(crate) height: u32,
 }
 
 impl<P: Platform + 'static> PWDuckGui<P> {
@@ -221,7 +221,7 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         match event {
             iced_native::Event::Window(event) => match event {
                 iced_native::window::Event::Resized { width, height } => {
-                    self.windo_size = WindowSize { width, height };
+                    self.window_size = Viewport { width, height };
                     Command::none()
                 }
                 iced_native::window::Event::CloseRequested => {
@@ -273,7 +273,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                 error_dialog_state: modal::State::default(),
                 password_generator_state: modal::State::new(PasswordGeneratorState::new()),
                 tabs: vec![VaultTab::new(())],
-                windo_size: WindowSize::default(),
+                window_size: Viewport::default(),
                 can_exit: false,
                 phantom: PhantomData,
             },
@@ -325,7 +325,9 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
     }
 
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
-        let tabs = self.tabs[0].view::<P>().map(Message::VaultTab);
+        let tabs = self.tabs[0]
+            .view::<P>(&self.window_size)
+            .map(Message::VaultTab);
 
         let body = password_modal::<P>(&mut self.password_generator_state, tabs);
 
@@ -387,7 +389,10 @@ trait Component {
     ) -> Result<iced::Command<Self::Message>, PWDuckGuiError>;
 
     /// Create the view of this [`Component`](Component).
-    fn view<P: Platform + 'static>(&mut self) -> iced::Element<'_, Self::Message>;
+    fn view<P: Platform + 'static>(
+        &mut self,
+        viewport: &Viewport,
+    ) -> iced::Element<'_, Self::Message>;
 }
 
 /// Platform related implementations.

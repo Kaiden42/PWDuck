@@ -14,7 +14,7 @@ use crate::{
         centered_container_with_column, default_text_input, default_vertical_space,
         estimate_password_strength, icon_button, password_toggle, SomeIf,
     },
-    Component, Platform, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING,
+    Component, Platform, Viewport, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING,
 };
 
 /// The state of the vault creator.
@@ -225,7 +225,10 @@ impl Component for VaultCreator {
         Ok(cmd)
     }
 
-    fn view<P: Platform + 'static>(&mut self) -> iced::Element<'_, Self::Message> {
+    fn view<P: Platform + 'static>(
+        &mut self,
+        _viewport: &Viewport,
+    ) -> iced::Element<'_, Self::Message> {
         let name = default_text_input(
             &mut self.name_state,
             "Enter the name of your new vault",

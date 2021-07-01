@@ -19,7 +19,7 @@ use toolbar::ToolBar;
 pub use toolbar::ToolBarMessage;
 
 use crate::{
-    error::PWDuckGuiError, utils::default_vertical_space, Component, Platform,
+    error::PWDuckGuiError, utils::default_vertical_space, Component, Platform, Viewport,
     DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
 };
 
@@ -98,35 +98,62 @@ impl VaultContainer {
     }
 
     /// Copy the username to the clipboard.
-    fn copy_username(&self, clipboard: &mut iced::Clipboard) -> Command<ToolBarMessage> {
-        if let Some(modify_entry_view) = self.modify_entry_view.as_ref() {
-            clipboard.write(modify_entry_view.entry_body().username().clone());
-        }
+    fn copy_username(
+        &self,
+        uuid: &str,
+        clipboard: &mut iced::Clipboard,
+    ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
+        let mem_key = crate::MEM_KEY.lock()?;
+        let masterkey = self.vault.masterkey().as_unprotected(
+            &mem_key,
+            self.vault.salt(),
+            self.vault.nonce(),
+        )?;
 
-        Command::none()
+        let entry_body = self.vault.unsaved_entry_bodies().get(uuid).map_or_else(
+            || pwduck_core::EntryBody::load(self.vault.path(), uuid, &masterkey),
+            |dto| pwduck_core::EntryBody::decrypt(dto, &masterkey),
+        )?;
+
+        clipboard.write(entry_body.username().clone());
+
+        Ok(Command::none())
     }
 
     /// Copy the password to the clipboard.
-    fn copy_password(&self, clipboard: &mut iced::Clipboard) -> Command<ToolBarMessage> {
-        if let Some(modify_entry_view) = self.modify_entry_view.as_ref() {
-            clipboard.write(modify_entry_view.entry_body().password().clone());
-        }
+    fn copy_password(
+        &self,
+        uuid: &str,
+        clipboard: &mut iced::Clipboard,
+    ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
+        let mem_key = crate::MEM_KEY.lock()?;
+        let masterkey = self.vault.masterkey().as_unprotected(
+            &mem_key,
+            self.vault.salt(),
+            self.vault.nonce(),
+        )?;
 
-        Command::none()
+        let entry_body = self.vault.unsaved_entry_bodies().get(uuid).map_or_else(
+            || pwduck_core::EntryBody::load(self.vault.path(), uuid, &masterkey),
+            |dto| pwduck_core::EntryBody::decrypt(dto, &masterkey),
+        )?;
+
+        clipboard.write(entry_body.password().clone());
+
+        Ok(Command::none())
     }
 
     /// Update the [`ToolBar`](ToolBar) with the given message.
     fn update_toolbar(
         &mut self,
         message: &ToolBarMessage,
-        clipboard: &mut iced::Clipboard,
+        _clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         match message {
             ToolBarMessage::Save => self.save(),
             ToolBarMessage::NewGroup => Ok(self.create_group()),
             ToolBarMessage::NewEntry => Ok(self.create_entry()),
-            ToolBarMessage::CopyUsername => Ok(self.copy_username(clipboard)),
-            ToolBarMessage::CopyPassword => Ok(self.copy_password(clipboard)),
+            ToolBarMessage::AutoFill => todo!(),
             ToolBarMessage::LockVault => {
                 PWDuckGuiError::Unreachable("ToolBarMessage".into()).into()
             }
@@ -221,10 +248,14 @@ impl VaultContainer {
     fn update_list_items(
         &mut self,
         message: ListItemMessage,
+        clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         match message {
             ListItemMessage::GroupSelected(uuid) => Ok(self.select_group(uuid)),
             ListItemMessage::EntrySelected(uuid) => self.select_entry(&uuid),
+            ListItemMessage::CopyUsername(uuid) => self.copy_username(&uuid, clipboard),
+            ListItemMessage::CopyPassword(uuid) => self.copy_password(&uuid, clipboard),
+            ListItemMessage::Autofill(_) => todo!(),
         }
     }
 
@@ -232,13 +263,13 @@ impl VaultContainer {
     fn update_list(
         &mut self,
         message: ListMessage,
-        _clipboard: &mut iced::Clipboard,
+        clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         match message {
             ListMessage::SearchInput(search) => Ok(self.update_search(search)),
             ListMessage::Back => self.go_to_parent_group(),
             ListMessage::EditGroup => self.edit_group(),
-            ListMessage::ListItemMessage(message) => self.update_list_items(message),
+            ListMessage::ListItemMessage(message) => self.update_list_items(message, clipboard),
             ListMessage::SplitResize(position) => {
                 self.list_view
                     .split_state_mut()
@@ -409,8 +440,13 @@ impl Component for VaultContainer {
         }
     }
 
-    fn view<P: Platform + 'static>(&mut self) -> iced::Element<'_, Self::Message> {
+    fn view<P: Platform + 'static>(
+        &mut self,
+        viewport: &Viewport,
+    ) -> iced::Element<'_, Self::Message> {
         let vault_contains_unsaved_changes = self.vault.contains_unsaved_changes();
+
+        let hide_toolbar_labels = viewport.width < 800;
 
         let tool_bar = self
             .tool_bar
@@ -418,13 +454,14 @@ impl Component for VaultContainer {
                 vault_contains_unsaved_changes,
                 self.modify_entry_view.is_some(),
                 self.modify_group_view.is_some(),
+                hide_toolbar_labels,
             )
             .map(VaultContainerMessage::ToolBar);
 
         let body = match self.current_view {
             CurrentView::ListView => self
                 .list_view
-                .view(&self.vault)
+                .view(&self.vault, viewport)
                 .map(VaultContainerMessage::List),
 
             CurrentView::ModifyGroup => match &mut self.modify_group_view {

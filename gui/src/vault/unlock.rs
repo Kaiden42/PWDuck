@@ -10,7 +10,7 @@ use crate::{
     error::PWDuckGuiError,
     icons::Icon,
     utils::{default_text_input, icon_button, password_toggle, SomeIf},
-    Component, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
+    Component, Viewport, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
     DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
 };
 
@@ -108,7 +108,10 @@ impl Component for VaultUnlocker {
         }
     }
 
-    fn view<P: crate::Platform + 'static>(&mut self) -> iced::Element<'_, Self::Message> {
+    fn view<P: crate::Platform + 'static>(
+        &mut self,
+        _viewport: &Viewport,
+    ) -> iced::Element<'_, Self::Message> {
         let path = PathBuf::from(&self.path);
         let vault_name = path
             .file_name()

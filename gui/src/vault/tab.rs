@@ -5,7 +5,9 @@ use std::path::PathBuf;
 use iced::Command;
 use pwduck_core::Vault;
 
-use crate::{error::PWDuckGuiError, vault::container::ToolBarMessage, Component, Platform};
+use crate::{
+    error::PWDuckGuiError, vault::container::ToolBarMessage, Component, Platform, Viewport,
+};
 
 pub use super::container::VaultContainerMessage;
 use super::{
@@ -159,13 +161,20 @@ impl Component for VaultTab {
 
     fn view<P: Platform + 'static>(
         &mut self,
+        viewport: &Viewport,
         //platform: &dyn Platform
     ) -> iced::Element<'_, Self::Message> {
         match &mut self.state {
-            VaultTabState::Empty(loader) => loader.view::<P>().map(VaultTabMessage::Loader),
-            VaultTabState::Create(creator) => creator.view::<P>().map(VaultTabMessage::Creator),
-            VaultTabState::Open(container) => container.view::<P>().map(VaultTabMessage::Container),
-            VaultTabState::Unlock(unlocker) => unlocker.view::<P>().map(VaultTabMessage::Unlocker),
+            VaultTabState::Empty(loader) => loader.view::<P>(viewport).map(VaultTabMessage::Loader),
+            VaultTabState::Create(creator) => {
+                creator.view::<P>(viewport).map(VaultTabMessage::Creator)
+            }
+            VaultTabState::Open(container) => container
+                .view::<P>(viewport)
+                .map(VaultTabMessage::Container),
+            VaultTabState::Unlock(unlocker) => {
+                unlocker.view::<P>(viewport).map(VaultTabMessage::Unlocker)
+            }
         }
     }
 }
