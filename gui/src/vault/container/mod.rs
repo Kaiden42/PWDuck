@@ -239,6 +239,28 @@ impl VaultContainer {
             ListMessage::Back => self.go_to_parent_group(),
             ListMessage::EditGroup => self.edit_group(),
             ListMessage::ListItemMessage(message) => self.update_list_items(message),
+            ListMessage::SplitResize(position) => {
+                self.list_view
+                    .split_state_mut()
+                    .set_divider_position(position);
+                Ok(Command::none())
+            }
+            ListMessage::GroupTreeMessage(message) => match message {
+                list::GroupTreeMessage::ToggleExpansion(_) => self
+                    .list_view
+                    .group_tree_mut()
+                    .update(message, &self.vault)
+                    .map(|cmd| {
+                        cmd.map(|msg| {
+                            VaultContainerMessage::List(ListMessage::GroupTreeMessage(msg))
+                        })
+                    }),
+                list::GroupTreeMessage::GroupSelected(uuid) => {
+                    self.list_view.set_selected_group_uuid(uuid);
+                    self.list_view.resize(&self.vault);
+                    Ok(Command::none())
+                }
+            },
         }
     }
 
@@ -259,6 +281,7 @@ impl VaultContainer {
                     self.vault.insert_group(modify_group_view.group().clone());
 
                     self.list_view.resize(&self.vault);
+                    self.list_view.group_tree_mut().refresh(&self.vault);
                     self.current_view = CurrentView::ListView;
                     self.modify_group_view = None
                 }
@@ -354,15 +377,13 @@ impl Component for VaultContainer {
 
     fn new(vault: Self::ConstructorParam) -> Self {
         let root_uuid = vault.get_root_uuid().unwrap();
-        let (group_count, entry_count) = (
-            vault.get_groups_of(&root_uuid).len(),
-            vault.get_entries_of(&root_uuid).len(),
-        );
+        let list_view = ListView::new(root_uuid, &vault);
+
         Self {
             vault,
             tool_bar: ToolBar::default(),
             current_view: CurrentView::ListView,
-            list_view: ListView::new(root_uuid, group_count, entry_count),
+            list_view,
             modify_group_view: None,
             modify_entry_view: None,
         }
