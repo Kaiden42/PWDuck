@@ -186,6 +186,10 @@ impl Component for VaultCreator {
         Self::default()
     }
 
+    fn title(&self) -> String {
+        "Create a new vault".into()
+    }
+
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,

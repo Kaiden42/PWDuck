@@ -93,6 +93,16 @@ impl Component for VaultUnlocker {
         }
     }
 
+    fn title(&self) -> String {
+        format!(
+            "Unlock vault: {}",
+            self.path
+                .file_name()
+                .and_then(std::ffi::OsStr::to_str)
+                .unwrap_or("")
+        )
+    }
+
     fn update<P: crate::Platform + 'static>(
         &mut self,
         message: Self::Message,

@@ -131,6 +131,10 @@ impl Component for VaultLoader {
         }
     }
 
+    fn title(&self) -> String {
+        "Load vault from storage".into()
+    }
+
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,

@@ -119,6 +119,15 @@ impl Component for VaultTab {
         }
     }
 
+    fn title(&self) -> String {
+        match &self.state {
+            VaultTabState::Empty(loader) => loader.title(),
+            VaultTabState::Create(creator) => creator.title(),
+            VaultTabState::Open(container) => container.title(),
+            VaultTabState::Unlock(unlocker) => unlocker.title(),
+        }
+    }
+
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,

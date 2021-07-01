@@ -224,7 +224,7 @@ pub trait SomeIf {
 
 /// The default style of a [`Tooltip`](iced::Tooltip).
 #[derive(Clone, Copy, Debug, Default)]
-struct TooltipStyle;
+pub struct TooltipStyle;
 
 impl container::StyleSheet for TooltipStyle {
     fn style(&self) -> container::Style {

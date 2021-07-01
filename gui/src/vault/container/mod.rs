@@ -1,6 +1,6 @@
 //! TODO
 
-use iced::{Column, Command, Container, Length, Text};
+use iced::{Column, Command, Container, Length};
 use pwduck_core::{EntryBody, EntryHead, Group, Vault};
 
 mod list;
@@ -20,7 +20,7 @@ pub use toolbar::ToolBarMessage;
 
 use crate::{
     error::PWDuckGuiError, utils::default_vertical_space, Component, Platform, Viewport,
-    DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
+    DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING,
 };
 
 use self::list::ListItemMessage;
@@ -420,6 +420,10 @@ impl Component for VaultContainer {
         }
     }
 
+    fn title(&self) -> String {
+        self.vault.get_name().to_owned()
+    }
+
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,
@@ -483,10 +487,6 @@ impl Component for VaultContainer {
             Column::new()
                 .padding(DEFAULT_COLUMN_PADDING)
                 .spacing(DEFAULT_COLUMN_SPACING)
-                .push(
-                    Text::new(&format!("Vault: {}", self.vault.get_name()))
-                        .size(DEFAULT_HEADER_SIZE),
-                )
                 .push(tool_bar)
                 .push(default_vertical_space())
                 .push(body),

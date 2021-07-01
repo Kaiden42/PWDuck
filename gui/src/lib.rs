@@ -48,13 +48,17 @@
 use std::{marker::PhantomData, path::PathBuf};
 
 use async_trait::async_trait;
-use iced::{executor, Application, Command, Element, Settings, Subscription, Text};
+use iced::{
+    button, executor, tooltip, Application, Button, Column, Command, Element, Length, Row,
+    Settings, Subscription, Text, Tooltip,
+};
 
 pub mod error;
 use error::{NfdError, PWDuckGuiError};
 
 pub mod vault;
-use iced_aw::{modal, Card, Modal};
+use iced_aw::{modal, Card, Modal, TabBar, TabLabel};
+use icons::{Icon, ICON_FONT};
 use lazy_static::lazy_static;
 use pwduck_core::MemKey;
 use vault::{
@@ -88,6 +92,12 @@ const DEFAULT_TEXT_INPUT_PADDING: u16 = 5;
 const DEFAULT_SPACE_HEIGHT: u16 = 5;
 /// The default font size of a header [`Text`](Text).
 const DEFAULT_HEADER_SIZE: u16 = 25;
+/// The height of the top row.
+const TOP_ROW_HEIGHT: u16 = 30;
+/// The font size of the top row.
+const TOP_ROW_FONT_SIZE: u16 = TOP_ROW_HEIGHT - 10;
+/// The padding of the top row.
+const TOP_ROW_PADDING: u16 = 5;
 
 lazy_static! {
     //static ref MEM_KEY: Mutex<pwduck_core::MemKey> = Mutex::new(MemKey::new());
@@ -105,6 +115,13 @@ pub struct PWDuckGui<P: Platform + 'static> {
     password_generator_state: modal::State<PasswordGeneratorState>,
     /// The tabs of open vaults.
     tabs: Vec<VaultTab>,
+    /// The index of the currently selected tab.
+    selected_tab: usize,
+
+    /// The state of the settings [`Button`](iced::Button).
+    settings_state: button::State,
+    /// The state of the [`Button`](iced::Button) to open up a new tab.
+    open_new_tab_state: button::State,
 
     /// The size of the window.
     window_size: Viewport,
@@ -154,10 +171,11 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         self.password_generator_state
             .inner_mut()
             .set_target(match message {
-                Message::VaultTab(VaultTabMessage::Container(
-                    VaultContainerMessage::ModifyEntry(_),
-                )) => Target::EntryModifier,
-                Message::VaultTab(VaultTabMessage::Creator(_)) => todo!(),
+                Message::VaultTab(
+                    _,
+                    VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(_)),
+                ) => Target::EntryModifier,
+                Message::VaultTab(_, VaultTabMessage::Creator(_)) => todo!(),
                 _ => Target::None,
             });
 
@@ -192,7 +210,10 @@ impl<P: Platform + 'static> PWDuckGui<P> {
             Target::None => return PWDuckGuiError::Unreachable("Message".into()).into(),
         };
         Ok(Command::perform(
-            async { Message::VaultTab(message) },
+            {
+                let selected_tab = self.selected_tab;
+                async move { Message::VaultTab(selected_tab, message) }
+            },
             |m| m,
         ))
     }
@@ -240,12 +261,13 @@ impl<P: Platform + 'static> PWDuckGui<P> {
     /// Update the tab of a vault identified by the given message.
     fn update_vault_tab(
         &mut self,
+        index: usize,
         message: VaultTabMessage,
         clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Message>, PWDuckGuiError> {
-        self.tabs[0]
+        self.tabs[index]
             .update::<P>(message, clipboard)
-            .map(|c| c.map(Message::VaultTab))
+            .map(move |cmd| cmd.map(move |msg| Message::VaultTab(index, msg)))
     }
 }
 
@@ -259,7 +281,13 @@ pub enum Message {
     /// Messages related to iced [`Event`](iced_native::Event)s.
     IcedEvent(iced_native::Event),
     /// Messages related to the tabs of the vaults.
-    VaultTab(VaultTabMessage),
+    VaultTab(usize, VaultTabMessage),
+    /// The tab identified by it's index was selected by the user.
+    TabSelected(usize),
+    /// Create a new tab.
+    TabCreate,
+    /// Close the tab identified by it's index.
+    TabClose(usize),
 }
 
 impl<P: Platform + 'static> Application for PWDuckGui<P> {
@@ -273,6 +301,11 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                 error_dialog_state: modal::State::default(),
                 password_generator_state: modal::State::new(PasswordGeneratorState::new()),
                 tabs: vec![VaultTab::new(())],
+                selected_tab: 0,
+
+                settings_state: button::State::new(),
+                open_new_tab_state: button::State::new(),
+
                 window_size: Viewport::default(),
                 can_exit: false,
                 phantom: PhantomData,
@@ -291,9 +324,12 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         clipboard: &mut iced::Clipboard,
     ) -> iced::Command<Self::Message> {
         let cmd = match message {
-            Message::VaultTab(VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
-                ModifyEntryMessage::PasswordGenerate,
-            ))) => Ok(self.password_generator_show(&message)),
+            Message::VaultTab(
+                _,
+                VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
+                    ModifyEntryMessage::PasswordGenerate,
+                )),
+            ) => Ok(self.password_generator_show(&message)),
 
             Message::ErrorDialogClose => Ok(self.close_error_dialog()),
 
@@ -311,7 +347,34 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
 
             Message::IcedEvent(event) => Ok(self.catch_iced_event(event)),
 
-            Message::VaultTab(message) => self.update_vault_tab(message, clipboard),
+            Message::VaultTab(index, message) => self.update_vault_tab(index, message, clipboard),
+
+            Message::TabSelected(index) => {
+                self.selected_tab = index;
+                Ok(Command::none())
+            }
+
+            Message::TabCreate => {
+                self.tabs.push(VaultTab::new(()));
+                self.selected_tab = self.tabs.len() - 1;
+                Ok(Command::none())
+            }
+
+            Message::TabClose(index) => {
+                if !self.tabs[index].contains_unsaved_changes() {
+                    self.tabs.remove(index); // TODO error message if contains unsaved changes
+                    self.selected_tab = if self.tabs.is_empty() {
+                        0
+                    } else {
+                        self.selected_tab.min(self.tabs.len() - 1)
+                    };
+
+                    if self.tabs.is_empty() {
+                        self.can_exit = true;
+                    }
+                }
+                Ok(Command::none())
+            }
         };
 
         match cmd {
@@ -325,11 +388,69 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
     }
 
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
-        let tabs = self.tabs[0]
-            .view::<P>(&self.window_size)
-            .map(Message::VaultTab);
+        if self.tabs.is_empty() {
+            // Workaround to prevent rendering after the application should exit.
+            return Column::new().into();
+        }
+        let selected_tab = self.selected_tab;
 
-        let body = password_modal::<P>(&mut self.password_generator_state, tabs);
+        let top_row = Row::new()
+            //.push(icon_button(&mut self.settings_state, Icon::Gear, "Settings", "Configure your preferences", true, None))
+            .push(
+                Tooltip::new(
+                    Button::new(
+                        &mut self.settings_state,
+                        Text::new(Icon::Gear)
+                            .font(ICON_FONT)
+                            .size(TOP_ROW_FONT_SIZE),
+                    )
+                    .height(Length::Units(TOP_ROW_HEIGHT))
+                    .padding(TOP_ROW_PADDING),
+                    "Configure your preferences",
+                    tooltip::Position::FollowCursor,
+                )
+                .style(crate::utils::TooltipStyle),
+            )
+            //.push(icon_button(&mut self.open_new_tab_state, Icon::PlusSquare, "Open", "Open new tab", true, None)) // TODO
+            .push(
+                Tooltip::new(
+                    Button::new(
+                        &mut self.open_new_tab_state,
+                        Text::new(Icon::PlusSquare)
+                            .font(ICON_FONT)
+                            .size(TOP_ROW_FONT_SIZE),
+                    )
+                    .height(Length::Units(TOP_ROW_HEIGHT))
+                    .padding(TOP_ROW_PADDING)
+                    .on_press(Message::TabCreate),
+                    "Open new tab",
+                    tooltip::Position::FollowCursor,
+                )
+                .style(crate::utils::TooltipStyle),
+            )
+            .push(
+                TabBar::width_tab_labels(
+                    self.selected_tab,
+                    self.tabs
+                        .iter()
+                        .map(|tab| TabLabel::Text(tab.title()))
+                        .collect(),
+                    Message::TabSelected,
+                )
+                .text_size(TOP_ROW_FONT_SIZE)
+                .icon_size(TOP_ROW_FONT_SIZE)
+                .padding(TOP_ROW_PADDING)
+                .height(Length::Units(TOP_ROW_HEIGHT))
+                .on_close(Message::TabClose),
+            );
+
+        let tab = self.tabs[selected_tab]
+            .view::<P>(&self.window_size)
+            .map(move |msg| Message::VaultTab(selected_tab, msg));
+
+        let content: Element<_> = Column::new().push(top_row).push(tab).into();
+
+        let body = password_modal::<P>(&mut self.password_generator_state, content);
 
         error_modal::<P>(&mut self.error_dialog_state, body)
     }
@@ -380,6 +501,9 @@ trait Component {
 
     /// Create a new [`Component`](Component).
     fn new(t: Self::ConstructorParam) -> Self;
+
+    /// The title of this component.
+    fn title(&self) -> String;
 
     /// Update this [`Component`](Component).
     fn update<P: Platform + 'static>(

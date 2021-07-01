@@ -6,7 +6,7 @@ use iced::Font;
 ///
 /// See: <https://icons.getbootstrap.com>
 pub const ICON_FONT: Font = Font::External {
-    name: "Icons",
+    name: "PWDuck Icons",
     bytes: include_bytes!("../font/pwduck-icons.ttf"),
 };
 
