@@ -421,7 +421,11 @@ impl Component for VaultContainer {
     }
 
     fn title(&self) -> String {
-        self.vault.get_name().to_owned()
+        if self.vault.contains_unsaved_changes() {
+            format!("(\u{2731}) {}", self.vault.get_name())
+        } else {
+            self.vault.get_name().to_owned()
+        }
     }
 
     fn update<P: Platform + 'static>(

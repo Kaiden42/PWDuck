@@ -1,6 +1,6 @@
 //! This module contains everything related to errors occurring in the core.
 
-use std::sync::PoisonError;
+use std::{fmt::Display, sync::PoisonError};
 /// An error thrown in the core.
 #[derive(Debug)]
 pub enum PWDuckCoreError {
@@ -32,7 +32,7 @@ impl Clone for PWDuckCoreError {
             Self::BlockMode(error) => Self::BlockMode(*error),
             Self::BlockModeIV(error) => Self::BlockModeIV(*error),
             Self::Error(error) => Self::Error(error.clone()),
-            Self::IO(error) => Self::Error(format!("'Cloned' IO Error: {:?}", error)),
+            Self::IO(error) => Self::Error(format!("{}", error)),
             Self::Mutex(error) => Self::Mutex(error.clone()),
             Self::Ron(error) => Self::Ron(error.clone()),
             Self::Utf8(error) => Self::Utf8(error.clone()),
@@ -91,5 +91,21 @@ impl From<ron::Error> for PWDuckCoreError {
 impl From<std::string::FromUtf8Error> for PWDuckCoreError {
     fn from(error: std::string::FromUtf8Error) -> Self {
         Self::Utf8(error)
+    }
+}
+
+impl Display for PWDuckCoreError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PWDuckCoreError::Argon2(error) => write!(f, "Could not derive a key ({})", error),
+            PWDuckCoreError::Base64(error) => write!(f, "Not a valid Base64 encoded string ({})", error),
+            PWDuckCoreError::BlockMode(error) => write!(f, "Wrong password or your vault might be corrupted ({})", error),
+            PWDuckCoreError::BlockModeIV(error) => write!(f, "Got a wrong size of the IV ({})", error),
+            PWDuckCoreError::Error(error) => write!(f, "{}", error),
+            PWDuckCoreError::IO(error) => write!(f, "Could not access the vault ({})", error),
+            PWDuckCoreError::Mutex(error) => write!(f, "Could not lock a mutex ({})", error),
+            PWDuckCoreError::Ron(error) => write!(f, "Not a valid RON structure ({})", error),
+            PWDuckCoreError::Utf8(error) => write!(f, "The given data was no valid UTF-8 ({})", error),
+        }
     }
 }

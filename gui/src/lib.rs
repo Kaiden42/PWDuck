@@ -238,23 +238,24 @@ impl<P: Platform + 'static> PWDuckGui<P> {
     }
 
     /// Catch and handle an [`Event`](iced_native::Event) thrown by iced.
-    fn catch_iced_event<Message>(&mut self, event: iced_native::Event) -> iced::Command<Message> {
+    fn catch_iced_event<Message>(&mut self, event: iced_native::Event) -> Result<iced::Command<Message>, PWDuckGuiError> {
         match event {
             iced_native::Event::Window(event) => match event {
                 iced_native::window::Event::Resized { width, height } => {
                     self.window_size = Viewport { width, height };
-                    Command::none()
+                    Ok(Command::none())
                 }
                 iced_native::window::Event::CloseRequested => {
-                    if !self.tabs.iter().any(VaultTab::contains_unsaved_changes) {
-                        // TODO: add nice error dialog
+                    if self.tabs.iter().any(VaultTab::contains_unsaved_changes) {
+                        Err(PWDuckGuiError::VaultContainsUnsavedChanges)
+                    } else {
                         self.can_exit = true;
+                        Ok(Command::none())
                     }
-                    Command::none()
                 }
-                _ => Command::none(),
+                _ => Ok(Command::none()),
             },
-            _ => Command::none(),
+            _ => Ok(Command::none()),
         }
     }
 
@@ -345,7 +346,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                 self.update_password_generator(message, clipboard)
             }
 
-            Message::IcedEvent(event) => Ok(self.catch_iced_event(event)),
+            Message::IcedEvent(event) => self.catch_iced_event(event),
 
             Message::VaultTab(index, message) => self.update_vault_tab(index, message, clipboard),
 
@@ -361,8 +362,10 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
             }
 
             Message::TabClose(index) => {
-                if !self.tabs[index].contains_unsaved_changes() {
-                    self.tabs.remove(index); // TODO error message if contains unsaved changes
+                if self.tabs[index].contains_unsaved_changes() {
+                    Err(PWDuckGuiError::VaultContainsUnsavedChanges)
+                } else {
+                    self.tabs.remove(index);
                     self.selected_tab = if self.tabs.is_empty() {
                         0
                     } else {
@@ -372,15 +375,15 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                     if self.tabs.is_empty() {
                         self.can_exit = true;
                     }
+                    Ok(Command::none())
                 }
-                Ok(Command::none())
             }
         };
 
         match cmd {
             Ok(cmd) => cmd,
             Err(error) => {
-                self.error_dialog_state.inner_mut().error = format!("{:?}", error);
+                self.error_dialog_state.inner_mut().error = format!("{}", error);
                 self.error_dialog_state.show(true);
                 Command::none()
             }
@@ -482,7 +485,7 @@ fn error_modal<'a, P: Platform + 'static>(
     body: Element<'a, Message>,
 ) -> Element<'a, Message> {
     Modal::new(state, body, |state| {
-        Card::new(Text::new("Ooopsi whoopsi"), Text::new(state.error.clone()))
+        Card::new(Text::new("An error occurred"), Text::new(state.error.clone()))
             .max_width(DEFAULT_MAX_WIDTH)
             .on_close(Message::ErrorDialogClose)
             .into()
