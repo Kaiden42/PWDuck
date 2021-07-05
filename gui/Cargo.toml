@@ -17,7 +17,7 @@ getset = "0.1.1"
 
 [dependencies.iced_aw]
 git = "https://github.com/iced-rs/iced_aw"
-#rev = "f93ebda66b54d183c366a7170029528a99dcf3f3"
-rev = "bb2a7562224b804ab2fa5e55d3a7e3677f9a26d1"
+#rev = "bb2a7562224b804ab2fa5e55d3a7e3677f9a26d1"
+rev = "c92a393d1bfedc4e3dd8c99cc58920a81ce1eb35"
 default-features = false
 features = ["card", "modal", "tab_bar", "number_input", "split"]
