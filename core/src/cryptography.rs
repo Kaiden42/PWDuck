@@ -97,7 +97,11 @@ pub fn generate_masterkey(password: &str) -> Result<MasterKey, PWDuckCoreError> 
 
     // Generate random master key and encrypt it with password hash
     let mut master_key = [0_u8; 32];
+    #[cfg(not(debug_assertions))]
     OsRng.fill_bytes(&mut master_key);
+    #[cfg(debug_assertions)] // TODO
+    master_key.iter_mut().enumerate().for_each(|(i, x)| *x = (i%16) as u8);
+
     let encrypted_key = aes_cbc_encrypt(&master_key, password_hash.as_slice(), &iv)?;
     master_key.zeroize();
 

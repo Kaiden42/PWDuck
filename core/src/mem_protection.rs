@@ -45,12 +45,11 @@ impl MemKey {
     pub fn with_length(length: usize) -> Self {
         Self {
             key: SecBytes::with(length, |buf| {
-                /*use rand::prelude::*;
-                use rand_chacha::ChaCha20Rng;
-
-                let mut rng = ChaCha20Rng::from_entropy();
-                rng.fill_bytes(buf)*/
+                #[cfg(not(debug_assertions))]
                 fill_random_bytes(buf);
+                #[cfg(debug_assertions)] // TODO
+                buf.iter_mut().enumerate().for_each(|(i, x)| *x = (i%16) as u8);
+                //buf.iter_mut().for_each(|x| *x = 0xff);
             }),
         }
     }
