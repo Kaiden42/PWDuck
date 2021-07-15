@@ -72,14 +72,19 @@ impl ModifyGroupView {
     pub fn update(
         &mut self,
         message: ModifyGroupMessage,
+        vault: &mut Vault,
         _clipboard: &mut iced::Clipboard,
     ) -> Result<Command<ModifyGroupMessage>, PWDuckGuiError> {
         match message {
+            ModifyGroupMessage::Cancel => Ok(Command::none()),
+            ModifyGroupMessage::Submit => {
+                vault.insert_group(self.group.clone());
+                Ok(Command::none())
+            }
             ModifyGroupMessage::TitleInput(password) => {
                 self.group_mut().set_title(password);
                 Ok(Command::none())
-            }
-            _ => PWDuckGuiError::Unreachable("ModifyGroupMessage".into()).into(),
+            } //_ => PWDuckGuiError::Unreachable("ModifyGroupMessage".into()).into(),
         }
     }
 

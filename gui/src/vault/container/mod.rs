@@ -300,35 +300,31 @@ impl VaultContainer {
     /// Handle the massage that was send by the [`ModifyGroupView`](ModifyGroupView).
     fn update_modify_group(
         &mut self,
-        message: ModifyGroupMessage,
+        message: &ModifyGroupMessage,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
-        match message {
-            ModifyGroupMessage::Cancel => {
-                self.current_view = CurrentView::ListView;
-                self.modify_group_view = None;
-                Ok(Command::none())
-            }
-            ModifyGroupMessage::Submit => {
-                if let Some(modify_group_view) = self.modify_group_view.as_mut() {
-                    self.vault.insert_group(modify_group_view.group().clone());
+        let vault = &mut self.vault;
 
-                    self.list_view.resize(&self.vault);
-                    self.list_view.group_tree_mut().refresh(&self.vault);
-                    self.current_view = CurrentView::ListView;
-                    self.modify_group_view = None
-                }
-                Ok(Command::none())
+        let cmd = self
+            .modify_group_view
+            .as_mut()
+            .map_or_else(
+                || Ok(Command::none()),
+                |view| view.update(message.clone(), vault, clipboard),
+            )
+            .map(|cmd| cmd.map(VaultContainerMessage::ModifyGroup));
+
+        match message {
+            ModifyGroupMessage::Cancel | ModifyGroupMessage::Submit => {
+                self.list_view.resize(&self.vault);
+                self.list_view.group_tree_mut().refresh(&self.vault);
+                self.current_view = CurrentView::ListView;
+                self.modify_group_view = None
             }
-            _ => self
-                .modify_group_view
-                .as_mut()
-                .map_or_else(
-                    || Ok(Command::none()),
-                    |view| view.update(message, clipboard),
-                )
-                .map(|cmd| cmd.map(VaultContainerMessage::ModifyGroup)),
+            ModifyGroupMessage::TitleInput(_) => {}
         }
+
+        cmd
     }
 
     /// Handle the message that was send by the [`ModifyEntryView`](ModifyEntryView).
@@ -423,7 +419,7 @@ impl Component for VaultContainer {
             VaultContainerMessage::List(message) => self.update_list(message, clipboard),
 
             VaultContainerMessage::ModifyGroup(message) => {
-                self.update_modify_group(message, clipboard)
+                self.update_modify_group(&message, clipboard)
             }
 
             VaultContainerMessage::ModifyEntry(message) => {
