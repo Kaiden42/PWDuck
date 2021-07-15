@@ -2,18 +2,23 @@
 
 use getset::{Getters, MutGetters, Setters};
 use iced::{
-    button, scrollable, text_input, Button, Column, Command, Container, Element, Length, Row,
-    Scrollable, Space, Text,
+    button, scrollable, text_input, Button, Column, Command, Element, Length, Row, Scrollable,
+    Space, Text,
 };
-use iced_aw::{Card, Modal, modal};
+use iced_aw::{modal, Card, Modal};
 use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo, Vault};
 
-use crate::{DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, Platform, error::PWDuckGuiError, icons::{Icon, ICON_FONT}, password_score::PasswordScore, utils::{
+use crate::{
+    error::PWDuckGuiError,
+    icons::{Icon, ICON_FONT},
+    password_score::PasswordScore,
+    utils::{
         centered_container_with_column, default_text_input, default_vertical_space,
         estimate_password_strength, icon_button, password_toggle, SomeIf,
-    }};
-
-use super::VaultContainer;
+    },
+    Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_MAX_WIDTH,
+    DEFAULT_ROW_SPACING,
+};
 
 /// The state of the modify entry view.
 #[derive(Getters, MutGetters, Setters)]
@@ -246,35 +251,36 @@ impl ModifyEntryView {
         &mut self,
         message: AdvancedStateMessage,
         _clipboard: &mut iced::Clipboard,
-    ) -> Result<Command<ModifyEntryMessage>, PWDuckGuiError> {
+    ) -> Command<ModifyEntryMessage> {
         match message {
             AdvancedStateMessage::DeleteEntryRequest => {
                 self.modal_state = modal::State::new(ModifyEntryModal::delete_request());
                 self.modal_state.show(true);
-                Ok(Command::none())
-            },
+                Command::none()
+            }
             AdvancedStateMessage::AutoTypeInput(auto_type_sequence) => {
                 self.entry_head
                     .set_auto_type_sequence(auto_type_sequence.into());
-                Ok(Command::none())
+                Command::none()
             }
         }
     }
 
+    /// Update the state of the modal.
     fn update_modal(
         &mut self,
-        message: ModifyEntryModalMessage,
+        message: &ModifyEntryModalMessage,
         vault: &mut Vault,
-    ) -> Result<Command<ModifyEntryMessage>, PWDuckGuiError> {
+    ) -> Command<ModifyEntryMessage> {
         match message {
             ModifyEntryModalMessage::Close => {
                 self.modal_state = modal::State::default();
-                Ok(Command::none())
-            },
+                Command::none()
+            }
             ModifyEntryModalMessage::SubmitDelete => {
                 vault.delete_entry(self.entry_head.uuid());
-                Ok(Command::none())
-            },
+                Command::none()
+            }
         }
     }
 
@@ -305,8 +311,10 @@ impl ModifyEntryView {
                 Ok(self.set_password_score(password_info))
             }
             ModifyEntryMessage::ToggleAdvanced => Ok(self.toggle_advanced_visiblity()),
-            ModifyEntryMessage::Advanced(message) => self.update_advanced::<P>(message, clipboard),
-            ModifyEntryMessage::Modal(message) => self.update_modal(message, vault),
+            ModifyEntryMessage::Advanced(message) => {
+                Ok(self.update_advanced::<P>(message, clipboard))
+            }
+            ModifyEntryMessage::Modal(message) => Ok(self.update_modal(&message, vault)),
             //ModifyEntryMessage::PasswordGenerate
             //| ModifyEntryMessage::Cancel
             //| ModifyEntryMessage::Submit => {
@@ -316,22 +324,18 @@ impl ModifyEntryView {
             ModifyEntryMessage::Submit => {
                 // TODO async
                 let mem_key = crate::MEM_KEY.lock()?;
-                let masterkey = vault.masterkey().as_unprotected(
-                    &mem_key,
-                    vault.salt(),
-                    vault.nonce(),
-                )?;
+                let masterkey =
+                    vault
+                        .masterkey()
+                        .as_unprotected(&mem_key, vault.salt(), vault.nonce())?;
 
-                vault.insert_entry(
-                    self.entry_head.clone(),
-                    self.entry_body.clone(),
-                    &masterkey
-                )?;
+                vault.insert_entry(self.entry_head.clone(), self.entry_body.clone(), &masterkey)?;
 
                 Ok(Command::none())
-            },
-            ModifyEntryMessage::PasswordGenerate => PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into(),
-
+            }
+            ModifyEntryMessage::PasswordGenerate => {
+                PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into()
+            }
         }
     }
 
@@ -403,11 +407,10 @@ impl ModifyEntryView {
 
         let content: Element<_> = centered_container_with_column(vec![scrollable.into()]).into();
 
-        Modal::new(
-            &mut self.modal_state,
-            content,
-            |state| state.view().map(ModifyEntryMessage::Modal),
-        ).into()
+        Modal::new(&mut self.modal_state, content, |state| {
+            state.view().map(ModifyEntryMessage::Modal)
+        })
+        .into()
     }
 }
 
@@ -498,20 +501,29 @@ fn password_row<'a>(
     );
 
     let row = Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(password)
-                .push(password_show)
-                .push(password_generate)
-                .push(password_copy);
+        .spacing(DEFAULT_ROW_SPACING)
+        .push(password)
+        .push(password_show)
+        .push(password_generate)
+        .push(password_copy);
 
-    if let Some(password_score) = password_score.as_mut() {
-        Column::new()
+    //if let Some(password_score) = password_score.as_mut() {
+    //    Column::new()
+    //        .spacing(DEFAULT_COLUMN_SPACING)
+    //        .push(row)
+    //        .push(password_score.view())
+    //        .into()
+    //} else {
+    //    row.into()
+    //}
+
+    match password_score.as_mut() {
+        Some(password_score) => Column::new()
             .spacing(DEFAULT_COLUMN_SPACING)
             .push(row)
             .push(password_score.view())
-            .into()
-    } else {
-        row.into()
+            .into(),
+        None => row.into(),
     }
 }
 
@@ -590,6 +602,7 @@ fn control_button_row<'a>(
         .into()
 }
 
+/// Create the advanced area.
 fn advanced_area<'a, P: Platform + 'static>(
     button_state: &'a mut button::State,
     show_advanced: bool,
@@ -616,7 +629,7 @@ fn advanced_area<'a, P: Platform + 'static>(
 
     let advanced: Element<_> = if show_advanced {
         advanced_state
-            .view::<P>(entry_head, &entry_body)
+            .view::<P>(entry_head, entry_body)
             .map(ModifyEntryMessage::Advanced)
     } else {
         Space::new(Length::Fill, Length::Shrink).into()
@@ -644,6 +657,7 @@ pub enum State {
     Modify,
 }
 
+/// The style of the toggler to toggle the advanced view.
 #[derive(Clone, Copy, Debug)]
 struct ToggleAdvancedButtonStyle;
 
@@ -686,16 +700,6 @@ impl AdvancedState {
         }
     }
 
-    /// Update the advanced state.
-    pub fn update<P: Platform + 'static>(
-        &mut self,
-        message: AdvancedStateMessage,
-        entry_head: &mut EntryHead,
-        entry_body: &mut EntryBody,
-    ) -> Result<Command<AdvancedStateMessage>, PWDuckGuiError> {
-        todo!()
-    }
-
     /// Create the advanced view.
     pub fn view<P: Platform + 'static>(
         &mut self,
@@ -731,21 +735,30 @@ impl AdvancedState {
     }
 }
 
+/// The state of the modal.
 enum ModifyEntryModal {
+    /// Confirm the deletion of the entry.
     DeleteRequest {
+        /// The state of the cancel [`Button`](iced::Button).
         cancel_button_state: button::State,
+        /// The state of the submit [`Button`](iced::Button).
         submit_button_state: button::State,
     },
+    /// No modal.
     None,
 }
 
+/// The message send by the modal.
 #[derive(Clone, Debug)]
 pub enum ModifyEntryModalMessage {
+    /// Close the modal.
     Close,
+    /// Submit the deletion of the entry.
     SubmitDelete,
 }
 
 impl ModifyEntryModal {
+    /// Create the modal to confirm the entry deletion.
     fn delete_request() -> Self {
         Self::DeleteRequest {
             cancel_button_state: button::State::new(),
@@ -753,39 +766,37 @@ impl ModifyEntryModal {
         }
     }
 
-    fn view<'a>(&'a mut self) -> Element<'a, ModifyEntryModalMessage> {
+    /// Create the view of the modal.
+    fn view(&mut self) -> Element<'_, ModifyEntryModalMessage> {
         match self {
-            ModifyEntryModal::DeleteRequest { cancel_button_state, submit_button_state } => {
-                Card::new(
-                    Text::new("Confirm deletion"),
-                    Text::new("Do you really want to delete this entry? This cannot be undone!"),
-                )
-                .foot(
-                    Row::new()
-                        .push(
-                            icon_button(
-                                cancel_button_state,
-                                Icon::XSquare,
-                                "Cancel",
-                                "Cancel the deletion of the entry",
-                                false,
-                                Some(ModifyEntryModalMessage::Close),
-                            )
-                        )
-                        .push(
-                            icon_button(
-                                submit_button_state,
-                                Icon::XSquare,
-                                "Submit",
-                                "Submit the deletion of the entry",
-                                false,
-                                Some(ModifyEntryModalMessage::SubmitDelete)
-                            )
-                        )
-                )
-                .max_width(DEFAULT_MAX_WIDTH)
-                .into()
-            },
+            ModifyEntryModal::DeleteRequest {
+                cancel_button_state,
+                submit_button_state,
+            } => Card::new(
+                Text::new("Confirm deletion"),
+                Text::new("Do you really want to delete this entry? This cannot be undone!"),
+            )
+            .foot(
+                Row::new()
+                    .push(icon_button(
+                        cancel_button_state,
+                        Icon::XSquare,
+                        "Cancel",
+                        "Cancel the deletion of the entry",
+                        false,
+                        Some(ModifyEntryModalMessage::Close),
+                    ))
+                    .push(icon_button(
+                        submit_button_state,
+                        Icon::XSquare,
+                        "Submit",
+                        "Submit the deletion of the entry",
+                        false,
+                        Some(ModifyEntryModalMessage::SubmitDelete),
+                    )),
+            )
+            .max_width(DEFAULT_MAX_WIDTH)
+            .into(),
             ModifyEntryModal::None => Text::new("This message should never appear!").into(),
         }
     }

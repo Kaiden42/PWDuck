@@ -322,6 +322,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         "PWDuck - Password Manager".into()
     }
 
+    #[allow(clippy::print_stdout, clippy::use_debug)]
     fn update(
         &mut self,
         message: Self::Message,

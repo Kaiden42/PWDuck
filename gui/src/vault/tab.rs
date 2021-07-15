@@ -157,18 +157,21 @@ impl Component for VaultTab {
                 Ok(self.change_to_create_state())
             }
 
-            (VaultTabMessage::Creator(VaultCreatorMessage::Cancel) | VaultTabMessage::Unlocker(VaultUnlockerMessage::Close), _) => {
-                Ok(self.change_to_empty_state())
-            }
+            (
+                VaultTabMessage::Creator(VaultCreatorMessage::Cancel)
+                | VaultTabMessage::Unlocker(VaultUnlockerMessage::Close),
+                _,
+            ) => Ok(self.change_to_empty_state()),
 
             (VaultTabMessage::Creator(VaultCreatorMessage::VaultCreated(vault)), _) => {
                 Ok(self.change_to_unlock_state(vault?))
             }
 
-            (VaultTabMessage::Unlocker(VaultUnlockerMessage::Unlocked(vault))
-            | VaultTabMessage::Loader(VaultLoaderMessage::Loaded(vault)), _ ) => {
-                Ok(self.change_to_open_state(vault?))
-            }
+            (
+                VaultTabMessage::Unlocker(VaultUnlockerMessage::Unlocked(vault))
+                | VaultTabMessage::Loader(VaultLoaderMessage::Loaded(vault)),
+                _,
+            ) => Ok(self.change_to_open_state(vault?)),
 
             (
                 VaultTabMessage::Container(VaultContainerMessage::ToolBar(

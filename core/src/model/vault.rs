@@ -4,10 +4,16 @@ use std::{collections::HashMap, path::PathBuf};
 
 use zeroize::Zeroize;
 
-use crate::{Uuid, cryptography::{
+use crate::{
+    cryptography::{
         decrypt_masterkey, derive_key_protection, generate_argon2_salt, generate_chacha20_nonce,
         generate_masterkey, unprotect_masterkey,
-    }, error::PWDuckCoreError, io::{create_new_vault_dir, save_masterkey}, mem_protection::MemKey};
+    },
+    error::PWDuckCoreError,
+    io::{create_new_vault_dir, save_masterkey},
+    mem_protection::MemKey,
+    Uuid,
+};
 
 use super::{entry::EntryBody, entry::EntryHead, group::Group, master_key::MasterKey};
 use getset::{Getters, MutGetters};
@@ -127,7 +133,8 @@ impl Vault {
 
         masterkey.zeroize();
 
-        let delete_entry_result: Result<(), PWDuckCoreError> = self.deleted_entries
+        let delete_entry_result: Result<(), PWDuckCoreError> = self
+            .deleted_entries
             .iter()
             .try_for_each(|entry| crate::io::delete_entry(&path, &entry.0, &entry.1));
         if delete_entry_result.is_ok() {
@@ -233,10 +240,7 @@ impl Vault {
     }
 
     /// TODO
-    pub fn delete_entry(
-        &mut self,
-        uuid: &Uuid,
-    ) {
+    pub fn delete_entry(&mut self, uuid: &Uuid) {
         let uuid = uuid.as_string();
         if let Some(entry_head) = self.entries.remove(&uuid) {
             let entry_body = entry_head.body();

@@ -334,11 +334,13 @@ impl VaultContainer {
     /// Handle the message that was send by the [`ModifyEntryView`](ModifyEntryView).
     fn update_modify_entry<P: Platform + 'static>(
         &mut self,
-        message: ModifyEntryMessage,
+        message: &ModifyEntryMessage,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         let vault = &mut self.vault;
-        let cmd = self.modify_entry_view.as_mut()
+        let cmd = self
+            .modify_entry_view
+            .as_mut()
             .map_or_else(
                 || Ok(Command::none()),
                 |view| view.update::<P>(message.clone(), vault, clipboard),
@@ -346,12 +348,13 @@ impl VaultContainer {
             .map(|cmd| cmd.map(VaultContainerMessage::ModifyEntry));
 
         match message {
-            ModifyEntryMessage::Cancel | ModifyEntryMessage::Submit
+            ModifyEntryMessage::Cancel
+            | ModifyEntryMessage::Submit
             | ModifyEntryMessage::Modal(modify_entry::ModifyEntryModalMessage::SubmitDelete) => {
                 self.current_view = CurrentView::ListView;
                 self.modify_entry_view = None;
                 self.list_view.resize(&self.vault);
-            },
+            }
             _ => {}
         }
 
@@ -424,7 +427,7 @@ impl Component for VaultContainer {
             }
 
             VaultContainerMessage::ModifyEntry(message) => {
-                self.update_modify_entry::<P>(message, clipboard)
+                self.update_modify_entry::<P>(&message, clipboard)
             }
         }
     }
