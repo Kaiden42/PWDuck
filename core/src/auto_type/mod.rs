@@ -12,6 +12,7 @@ pub struct AutoTypeSequenceParser;
 impl AutoTypeSequenceParser {
     /// This checks if the sequence can be parsed. It will currently not check whether the fields or keys are valid.
     /// TODO
+    #[must_use]
     pub fn validate_sequence(sequence: &str) -> bool {
         Self::parse(Rule::sequence, sequence).is_ok()
     }
@@ -59,7 +60,7 @@ impl AutoTypeSequenceParser {
                 Rule::sequence => {
                     Self::parse_inner(pair.into_inner(), entry_head, entry_body, key_sequence)?
                 }
-                _ => return Err(PWDuckCoreError::Error("Parse error".into())),
+                Rule::char => return Err(PWDuckCoreError::Error("Parse error".into())),
             }
         }
 

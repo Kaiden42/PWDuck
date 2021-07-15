@@ -34,15 +34,19 @@ impl VaultTab {
                     || container
                         .modify_group_view()
                         .as_ref()
-                        .map(|view| view.group().is_modified())
-                        .unwrap_or(false)
+                        //.map(|view| view.group().is_modified())
+                        //.unwrap_or(false)
+                        .map_or(false, |view| view.group().is_modified())
                     || container
                         .modify_entry_view()
                         .as_ref()
-                        .map(|view| {
+                        //.map(|view| {
+                        //    view.entry_head().is_modified() || view.entry_body().is_modified()
+                        //})
+                        //.unwrap_or(false)
+                        .map_or(false, |view| {
                             view.entry_head().is_modified() || view.entry_body().is_modified()
                         })
-                        .unwrap_or(false)
             }
             _ => false,
         }
@@ -153,8 +157,7 @@ impl Component for VaultTab {
                 Ok(self.change_to_create_state())
             }
 
-            (VaultTabMessage::Creator(VaultCreatorMessage::Cancel), _)
-            | (VaultTabMessage::Unlocker(VaultUnlockerMessage::Close), _) => {
+            (VaultTabMessage::Creator(VaultCreatorMessage::Cancel) | VaultTabMessage::Unlocker(VaultUnlockerMessage::Close), _) => {
                 Ok(self.change_to_empty_state())
             }
 
@@ -162,8 +165,8 @@ impl Component for VaultTab {
                 Ok(self.change_to_unlock_state(vault?))
             }
 
-            (VaultTabMessage::Unlocker(VaultUnlockerMessage::Unlocked(vault)), _)
-            | (VaultTabMessage::Loader(VaultLoaderMessage::Loaded(vault)), _) => {
+            (VaultTabMessage::Unlocker(VaultUnlockerMessage::Unlocked(vault))
+            | VaultTabMessage::Loader(VaultLoaderMessage::Loaded(vault)), _ ) => {
                 Ok(self.change_to_open_state(vault?))
             }
 

@@ -3,7 +3,7 @@
 use getset::{Getters, MutGetters, Setters};
 use iced::{
     button, scrollable, text_input, Button, Column, Command, Container, Element, Length, Row,
-    Scrollable, Space, Text, TextInput,
+    Scrollable, Space, Text,
 };
 use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo};
 
@@ -236,6 +236,7 @@ impl ModifyEntryView {
         Command::none()
     }
 
+    /// Update the advanced state with the given message.
     fn update_advanced<P: Platform + 'static>(
         &mut self,
         message: AdvancedStateMessage,
@@ -345,7 +346,6 @@ impl ModifyEntryView {
             self.advanced_state
                 .view::<P>(&self.entry_head, &self.entry_body)
                 .map(ModifyEntryMessage::Advanced)
-                .into()
         } else {
             Space::new(Length::Fill, Length::Shrink).into()
         };
@@ -374,6 +374,7 @@ impl ModifyEntryView {
     }
 }
 
+/// Create the field for the title field.
 fn title_text_input<'a>(
     state: &'a mut text_input::State,
     title: &'a str,
@@ -387,6 +388,7 @@ fn title_text_input<'a>(
     .into()
 }
 
+/// Create the row for the username field.
 fn username_row<'a>(
     text_input_state: &'a mut text_input::State,
     username: &'a str,
@@ -415,6 +417,7 @@ fn username_row<'a>(
         .into()
 }
 
+/// Create the row for the password field.
 fn password_row<'a>(
     text_input_state: &'a mut text_input::State,
     password: &'a str,
@@ -465,6 +468,7 @@ fn password_row<'a>(
         .into()
 }
 
+/// Create the row of the web address field.
 fn web_address_row<'a, P: Platform + 'static>(
     text_input_state: &'a mut text_input::State,
     web_address: &'a str,
@@ -493,6 +497,7 @@ fn web_address_row<'a, P: Platform + 'static>(
         .into()
 }
 
+/// Create the text input of the email field.
 fn email_text_input<'a>(
     text_input_state: &'a mut text_input::State,
     email: &'a str,
@@ -506,6 +511,7 @@ fn email_text_input<'a>(
     .into()
 }
 
+/// Create the control row containing the cancel and submit buttons.
 fn control_button_row<'a>(
     cancel_button_state: &'a mut button::State,
     submit_button_state: &'a mut button::State,
@@ -568,19 +574,25 @@ impl button::StyleSheet for ToggleAdvancedButtonStyle {
     }
 }
 
+/// The state of the advanced view.
 pub struct AdvancedState {
+    /// The state of the [`Button`](iced::Button) to delete the entry.
     delete: button::State,
+    /// The state of the [`TextInput`](iced::TextInput) of the entry's auto type value.
     auto_type: text_input::State,
 }
 
 #[derive(Clone, Debug)]
+/// The message produced by the advanced view.
 pub enum AdvancedStateMessage {
+    /// The deletion of an entry was requested.
     DeleteEntryRequest,
+    /// Change the auto type to the new value.
     AutoTypeInput(String),
 }
 
 impl AdvancedState {
-    /// TODO
+    /// Create a new advanced state.
     pub fn new() -> Self {
         Self {
             delete: button::State::new(),
@@ -588,6 +600,7 @@ impl AdvancedState {
         }
     }
 
+    /// Update the advanced state.
     pub fn update<P: Platform + 'static>(
         &mut self,
         message: AdvancedStateMessage,
@@ -597,6 +610,7 @@ impl AdvancedState {
         todo!()
     }
 
+    /// Create the advanced view.
     pub fn view<P: Platform + 'static>(
         &mut self,
         entry_head: &EntryHead,

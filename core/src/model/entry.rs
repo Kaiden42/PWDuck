@@ -268,8 +268,10 @@ impl EntryBody {
     }
 }
 
+/// The sequence to specify how to autotype.
 #[derive(Clone, Debug, Deserialize, Serialize, Zeroize)]
 pub struct AutoTypeSequence {
+    /// The autotype sequence.
     sequence: String,
 }
 
