@@ -11,8 +11,9 @@ use crate::{
     error::PWDuckGuiError, utils::vertical_space, DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING,
 };
 
+use bitflags::bitflags;
+
 /// The state of the password generator tab.
-#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Default)]
 pub struct PasswordTabState {
     /// The length of the password to generate.
@@ -22,25 +23,20 @@ pub struct PasswordTabState {
     /// The state of the [`NumberInput`](NumberInput) to set the length.
     length_input_state: number_input::State,
 
-    /// If the generator has to include upper case latin characters to the pool.
-    include_upper: bool,
     /// The state of the [`Button`](Button) to toggle the inclusion of upper case characters.
     include_upper_state: button::State,
 
-    /// If the generator has to include lower case latin characters to the pool.
-    include_lower: bool,
     /// The state of the [`Button`](Button) to toggle the inclusion of lower case characters.
     include_lower_state: button::State,
 
-    /// If the generator has to include digitals (`0-9`) to the pool.
-    include_numbers: bool,
     /// The state of the [`Button`](Button) to toggle the inclusion of digits.
     include_numbers_state: button::State,
 
-    /// If the generator has to include special characters (`\/{>():...`) to the pool.
-    include_special: bool,
     /// The state of the [`Button`](Button) to toggle the inclusion of special characters.
     include_special_state: button::State,
+
+    /// The configuration of this [`PasswordTabState`](PasswordTabState).
+    flags: Flags,
 }
 
 /// The message produced by the password generator tab.
@@ -65,10 +61,6 @@ impl PasswordTabState {
     pub fn new() -> Self {
         Self {
             length: 32,
-            include_upper: true,
-            include_lower: true,
-            include_numbers: true,
-            include_special: true,
             ..Self::default()
         }
     }
@@ -84,19 +76,19 @@ impl PasswordTabState {
                 Command::none()
             }
             PasswordTabMessage::IncludeUpper => {
-                self.include_upper = !self.include_upper;
+                self.flags.toggle(Flags::INCLUDE_UPPER);
                 Command::none()
             }
             PasswordTabMessage::IncludeLower => {
-                self.include_lower = !self.include_lower;
+                self.flags.toggle(Flags::INCLUDE_LOWER);
                 Command::none()
             }
             PasswordTabMessage::IncludeNumbers => {
-                self.include_numbers = !self.include_numbers;
+                self.flags.toggle(Flags::INCLUDE_NUMBERS);
                 Command::none()
             }
             PasswordTabMessage::IncludeSpecial => {
-                self.include_special = !self.include_special;
+                self.flags.toggle(Flags::INCLUDE_SPECIAL);
                 Command::none()
             }
         };
@@ -133,26 +125,26 @@ impl PasswordTabState {
 
         let mut include_upper = Button::new(&mut self.include_upper_state, Text::new("A-Z"))
             .on_press(PasswordTabMessage::IncludeUpper);
-        if self.include_upper {
+        if self.flags.contains(Flags::INCLUDE_UPPER) {
             include_upper = include_upper.style(ActivatedButtonStyle);
         }
 
         let mut include_lower = Button::new(&mut self.include_lower_state, Text::new("a-z"))
             .on_press(PasswordTabMessage::IncludeLower);
-        if self.include_lower {
+        if self.flags.contains(Flags::INCLUDE_LOWER) {
             include_lower = include_lower.style(ActivatedButtonStyle);
         }
 
         let mut include_numbers = Button::new(&mut self.include_numbers_state, Text::new("0-9"))
             .on_press(PasswordTabMessage::IncludeNumbers);
-        if self.include_numbers {
+        if self.flags.contains(Flags::INCLUDE_NUMBERS) {
             include_numbers = include_numbers.style(ActivatedButtonStyle)
         }
 
         let mut include_special =
             Button::new(&mut self.include_special_state, Text::new("&?!*..."))
                 .on_press(PasswordTabMessage::IncludeSpecial);
-        if self.include_special {
+        if self.flags.contains(Flags::INCLUDE_SPECIAL) {
             include_special = include_special.style(ActivatedButtonStyle)
         }
 
@@ -183,20 +175,40 @@ impl PasswordTabState {
 
         let mut symbols = Symbols::new();
 
-        if self.include_upper {
+        if self.flags.contains(Flags::INCLUDE_UPPER) {
             symbols.append(&Symbols::UPPER_ALPHA);
         }
-        if self.include_lower {
+        if self.flags.contains(Flags::INCLUDE_LOWER) {
             symbols.append(&Symbols::LOWER_ALPHA);
         }
-        if self.include_numbers {
+        if self.flags.contains(Flags::INCLUDE_NUMBERS) {
             symbols.append(&Symbols::NUMBERS);
         }
-        if self.include_special {
+        if self.flags.contains(Flags::INCLUDE_SPECIAL) {
             symbols.append(&Symbols::SPECIAL);
         }
 
         pwduck_core::generate_password(self.length, &symbols).unwrap()
+    }
+}
+
+bitflags! {
+    /// The configuration of the [`PasswordTabState`](PasswordTabState).
+    pub struct Flags: u8 {
+        /// If the generator has to include upper case latin characters to the pool.
+        const INCLUDE_UPPER = 0b1;
+        /// If the generator has to include lower case latin characters to the pool.
+        const INCLUDE_LOWER = 0b1 << 1;
+        /// If the generator has to include digitals (`0-9`) to the pool.
+        const INCLUDE_NUMBERS = 0b1 << 2;
+        /// If the generator has to include special characters (`\/{>():...`) to the pool.
+        const INCLUDE_SPECIAL = 0b1 << 3;
+    }
+}
+
+impl Default for Flags {
+    fn default() -> Self {
+        Self::all()
     }
 }
 
