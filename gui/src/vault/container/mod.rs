@@ -42,9 +42,11 @@ pub struct VaultContainer {
     list_view: ListView,
 
     /// The state of the group modification view.
+    #[getset(get = "pub")]
     modify_group_view: Option<Box<ModifyGroupView>>,
 
     /// The state of the entry modification view.
+    #[getset(get = "pub")]
     modify_entry_view: Option<Box<ModifyEntryView>>,
 }
 
@@ -330,7 +332,7 @@ impl VaultContainer {
     }
 
     /// Handle the message that was send by the [`ModifyEntryView`](ModifyEntryView).
-    fn update_modify_entry(
+    fn update_modify_entry<P: Platform + 'static>(
         &mut self,
         message: ModifyEntryMessage,
         clipboard: &mut iced::Clipboard,
@@ -371,7 +373,7 @@ impl VaultContainer {
                 .as_mut()
                 .map_or_else(
                     || Ok(Command::none()),
-                    |view| view.update(message, clipboard),
+                    |view| view.update::<P>(message, clipboard),
                 )
                 .map(|cmd| cmd.map(VaultContainerMessage::ModifyEntry)),
         }
@@ -443,7 +445,7 @@ impl Component for VaultContainer {
             }
 
             VaultContainerMessage::ModifyEntry(message) => {
-                self.update_modify_entry(message, clipboard)
+                self.update_modify_entry::<P>(message, clipboard)
             }
         }
     }
@@ -452,18 +454,24 @@ impl Component for VaultContainer {
         &mut self,
         viewport: &Viewport,
     ) -> iced::Element<'_, Self::Message> {
-        let vault_contains_unsaved_changes = self.vault.contains_unsaved_changes();
-
-        let hide_toolbar_labels = viewport.width < 800;
+        let mut flags = toolbar::Flags::empty();
+        flags.set(
+            toolbar::Flags::VAULT_CONTAINS_UNSAVED_CHANGES,
+            self.vault.contains_unsaved_changes(),
+        );
+        flags.set(
+            toolbar::Flags::MODIFY_ENTRY_VIEW_IS_SOME,
+            self.modify_entry_view.is_some(),
+        );
+        flags.set(
+            toolbar::Flags::MODIFY_GROUP_VIEW_IS_SOME,
+            self.modify_group_view.is_some(),
+        );
+        flags.set(toolbar::Flags::HIDE_TOOLBAR_LABELS, viewport.width < 800);
 
         let tool_bar = self
             .tool_bar
-            .view(
-                vault_contains_unsaved_changes,
-                self.modify_entry_view.is_some(),
-                self.modify_group_view.is_some(),
-                hide_toolbar_labels,
-            )
+            .view(flags)
             .map(VaultContainerMessage::ToolBar);
 
         let body = match self.current_view {
@@ -481,7 +489,7 @@ impl Component for VaultContainer {
 
             CurrentView::ModifyEntry => match &mut self.modify_entry_view {
                 Some(modify_enty_view) => modify_enty_view
-                    .view(self.list_view.selected_group_uuid())
+                    .view::<P>(self.list_view.selected_group_uuid())
                     .map(VaultContainerMessage::ModifyEntry),
                 None => unreachable!(),
             },

@@ -15,10 +15,26 @@ pub enum PWDuckGuiError {
     Option,
     /// An error bubbled up from the core.
     PWDuckCoreError(PWDuckCoreError),
+    /// An untyped error message.
+    String(String),
     /// An unreachable path was reached.
     Unreachable(String),
     /// At least one vault contains unsaved changes and cannot be closed.
     VaultContainsUnsavedChanges,
+}
+
+impl Clone for PWDuckGuiError {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Iced(error) => Self::String(format!("{}", error)),
+            Self::Mutex(error) => Self::Mutex(error.clone()),
+            Self::Option => Self::Option,
+            Self::PWDuckCoreError(error) => Self::PWDuckCoreError(error.clone()),
+            Self::String(error) => Self::String(error.clone()),
+            Self::Unreachable(error) => Self::Unreachable(error.clone()),
+            Self::VaultContainsUnsavedChanges => Self::VaultContainsUnsavedChanges,
+        }
+    }
 }
 
 impl From<iced::Error> for PWDuckGuiError {
@@ -60,6 +76,7 @@ impl Display for PWDuckGuiError {
             PWDuckGuiError::Option => write!(f, "Expected a value but there was none"),
             //PWDuckGuiError::PWDuckCoreError(error) => write!(f, "An error in the core occurred: {}.", error),
             PWDuckGuiError::PWDuckCoreError(error) => write!(f, "{}.", error),
+            PWDuckGuiError::String(string) => write!(f, "{}", string),
             PWDuckGuiError::Unreachable(error) => write!(f, "An unreachable path was reached in: {}.", error),
             PWDuckGuiError::VaultContainsUnsavedChanges => write!(f, "Your vault contains unsaved changes. You have to save it before you are able to close it."),
         }

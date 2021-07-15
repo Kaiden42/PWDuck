@@ -29,7 +29,21 @@ impl VaultTab {
     #[must_use]
     pub fn contains_unsaved_changes(&self) -> bool {
         match &self.state {
-            VaultTabState::Open(container) => container.vault().contains_unsaved_changes(),
+            VaultTabState::Open(container) => {
+                container.vault().contains_unsaved_changes()
+                    || container
+                        .modify_group_view()
+                        .as_ref()
+                        .map(|view| view.group().is_modified())
+                        .unwrap_or(false)
+                    || container
+                        .modify_entry_view()
+                        .as_ref()
+                        .map(|view| {
+                            view.entry_head().is_modified() || view.entry_body().is_modified()
+                        })
+                        .unwrap_or(false)
+            }
             _ => false,
         }
     }

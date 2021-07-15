@@ -45,6 +45,12 @@
     clippy::missing_errors_doc,
 )]
 
+#[macro_use]
+extern crate pest_derive;
+
+mod auto_type;
+pub use auto_type::AutoTypeSequenceParser;
+
 mod cryptography;
 
 mod error;

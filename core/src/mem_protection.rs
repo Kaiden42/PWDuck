@@ -48,7 +48,9 @@ impl MemKey {
                 #[cfg(not(debug_assertions))]
                 fill_random_bytes(buf);
                 #[cfg(debug_assertions)] // TODO
-                buf.iter_mut().enumerate().for_each(|(i, x)| *x = (i%16) as u8);
+                buf.iter_mut()
+                    .enumerate()
+                    .for_each(|(i, x)| *x = (i % 16) as u8);
                 //buf.iter_mut().for_each(|x| *x = 0xff);
             }),
         }
@@ -174,6 +176,12 @@ impl DerefMut for SecString {
 impl From<String> for SecString {
     fn from(s: String) -> Self {
         Self(s)
+    }
+}
+
+impl From<&str> for SecString {
+    fn from(s: &str) -> Self {
+        Self(s.to_owned())
     }
 }
 

@@ -238,7 +238,10 @@ impl<P: Platform + 'static> PWDuckGui<P> {
     }
 
     /// Catch and handle an [`Event`](iced_native::Event) thrown by iced.
-    fn catch_iced_event<Message>(&mut self, event: iced_native::Event) -> Result<iced::Command<Message>, PWDuckGuiError> {
+    fn catch_iced_event<Message>(
+        &mut self,
+        event: iced_native::Event,
+    ) -> Result<iced::Command<Message>, PWDuckGuiError> {
         match event {
             iced_native::Event::Window(event) => match event {
                 iced_native::window::Event::Resized { width, height } => {
@@ -485,10 +488,13 @@ fn error_modal<'a, P: Platform + 'static>(
     body: Element<'a, Message>,
 ) -> Element<'a, Message> {
     Modal::new(state, body, |state| {
-        Card::new(Text::new("An error occurred"), Text::new(state.error.clone()))
-            .max_width(DEFAULT_MAX_WIDTH)
-            .on_close(Message::ErrorDialogClose)
-            .into()
+        Card::new(
+            Text::new("An error occurred"),
+            Text::new(state.error.clone()),
+        )
+        .max_width(DEFAULT_MAX_WIDTH)
+        .on_close(Message::ErrorDialogClose)
+        .into()
     })
     .on_esc(Message::ErrorDialogClose)
     .backdrop(Message::ErrorDialogClose)
@@ -530,4 +536,10 @@ pub trait Platform {
 
     /// Open the choose folder dialog of the native file dialog on this [`Platform`](Platform).
     async fn nfd_choose_folder() -> Result<PathBuf, NfdError>;
+
+    /// True, if the system supports to open an URL in the default browser.
+    fn is_open_in_browser_available() -> bool;
+
+    /// Open the given url in the default browser of the system.
+    async fn open_in_browser(url: String) -> Result<(), PWDuckGuiError>;
 }

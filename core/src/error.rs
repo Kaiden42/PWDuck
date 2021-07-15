@@ -98,14 +98,24 @@ impl Display for PWDuckCoreError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PWDuckCoreError::Argon2(error) => write!(f, "Could not derive a key ({})", error),
-            PWDuckCoreError::Base64(error) => write!(f, "Not a valid Base64 encoded string ({})", error),
-            PWDuckCoreError::BlockMode(error) => write!(f, "Wrong password or your vault might be corrupted ({})", error),
-            PWDuckCoreError::BlockModeIV(error) => write!(f, "Got a wrong size of the IV ({})", error),
+            PWDuckCoreError::Base64(error) => {
+                write!(f, "Not a valid Base64 encoded string ({})", error)
+            }
+            PWDuckCoreError::BlockMode(error) => write!(
+                f,
+                "Wrong password or your vault might be corrupted ({})",
+                error
+            ),
+            PWDuckCoreError::BlockModeIV(error) => {
+                write!(f, "Got a wrong size of the IV ({})", error)
+            }
             PWDuckCoreError::Error(error) => write!(f, "{}", error),
             PWDuckCoreError::IO(error) => write!(f, "Could not access the vault ({})", error),
             PWDuckCoreError::Mutex(error) => write!(f, "Could not lock a mutex ({})", error),
             PWDuckCoreError::Ron(error) => write!(f, "Not a valid RON structure ({})", error),
-            PWDuckCoreError::Utf8(error) => write!(f, "The given data was no valid UTF-8 ({})", error),
+            PWDuckCoreError::Utf8(error) => {
+                write!(f, "The given data was no valid UTF-8 ({})", error)
+            }
         }
     }
 }

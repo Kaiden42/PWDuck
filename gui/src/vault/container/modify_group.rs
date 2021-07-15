@@ -1,7 +1,7 @@
 //! TODO
 use getset::{Getters, MutGetters, Setters};
 
-use iced::{button, text_input, Command, Element, Row, Text};
+use iced::{button, scrollable, text_input, Command, Element, Row, Scrollable, Text};
 use pwduck_core::{Group, Vault};
 
 use crate::{
@@ -9,8 +9,9 @@ use crate::{
     icons::Icon,
     utils::{
         centered_container_with_column, default_text_input, default_vertical_space, icon_button,
+        SomeIf,
     },
-    DEFAULT_ROW_SPACING,
+    DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING,
 };
 
 /// The state of the modify group view.
@@ -30,6 +31,9 @@ pub struct ModifyGroupView {
     cancel_state: button::State,
     /// The state of the submit [`Button`](iced::Button).
     submit_state: button::State,
+
+    /// The state of the [`Scrollable`](iced::Scrollable).
+    scrollable_state: scrollable::State,
 }
 
 /// The message that is send by the [`ModifyGroupView`](ModifyGroupView).
@@ -42,6 +46,7 @@ pub enum ModifyGroupMessage {
     /// Submit the modification of the group.
     Submit,
 }
+impl SomeIf for ModifyGroupMessage {}
 
 impl ModifyGroupView {
     /// Create a new [`ModifyGroupView`](ModifyGroupView).
@@ -58,6 +63,8 @@ impl ModifyGroupView {
 
             cancel_state: button::State::new(),
             submit_state: button::State::new(),
+
+            scrollable_state: scrollable::State::new(),
         }
     }
 
@@ -109,7 +116,8 @@ impl ModifyGroupView {
             "Submit",
             "Submit changes",
             false,
-            Some(ModifyGroupMessage::Submit),
+            //Some(ModifyGroupMessage::Submit),
+            ModifyGroupMessage::Submit.some_if(self.group.is_modified()),
         );
 
         let parent_name = if group.title().is_empty() {
@@ -118,21 +126,23 @@ impl ModifyGroupView {
             group.title()
         };
 
-        centered_container_with_column(vec![
-            Text::new(match self.state {
+        let scrollable = Scrollable::new(&mut self.scrollable_state)
+            .padding(DEFAULT_COLUMN_PADDING)
+            .spacing(DEFAULT_COLUMN_SPACING)
+            .push(Text::new(match self.state {
                 State::Create => format!("Add new sub group to: {}", parent_name),
                 State::Modify => "Edit group:".into(),
-            })
-            .into(),
-            name.into(),
-            default_vertical_space().into(),
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(cancel)
-                .push(submit)
-                .into(),
-        ])
-        .into()
+            }))
+            .push(name)
+            .push(default_vertical_space())
+            .push(
+                Row::new()
+                    .spacing(DEFAULT_ROW_SPACING)
+                    .push(cancel)
+                    .push(submit),
+            );
+
+        centered_container_with_column(vec![scrollable.into()]).into()
     }
 }
 

@@ -17,3 +17,4 @@ pwduck_gui = { path = "./gui" }
 async-trait = "0.1.50"
 rfd = "0.4.0"
 dirs = "3.0.2"
+opener = "0.5.0"

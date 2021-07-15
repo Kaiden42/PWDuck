@@ -83,8 +83,8 @@ impl ToolBar {
 
         let autofill = icon_button(
             &mut self.auto_fill,
-            Icon::Gear, // TODO
-            "Autofill",
+            Icon::Keyboard,
+            "AutoType",
             "Autofill the credentials into the target window",
             flags.contains(Flags::HIDE_TOOLBAR_LABELS),
             ToolBarMessage::AutoFill.some_if(false),

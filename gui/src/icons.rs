@@ -21,6 +21,10 @@ pub enum Icon {
     ArrowLeft,
     /// backspace
     Backspace,
+    /// caret-down
+    CaretDown,
+    /// caret-right
+    CaretRight,
     /// dash-square
     DashSquare,
     /// dice-3
@@ -39,8 +43,12 @@ pub enum Icon {
     Folder,
     /// gear
     Gear,
+    /// globe2
+    Globe2,
     /// key
     Key,
+    /// keyboard
+    Keyboard,
     /// list
     List,
     /// lock
@@ -59,6 +67,8 @@ pub enum Icon {
     Save,
     /// three-dots-vertical
     ThreeDotsVertical,
+    /// trash
+    Trash,
     /// unlock
     Unlock,
     /// x-square
@@ -68,30 +78,35 @@ pub enum Icon {
 /// Map the [`Icon`](Icon) to the associated character.
 pub const fn icon_to_char(icon: Icon) -> char {
     match icon {
-        Icon::ArrowClockwise => '\u{FA0}',
-        Icon::ArrowLeft => '\u{FAA}',
-        Icon::Backspace => '\u{FB4}',
-        Icon::DashSquare => '\u{FBE}',
-        Icon::Dice3 => '\u{FC8}',
-        Icon::EyeSlash => '\u{FD2}',
-        Icon::Eye => '\u{FDC}',
-        Icon::FileEarmarkLock => '\u{FE6}',
-        Icon::FileEarmarkPerson => '\u{FF0}',
-        Icon::FolderPlus => '\u{FFA}',
-        Icon::Folder => '\u{1004}',
-        Icon::Gear => '\u{100E}',
-        Icon::Key => '\u{1018}',
-        Icon::List => '\u{1022}',
-        Icon::Lock => '\u{102C}',
-        Icon::Pencil => '\u{1036}',
-        Icon::PersonPlus => '\u{1040}',
-        Icon::Person => '\u{104A}',
-        Icon::PlusSquare => '\u{1054}',
-        Icon::Safe => '\u{105E}',
-        Icon::Save => '\u{1068}',
-        Icon::ThreeDotsVertical => '\u{1072}',
-        Icon::Unlock => '\u{107C}',
-        Icon::XSquare => '\u{1086}',
+        Icon::ArrowClockwise => '\u{0FA0}',
+        Icon::ArrowLeft => '\u{0FAA}',
+        Icon::Backspace => '\u{0FB4}',
+        Icon::CaretDown =>'\u{0FBE}',
+        Icon::CaretRight =>'\u{0FC8}',
+        Icon::DashSquare => '\u{0FD2}',
+        Icon::Dice3 => '\u{0FDC}',
+        Icon::EyeSlash => '\u{0FE6}',
+        Icon::Eye => '\u{0FF0}',
+        Icon::FileEarmarkLock => '\u{0FFA}',
+        Icon::FileEarmarkPerson => '\u{1004}',
+        Icon::FolderPlus => '\u{100E}',
+        Icon::Folder => '\u{1018}',
+        Icon::Gear => '\u{1022}',
+        Icon::Globe2 =>'\u{102C}',
+        Icon::Key => '\u{1036}',
+        Icon::Keyboard => '\u{1040}',
+        Icon::List => '\u{104A}',
+        Icon::Lock => '\u{1054}',
+        Icon::Pencil => '\u{105E}',
+        Icon::PersonPlus => '\u{1068}',
+        Icon::Person => '\u{1072}',
+        Icon::PlusSquare => '\u{107C}',
+        Icon::Safe => '\u{1086}',
+        Icon::Save => '\u{1090}',
+        Icon::ThreeDotsVertical => '\u{109A}',
+        Icon::Trash => '\u{10A4}',
+        Icon::Unlock => '\u{10AE}',
+        Icon::XSquare => '\u{10B8}',
     }
 }
 

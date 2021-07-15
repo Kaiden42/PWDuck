@@ -1,0 +1,9 @@
+char = {
+    !("[" | "]" | "<" | ">") ~ ANY
+}
+
+literal = @{ char+ }
+field = @{ "[" ~ char+ ~ "]" }
+key = @{ "<" ~ char+ ~ ">" }
+
+sequence = { (literal | field | key)+ }

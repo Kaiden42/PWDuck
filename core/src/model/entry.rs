@@ -1,5 +1,5 @@
 //! TODO
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, ops::Deref, path::Path};
 
 use crate::{
     cryptography::{aes_cbc_decrypt, aes_cbc_encrypt, generate_aes_iv},
@@ -28,6 +28,16 @@ pub struct EntryHead {
     #[getset(get = "pub", set = "pub")]
     title: String,
 
+    /// The address of the website this entry belongs to.
+    #[getset(get = "pub")]
+    #[serde(default)]
+    web_address: String,
+
+    /// TODO
+    #[getset(get = "pub", set = "pub")]
+    #[serde(default)]
+    auto_type_sequence: AutoTypeSequence,
+
     /// The UUID of the body of this entry.
     #[getset(get = "pub")]
     body: String,
@@ -40,11 +50,13 @@ pub struct EntryHead {
 impl EntryHead {
     /// Create a new [`EntryHead`](EntryHead).
     #[must_use]
-    pub const fn new(uuid: Uuid, parent: String, title: String, body: String) -> Self {
+    pub fn new(uuid: Uuid, parent: String, title: String, body: String) -> Self {
         Self {
             uuid,
             parent,
             title,
+            web_address: String::new(),
+            auto_type_sequence: AutoTypeSequence::default(),
             body,
             modified: true,
         }
@@ -125,6 +137,14 @@ impl EntryHead {
         Ok(head)
     }
 
+    /// Set the web address of this entry.
+    pub fn set_web_address(&mut self, web_address: String) -> &mut Self {
+        self.web_address.zeroize();
+        self.web_address = web_address;
+        self.modified = true;
+        self
+    }
+
     /// True, if the [`EntryHead`](EntryHead) was modified.
     #[must_use]
     pub const fn is_modified(&self) -> bool {
@@ -136,7 +156,7 @@ impl EntryHead {
 #[allow(missing_debug_implementations)]
 #[derive(Clone, Deserialize, Serialize, Zeroize)]
 #[zeroize(drop)]
-#[derive(Getters)]
+#[derive(Getters, Setters)]
 pub struct EntryBody {
     /// The UUID of this body.
     #[getset(get = "pub")]
@@ -146,9 +166,14 @@ pub struct EntryBody {
     #[getset(get = "pub")]
     username: String,
 
-    /// the password of this entry.
+    /// The password of this entry.
     #[getset(get = "pub")]
     password: String,
+
+    /// The email of this entry.
+    #[getset(get = "pub")]
+    #[serde(default)]
+    email: String,
 
     /// If the body was modified.
     #[serde(skip)]
@@ -163,6 +188,7 @@ impl EntryBody {
             uuid,
             username,
             password,
+            email: String::new(),
             modified: true,
         }
     }
@@ -215,6 +241,7 @@ impl EntryBody {
     pub fn set_username(&mut self, username: String) -> &mut Self {
         self.username.zeroize();
         self.username = username;
+        self.modified = true;
         self
     }
 
@@ -222,6 +249,15 @@ impl EntryBody {
     pub fn set_password(&mut self, password: String) -> &mut Self {
         self.password.zeroize();
         self.password = password;
+        self.modified = true;
+        self
+    }
+
+    /// Set the email of this entry.
+    pub fn set_email(&mut self, email: String) -> &mut Self {
+        self.email.zeroize();
+        self.email = email;
+        self.modified = true;
         self
     }
 
@@ -229,5 +265,34 @@ impl EntryBody {
     #[must_use]
     pub const fn is_modified(&self) -> bool {
         self.modified
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Zeroize)]
+pub struct AutoTypeSequence {
+    sequence: String,
+}
+
+impl Default for AutoTypeSequence {
+    fn default() -> Self {
+        Self {
+            sequence: "[username]<tab>[password]<enter>".into()
+        }
+    }
+}
+
+impl Deref for AutoTypeSequence {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.sequence
+    }
+}
+
+impl From<String> for AutoTypeSequence {
+    fn from(string: String) -> Self {
+        Self {
+            sequence: string,
+        }
     }
 }

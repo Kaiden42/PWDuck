@@ -1,19 +1,13 @@
 //! TODO
 
 use getset::{Getters, MutGetters, Setters};
-use iced::{button, text_input, Command, Container, Element, Row, Text};
+use iced::{Button, Column, Command, Container, Element, Length, Row, Scrollable, Space, Text, TextInput, button, scrollable, text_input};
 use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo};
 
-use crate::{
-    error::PWDuckGuiError,
-    icons::Icon,
-    password_score::PasswordScore,
-    utils::{
+use crate::{DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, Platform, error::PWDuckGuiError, icons::{ICON_FONT, Icon}, password_score::PasswordScore, utils::{
         centered_container_with_column, default_text_input, default_vertical_space,
-        estimate_password_strength, icon_button, password_toggle,
-    },
-    DEFAULT_ROW_SPACING,
-};
+        estimate_password_strength, icon_button, password_toggle, SomeIf,
+    }};
 
 /// The state of the modify entry view.
 #[derive(Getters, MutGetters, Setters)]
@@ -46,6 +40,13 @@ pub struct ModifyEntryView {
     /// The state of the [`Button`](iced::Button) to copy the password.
     password_copy_state: button::State,
 
+    /// The state of the [`TextInput`](iced::TextInput) of the web address.
+    web_address_state: text_input::State,
+    /// The state of the [`Button`](iced::Button) to open the web address in a browser.
+    open_in_browser_state: button::State,
+    /// The state of the [`TextInput`](iced::TextInput) of the email.
+    email_state: text_input::State,
+
     /// The estimated password score.
     password_score: Option<PasswordScore>,
 
@@ -53,6 +54,16 @@ pub struct ModifyEntryView {
     cancel_state: button::State,
     /// The state of the submit [`Button`](iced::Button).
     submit_state: button::State,
+
+    /// TODO
+    show_advanced: bool,
+    /// TODO
+    advanced_button_state: button::State,
+    /// TODO
+    advanced_state: AdvancedState,
+
+    /// The state of the [`Scrollable`](iced::Scrollable).
+    scroll_state: scrollable::State,
 }
 
 /// The message that is send by the `ModifyEntryView`.
@@ -73,6 +84,15 @@ pub enum ModifyEntryMessage {
     /// Copy the password.
     PasswordCopy,
 
+    /// Change the web address to the new value.
+    WebAddressInput(String),
+    /// Open the web address in a browser.
+    OpenInBrowser,
+    /// The result of the browser opener.
+    Opener(Result<(), PWDuckGuiError>),
+    /// Change the email to the new value.
+    EmailInput(String),
+
     /// Set the password score tho the new value.
     PasswordScore(Result<PasswordInfo, PWDuckCoreError>),
 
@@ -80,7 +100,13 @@ pub enum ModifyEntryMessage {
     Cancel,
     /// Submit the modification of the entry.
     Submit,
+
+    /// Toggle the visibility of the advanced area.
+    ToggleAdvanced,
+    /// The messages produced by the advanced area.
+    Advanced(AdvancedStateMessage)
 }
+impl SomeIf for ModifyEntryMessage {}
 
 impl ModifyEntryView {
     /// Create a new [`ModifyEntryView`](ModifyEntryView).
@@ -105,10 +131,20 @@ impl ModifyEntryView {
             password_generate_state: button::State::new(),
             password_copy_state: button::State::new(),
 
+            web_address_state: text_input::State::new(),
+            open_in_browser_state: button::State::new(),
+            email_state: text_input::State::new(),
+
             password_score: Option::None,
 
             cancel_state: button::State::new(),
             submit_state: button::State::new(),
+
+            show_advanced: false,
+            advanced_button_state: button::State::new(),
+            advanced_state: AdvancedState::new(),
+
+            scroll_state: scrollable::State::new(),
         }
     }
 
@@ -136,6 +172,26 @@ impl ModifyEntryView {
         self.estimate_password_strength()
     }
 
+    /// Update the web address and replace it with the given value.
+    fn update_web_address(&mut self, web_address: String) -> Command<ModifyEntryMessage> {
+        self.entry_head_mut().set_web_address(web_address);
+        Command::none()
+    }
+
+    /// Open the web address of the entry in the browser.
+    fn open_in_browser<P: Platform + 'static>(&self) -> Command<ModifyEntryMessage> {
+        Command::perform(
+            P::open_in_browser(self.entry_head.web_address().clone()),
+            ModifyEntryMessage::Opener,
+        )
+    }
+
+    /// Update the email and replace it with the given value.
+    fn update_email(&mut self, email: String) -> Command<ModifyEntryMessage> {
+        self.entry_body_mut().set_email(email);
+        Command::none()
+    }
+
     /// Toggle the visibility of the password.
     fn toggle_password_visibility(&mut self) -> Command<ModifyEntryMessage> {
         self.password_show = !self.password_show;
@@ -145,6 +201,12 @@ impl ModifyEntryView {
     /// Copy the password to the clipboard.
     fn copy_password(&self, clipboard: &mut iced::Clipboard) -> Command<ModifyEntryMessage> {
         clipboard.write(self.entry_body().password().clone());
+        Command::none()
+    }
+
+    /// Toggle the visiblity of the advanced area.
+    fn toggle_advanced_visiblity(&mut self) -> Command<ModifyEntryMessage> {
+        self.show_advanced = !self.show_advanced;
         Command::none()
     }
 
@@ -165,8 +227,23 @@ impl ModifyEntryView {
         Command::none()
     }
 
+    fn update_advanced<P: Platform + 'static>(
+        &mut self,
+        message: AdvancedStateMessage,
+        _clipboard: &mut iced::Clipboard,
+    ) -> Result<Command<ModifyEntryMessage>, PWDuckGuiError> {
+        match message {
+            AdvancedStateMessage::DeleteEntryRequest => todo!(),
+            AdvancedStateMessage::AutoTypeInput(auto_type_sequence) => {
+                self.entry_head.set_auto_type_sequence(auto_type_sequence.into());
+                Ok(Command::none())
+            },
+            
+        }
+    }
+
     /// Update the state of the [`ModifyEntryView`](ModifyEntryView).
-    pub fn update(
+    pub fn update<P: Platform + 'static>(
         &mut self,
         message: ModifyEntryMessage,
         clipboard: &mut iced::Clipboard,
@@ -178,9 +255,20 @@ impl ModifyEntryView {
             ModifyEntryMessage::PasswordInput(password) => Ok(self.update_password(password)),
             ModifyEntryMessage::PasswordShow => Ok(self.toggle_password_visibility()),
             ModifyEntryMessage::PasswordCopy => Ok(self.copy_password(clipboard)),
+            ModifyEntryMessage::WebAddressInput(web_address) => {
+                Ok(self.update_web_address(web_address))
+            }
+            ModifyEntryMessage::OpenInBrowser => Ok(self.open_in_browser::<P>()),
+            ModifyEntryMessage::Opener(result) => {
+                result?;
+                Ok(Command::none())
+            }
+            ModifyEntryMessage::EmailInput(email) => Ok(self.update_email(email)),
             ModifyEntryMessage::PasswordScore(password_info) => {
                 Ok(self.set_password_score(password_info))
             }
+            ModifyEntryMessage::ToggleAdvanced => Ok(self.toggle_advanced_visiblity()),
+            ModifyEntryMessage::Advanced(message) => self.update_advanced::<P>(message, clipboard),
             ModifyEntryMessage::PasswordGenerate
             | ModifyEntryMessage::Cancel
             | ModifyEntryMessage::Submit => {
@@ -190,115 +278,235 @@ impl ModifyEntryView {
     }
 
     /// Create the view of the [`ModifyEntryView`](ModifyEntryView).
-    pub fn view(&mut self, _selected_group_uuid: &str) -> Element<ModifyEntryMessage> {
-        let title = default_text_input(
-            &mut self.title_state,
-            "Title of this entry",
-            self.entry_head.title(),
-            ModifyEntryMessage::TitleInput,
-        );
-
-        let username = default_text_input(
-            &mut self.username_state,
-            "Username",
-            self.entry_body.username(),
-            ModifyEntryMessage::UsernameInput,
-        );
-        let username_copy = icon_button(
-            &mut self.username_copy_state,
-            Icon::FileEarmarkPerson,
-            "Copy Username",
-            "Copy Username to clipboard",
-            true,
-            Some(ModifyEntryMessage::UsernameCopy),
-        );
-
-        let mut password = default_text_input(
+    pub fn view<P: Platform + 'static>(
+        &mut self,
+        _selected_group_uuid: &str,
+    ) -> Element<ModifyEntryMessage> {
+        let title = title_text_input(&mut self.title_state, self.entry_head.title());
+        let username = username_row(&mut self.username_state, self.entry_body.username(), &mut self.username_copy_state);
+        let password = password_row(
             &mut self.password_state,
-            "Password",
             self.entry_body.password(),
-            ModifyEntryMessage::PasswordInput,
-        );
-        if !self.password_show {
-            password = password.password();
-        }
-
-        let password_show = password_toggle(
-            &mut self.password_show_state,
             self.password_show,
-            ModifyEntryMessage::PasswordShow,
-        );
-
-        let password_generate = icon_button(
+            &mut self.password_show_state,
             &mut self.password_generate_state,
-            Icon::Dice3,
-            "Generate Password",
-            "Generate a random password",
-            true,
-            Some(ModifyEntryMessage::PasswordGenerate),
-        );
-        let password_copy = icon_button(
             &mut self.password_copy_state,
-            Icon::FileEarmarkLock,
-            "Copy Password",
-            "Copy Password to clipboard",
-            true,
-            Some(ModifyEntryMessage::PasswordCopy),
         );
+        let web_address = web_address_row::<P>(&mut self.web_address_state, self.entry_head.web_address(), &mut self.open_in_browser_state);
+        let email = email_text_input(&mut self.email_state, self.entry_body.email());
 
         let password_score: Element<_> = self.password_score.as_mut().map_or_else(
             || Container::new(default_vertical_space()).into(),
             PasswordScore::view,
         );
 
-        let cancel = icon_button(
+        let control_row = control_button_row(
             &mut self.cancel_state,
-            Icon::XSquare,
-            "Cancel",
-            "Cancel changes",
-            false,
-            Some(ModifyEntryMessage::Cancel),
-        );
-
-        let submit = icon_button(
             &mut self.submit_state,
-            Icon::Save,
-            "Submit",
-            "Submit changes",
-            false,
-            Some(ModifyEntryMessage::Submit),
+            (self.entry_head.is_modified() || self.entry_body.is_modified())
+                    && !self.entry_head.title().is_empty()
         );
 
-        centered_container_with_column(vec![
-            Text::new(match self.state {
+        let advanced_button = Button::new(
+            &mut self.advanced_button_state,
+            Row::new()
+                .spacing(DEFAULT_ROW_SPACING)
+                .push(Text::new(if self.show_advanced { Icon::CaretDown } else { Icon::CaretRight } ).font(ICON_FONT))
+                .push(Text::new("Advanced"))
+        )
+        .style(ToggleAdvancedButtonStyle)
+        .on_press(ModifyEntryMessage::ToggleAdvanced);
+
+        let advanced: Element<_> = if self.show_advanced {
+            self.advanced_state.view::<P>(&self.entry_head, &self.entry_body)
+                .map(ModifyEntryMessage::Advanced).into()
+        } else {
+            Space::new(Length::Fill, Length::Shrink).into()
+        };
+
+        let scrollable = Scrollable::new(&mut self.scroll_state)
+            .padding(DEFAULT_COLUMN_PADDING)
+            .spacing(DEFAULT_COLUMN_SPACING)
+            .push(Text::new(match self.state {
                 State::Create => "Create new entry:",
                 State::Modify => "Edit entry:",
-            })
-            .into(),
-            title.into(),
-            default_vertical_space().into(),
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(username)
-                .push(username_copy)
-                .into(),
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(password)
-                .push(password_show)
-                .push(password_generate)
-                .push(password_copy)
-                .into(),
-            password_score,
-            default_vertical_space().into(),
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(cancel)
-                .push(submit)
-                .into(),
-        ])
-        .into()
+            }))
+            .push(title)
+            .push(default_vertical_space())
+            .push(username)
+            .push(password)
+            .push(password_score)
+            .push(web_address)
+            .push(email)
+            .push(default_vertical_space())
+            .push(control_row)
+            .push(default_vertical_space())
+            .push(advanced_button)
+            .push(advanced);
+
+        centered_container_with_column(vec![scrollable.into()]).into()
     }
+}
+
+fn title_text_input<'a>(
+    state: &'a mut text_input::State,
+    title: &'a str,
+) -> Element<'a, ModifyEntryMessage> {
+    default_text_input(
+        state,
+        "Title of this entry",
+        title,
+        ModifyEntryMessage::TitleInput,
+    ).into()
+}
+
+fn username_row<'a>(
+    text_input_state: &'a mut text_input::State,
+    username: &'a str,
+    button_state: &'a mut button::State,
+) -> Element<'a, ModifyEntryMessage> {
+    let username = default_text_input(
+        text_input_state,
+        "Username",
+        username,
+        ModifyEntryMessage::UsernameInput,
+    );
+
+    let username_copy = icon_button(
+        button_state,
+        Icon::FileEarmarkPerson,
+        "Copy Username",
+        "Copy Username to clipboard",
+        true,
+        Some(ModifyEntryMessage::UsernameCopy),
+    );
+
+    Row::new()
+        .spacing(DEFAULT_ROW_SPACING)
+        .push(username)
+        .push(username_copy)
+        .into()
+}
+
+fn password_row<'a>(
+    text_input_state: &'a mut text_input::State,
+    password: &'a str,
+    show_password: bool,
+    toggle_state: &'a mut button::State,
+    generate_state: &'a mut button::State,
+    copy_state: &'a mut button::State,
+) -> Element<'a, ModifyEntryMessage> {
+    let mut password = default_text_input(
+        text_input_state,
+        "Password",
+        password,
+        ModifyEntryMessage::PasswordInput,
+    );
+    if !show_password {
+        password = password.password();
+    }
+
+    let password_show = password_toggle(
+        toggle_state,
+        show_password,
+        ModifyEntryMessage::PasswordShow,
+    );
+
+    let password_generate = icon_button(
+        generate_state,
+        Icon::Dice3,
+        "Generate Password",
+        "Generate a random password",
+        true,
+        Some(ModifyEntryMessage::PasswordGenerate),
+    );
+    let password_copy = icon_button(
+        copy_state,
+        Icon::FileEarmarkLock,
+        "Copy Password",
+        "Copy Password to clipboard",
+        true,
+        Some(ModifyEntryMessage::PasswordCopy),
+    );
+
+    Row::new()
+        .spacing(DEFAULT_ROW_SPACING)
+        .push(password)
+        .push(password_show)
+        .push(password_generate)
+        .push(password_copy)
+        .into()
+}
+
+fn web_address_row<'a, P: Platform + 'static>(
+    text_input_state: &'a mut text_input::State,
+    web_address: &'a str,
+    button_state: &'a mut button::State,
+) -> Element<'a, ModifyEntryMessage> {
+    let web_address = default_text_input(
+        text_input_state,
+        "Web address",
+        web_address,
+        ModifyEntryMessage::WebAddressInput,
+    );
+
+    let open_in_browser = icon_button(
+        button_state,
+        Icon::Globe2,
+        "Open in browser",
+        "Open the web address in a browser",
+        true,
+        ModifyEntryMessage::OpenInBrowser.some_if(P::is_open_in_browser_available()),
+    );
+
+    Row::new()
+        .spacing(DEFAULT_ROW_SPACING)
+        .push(web_address)
+        .push(open_in_browser)
+        .into()
+}
+
+fn email_text_input<'a>(
+    text_input_state: &'a mut text_input::State,
+    email: &'a str,
+) -> Element<'a, ModifyEntryMessage> {
+    default_text_input(
+        text_input_state,
+        "E-Mail address",
+        email,
+        ModifyEntryMessage::EmailInput,
+    ).into()
+}
+
+fn control_button_row<'a>(
+    cancel_button_state: &'a mut button::State,
+    submit_button_state: &'a mut button::State,
+    can_submit: bool,
+) -> Element<'a, ModifyEntryMessage> {
+    let cancel = icon_button(
+        cancel_button_state,
+        Icon::XSquare,
+        "Cancel",
+        "Cancel changes",
+        false,
+        Some(ModifyEntryMessage::Cancel),
+    );
+
+    let submit = icon_button(
+        submit_button_state,
+        Icon::Save,
+        "Submit",
+        "Submit changes",
+        false,
+        //Some(ModifyEntryMessage::Submit)
+        ModifyEntryMessage::Submit.some_if(can_submit),
+    );
+
+    Row::new()
+        .spacing(DEFAULT_ROW_SPACING)
+        .push(cancel)
+        .push(submit)
+        .into()
 }
 
 impl std::fmt::Debug for ModifyEntryView {
@@ -314,4 +522,83 @@ pub enum State {
     Create,
     /// An existing entry will be modified.
     Modify,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct ToggleAdvancedButtonStyle;
+
+impl button::StyleSheet for ToggleAdvancedButtonStyle {
+    fn active(&self) -> button::Style {
+        button::Style {
+            shadow_offset: iced::Vector::new(0.0, 0.0),
+            background: iced::Color::TRANSPARENT.into(),
+            border_radius: 0.0,
+            border_width: 0.0,
+            border_color: iced::Color::TRANSPARENT,
+            text_color: iced::Color::BLACK,
+        }
+    }
+}
+
+pub struct AdvancedState {
+    delete: button::State,
+    auto_type: text_input::State,
+}
+
+#[derive(Clone, Debug)]
+pub enum AdvancedStateMessage {
+    DeleteEntryRequest,
+    AutoTypeInput(String),
+}
+
+impl AdvancedState {
+    /// TODO
+    pub fn new() -> Self {
+        Self {
+            delete: button::State::new(),
+            auto_type: text_input::State::new(),
+        }
+    }
+
+    pub fn update<P: Platform + 'static>(
+        &mut self,
+        message: AdvancedStateMessage,
+        entry_head: &mut EntryHead,
+        entry_body: &mut EntryBody,
+    ) -> Result<Command<AdvancedStateMessage>, PWDuckGuiError> {
+        todo!()
+    }
+
+    pub fn view<P: Platform + 'static>(
+        &mut self,
+        entry_head: &EntryHead,
+        _entry_body: &EntryBody,
+    ) -> Element<AdvancedStateMessage> {
+        let delete = icon_button(
+            &mut self.delete,
+            Icon::Trash,
+            "Delete",
+            "Delete this entry",
+            false,
+            Some(AdvancedStateMessage::DeleteEntryRequest),
+        );
+
+        let auto_type_label = Text::new("AutoType sequence:");
+
+        let auto_type = default_text_input(
+            &mut self.auto_type,
+            "AutoType sequence",
+            entry_head.auto_type_sequence(),
+            AdvancedStateMessage::AutoTypeInput,
+        );
+
+        Column::new()
+            .padding(DEFAULT_COLUMN_PADDING)
+            .spacing(DEFAULT_COLUMN_SPACING)
+            .push(delete)
+            .push(default_vertical_space())
+            .push(auto_type_label)
+            .push(auto_type)
+            .into()
+    }
 }

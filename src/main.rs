@@ -75,4 +75,14 @@ impl Platform for Desktop {
 
         Ok(file.path().into())
     }
+
+    fn is_open_in_browser_available() -> bool {
+        true
+    }
+
+    async fn open_in_browser(url: String) -> Result<(), pwduck_gui::error::PWDuckGuiError> {
+        opener::open_browser(url)
+            .map_err(|err| pwduck_gui::error::PWDuckGuiError::String(format!("{}", err)))?;
+        Ok(())
+    }
 }

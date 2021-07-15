@@ -27,7 +27,7 @@ pub struct Group {
     parent: String,
 
     /// The title of this group.
-    #[getset(get = "pub", set = "pub")]
+    #[getset(get = "pub")]
     title: String,
 
     /// If the group was modified.
@@ -134,6 +134,13 @@ impl Group {
     #[must_use]
     pub fn is_root(&self) -> bool {
         self.parent.is_empty()
+    }
+
+    /// Set the title of this group.
+    pub fn set_title(&mut self, title: String) -> &mut Self {
+        self.title = title;
+        self.modified = true;
+        self
     }
 
     /// True, if this group was modified.

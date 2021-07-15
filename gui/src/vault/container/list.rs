@@ -386,8 +386,8 @@ impl ListEntryItem {
                         ))
                         .push(icon_button(
                             &mut self.autofill_state,
-                            Icon::Gear, // TODO
-                            "Autofill",
+                            Icon::Keyboard,
+                            "AutoType",
                             "Autofill credentials to the target window",
                             icon_only,
                             None,
