@@ -1,6 +1,6 @@
 //! TODO
 
-use pest::{Parser, iterators::Pairs};
+use pest::{iterators::Pairs, Parser};
 
 use crate::{EntryBody, EntryHead, PWDuckCoreError, SecString};
 
@@ -10,7 +10,6 @@ use crate::{EntryBody, EntryHead, PWDuckCoreError, SecString};
 pub struct AutoTypeSequenceParser;
 
 impl AutoTypeSequenceParser {
-
     /// This checks if the sequence can be parsed. It will currently not check whether the fields or keys are valid.
     /// TODO
     pub fn validate_sequence(sequence: &str) -> bool {
@@ -57,7 +56,9 @@ impl AutoTypeSequenceParser {
                     "<enter>" => key_sequence.push("\n".into()),
                     _ => return Err(PWDuckCoreError::Error("No valid key".into())),
                 },
-                Rule::sequence => Self::parse_inner(pair.into_inner(), entry_head, entry_body, key_sequence)?,
+                Rule::sequence => {
+                    Self::parse_inner(pair.into_inner(), entry_head, entry_body, key_sequence)?
+                }
                 _ => return Err(PWDuckCoreError::Error("Parse error".into())),
             }
         }
@@ -66,18 +67,20 @@ impl AutoTypeSequenceParser {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
-    use crate::{AutoTypeSequenceParser, model::entry::{EntryHead, EntryBody}};
+    use crate::{
+        model::entry::{EntryBody, EntryHead},
+        AutoTypeSequenceParser,
+    };
 
     fn default_head() -> EntryHead {
         let mut entry_head = EntryHead::new(
             vec![0u8].into(),
             "noparent".into(),
             "This is a test entry".into(),
-            "body".into()
+            "body".into(),
         );
         let _ = entry_head.set_web_address("https://example.org".into());
 
@@ -134,14 +137,7 @@ mod tests {
         let entry_head = default_head();
         let entry_body = default_body();
 
-        let invalid_sequences = vec![
-            "][",
-            "[]",
-            "><",
-            "<>",
-            "]username[",
-            ">tab<",
-        ];
+        let invalid_sequences = vec!["][", "[]", "><", "<>", "]username[", ">tab<"];
 
         for sequence in invalid_sequences {
             let _ = AutoTypeSequenceParser::parse_sequence(sequence, &entry_head, &entry_body)

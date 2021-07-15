@@ -1,13 +1,22 @@
 //! TODO
 
 use getset::{Getters, MutGetters, Setters};
-use iced::{Button, Column, Command, Container, Element, Length, Row, Scrollable, Space, Text, TextInput, button, scrollable, text_input};
+use iced::{
+    button, scrollable, text_input, Button, Column, Command, Container, Element, Length, Row,
+    Scrollable, Space, Text, TextInput,
+};
 use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo};
 
-use crate::{DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, Platform, error::PWDuckGuiError, icons::{ICON_FONT, Icon}, password_score::PasswordScore, utils::{
+use crate::{
+    error::PWDuckGuiError,
+    icons::{Icon, ICON_FONT},
+    password_score::PasswordScore,
+    utils::{
         centered_container_with_column, default_text_input, default_vertical_space,
         estimate_password_strength, icon_button, password_toggle, SomeIf,
-    }};
+    },
+    Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING,
+};
 
 /// The state of the modify entry view.
 #[derive(Getters, MutGetters, Setters)]
@@ -104,7 +113,7 @@ pub enum ModifyEntryMessage {
     /// Toggle the visibility of the advanced area.
     ToggleAdvanced,
     /// The messages produced by the advanced area.
-    Advanced(AdvancedStateMessage)
+    Advanced(AdvancedStateMessage),
 }
 impl SomeIf for ModifyEntryMessage {}
 
@@ -235,10 +244,10 @@ impl ModifyEntryView {
         match message {
             AdvancedStateMessage::DeleteEntryRequest => todo!(),
             AdvancedStateMessage::AutoTypeInput(auto_type_sequence) => {
-                self.entry_head.set_auto_type_sequence(auto_type_sequence.into());
+                self.entry_head
+                    .set_auto_type_sequence(auto_type_sequence.into());
                 Ok(Command::none())
-            },
-            
+            }
         }
     }
 
@@ -283,7 +292,11 @@ impl ModifyEntryView {
         _selected_group_uuid: &str,
     ) -> Element<ModifyEntryMessage> {
         let title = title_text_input(&mut self.title_state, self.entry_head.title());
-        let username = username_row(&mut self.username_state, self.entry_body.username(), &mut self.username_copy_state);
+        let username = username_row(
+            &mut self.username_state,
+            self.entry_body.username(),
+            &mut self.username_copy_state,
+        );
         let password = password_row(
             &mut self.password_state,
             self.entry_body.password(),
@@ -292,7 +305,11 @@ impl ModifyEntryView {
             &mut self.password_generate_state,
             &mut self.password_copy_state,
         );
-        let web_address = web_address_row::<P>(&mut self.web_address_state, self.entry_head.web_address(), &mut self.open_in_browser_state);
+        let web_address = web_address_row::<P>(
+            &mut self.web_address_state,
+            self.entry_head.web_address(),
+            &mut self.open_in_browser_state,
+        );
         let email = email_text_input(&mut self.email_state, self.entry_body.email());
 
         let password_score: Element<_> = self.password_score.as_mut().map_or_else(
@@ -304,22 +321,31 @@ impl ModifyEntryView {
             &mut self.cancel_state,
             &mut self.submit_state,
             (self.entry_head.is_modified() || self.entry_body.is_modified())
-                    && !self.entry_head.title().is_empty()
+                && !self.entry_head.title().is_empty(),
         );
 
         let advanced_button = Button::new(
             &mut self.advanced_button_state,
             Row::new()
                 .spacing(DEFAULT_ROW_SPACING)
-                .push(Text::new(if self.show_advanced { Icon::CaretDown } else { Icon::CaretRight } ).font(ICON_FONT))
-                .push(Text::new("Advanced"))
+                .push(
+                    Text::new(if self.show_advanced {
+                        Icon::CaretDown
+                    } else {
+                        Icon::CaretRight
+                    })
+                    .font(ICON_FONT),
+                )
+                .push(Text::new("Advanced")),
         )
         .style(ToggleAdvancedButtonStyle)
         .on_press(ModifyEntryMessage::ToggleAdvanced);
 
         let advanced: Element<_> = if self.show_advanced {
-            self.advanced_state.view::<P>(&self.entry_head, &self.entry_body)
-                .map(ModifyEntryMessage::Advanced).into()
+            self.advanced_state
+                .view::<P>(&self.entry_head, &self.entry_body)
+                .map(ModifyEntryMessage::Advanced)
+                .into()
         } else {
             Space::new(Length::Fill, Length::Shrink).into()
         };
@@ -357,7 +383,8 @@ fn title_text_input<'a>(
         "Title of this entry",
         title,
         ModifyEntryMessage::TitleInput,
-    ).into()
+    )
+    .into()
 }
 
 fn username_row<'a>(
@@ -475,7 +502,8 @@ fn email_text_input<'a>(
         "E-Mail address",
         email,
         ModifyEntryMessage::EmailInput,
-    ).into()
+    )
+    .into()
 }
 
 fn control_button_row<'a>(

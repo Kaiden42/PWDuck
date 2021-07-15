@@ -276,7 +276,7 @@ pub struct AutoTypeSequence {
 impl Default for AutoTypeSequence {
     fn default() -> Self {
         Self {
-            sequence: "[username]<tab>[password]<enter>".into()
+            sequence: "[username]<tab>[password]<enter>".into(),
         }
     }
 }
@@ -291,8 +291,6 @@ impl Deref for AutoTypeSequence {
 
 impl From<String> for AutoTypeSequence {
     fn from(string: String) -> Self {
-        Self {
-            sequence: string,
-        }
+        Self { sequence: string }
     }
 }
