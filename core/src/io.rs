@@ -151,6 +151,13 @@ fn save_entry(path: &Path, uuid: &str, content: String) -> Result<(), PWDuckCore
     Ok(())
 }
 
+/// TODO
+pub fn delete_entry(path: &Path, head_uuid: &str, body_uuid: &str) -> Result<(), PWDuckCoreError> {
+    fs::remove_file(path.join(ENTRIES_DIR).join(HEAD).join(sha256::digest(head_uuid)))?;
+    fs::remove_file(path.join(ENTRIES_DIR).join(BODY).join(sha256::digest(body_uuid)))?;
+    Ok(())
+}
+
 /// Save the [`Group`](Group) to disk.
 ///
 /// It expects:

@@ -4,15 +4,10 @@ use std::{collections::HashMap, path::PathBuf};
 
 use zeroize::Zeroize;
 
-use crate::{
-    cryptography::{
+use crate::{Uuid, cryptography::{
         decrypt_masterkey, derive_key_protection, generate_argon2_salt, generate_chacha20_nonce,
         generate_masterkey, unprotect_masterkey,
-    },
-    error::PWDuckCoreError,
-    io::{create_new_vault_dir, save_masterkey},
-    mem_protection::MemKey,
-};
+    }, error::PWDuckCoreError, io::{create_new_vault_dir, save_masterkey}, mem_protection::MemKey};
 
 use super::{entry::EntryBody, entry::EntryHead, group::Group, master_key::MasterKey};
 use getset::{Getters, MutGetters};
@@ -47,6 +42,9 @@ pub struct Vault {
     /// The encrypted data-transfer-objects (dtos) of unsaved [`EntryBody`](EntryBody)s.
     #[getset(get = "pub")]
     unsaved_entry_bodies: HashMap<String, crate::dto::entry::EntryBody>,
+
+    /// TODO: (head, body)
+    deleted_entries: Vec<(String, String)>,
 }
 
 impl Vault {
@@ -83,6 +81,7 @@ impl Vault {
             groups: HashMap::new(),
             entries: HashMap::new(),
             unsaved_entry_bodies: HashMap::new(),
+            deleted_entries: Vec::new(),
         };
 
         let root = Group::create_root_for(vault.path());
@@ -128,7 +127,14 @@ impl Vault {
 
         masterkey.zeroize();
 
-        unsaved_entry_bodies_result.and(group_result.and(entry_result))
+        let delete_entry_result: Result<(), PWDuckCoreError> = self.deleted_entries
+            .iter()
+            .try_for_each(|entry| crate::io::delete_entry(&path, &entry.0, &entry.1));
+        if delete_entry_result.is_ok() {
+            self.deleted_entries.clear();
+        }
+
+        unsaved_entry_bodies_result.and(group_result.and(entry_result.and(delete_entry_result)))
     }
 
     /// Load a [`Vault`](Vault) from disk.
@@ -170,6 +176,7 @@ impl Vault {
             groups,
             entries,
             unsaved_entry_bodies: HashMap::new(),
+            deleted_entries: Vec::new(),
         };
 
         Ok(vault)
@@ -225,6 +232,18 @@ impl Vault {
         Ok(())
     }
 
+    /// TODO
+    pub fn delete_entry(
+        &mut self,
+        uuid: &Uuid,
+    ) {
+        let uuid = uuid.as_string();
+        if let Some(entry_head) = self.entries.remove(&uuid) {
+            let entry_body = entry_head.body();
+            self.deleted_entries.push((uuid, entry_body.clone()));
+        }
+    }
+
     /// Get all [`Group`](Group)s in this [`Vault`] that are the children of the specified parent [`Group`](Group).
     #[must_use]
     pub fn get_groups_of(&self, parent_uuid: &str) -> Vec<&Group> {
@@ -254,6 +273,7 @@ impl Vault {
                 .iter()
                 .any(|(_uuid, entry)| entry.is_modified())
             || !self.unsaved_entry_bodies.is_empty()
+            || !self.deleted_entries.is_empty()
     }
 
     /// Returns the [`ItemList`](ItemList) containing [`Group`](Group)s and [`EntryHead`](EntryHead) based on the given filters.

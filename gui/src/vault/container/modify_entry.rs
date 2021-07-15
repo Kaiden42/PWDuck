@@ -5,18 +5,15 @@ use iced::{
     button, scrollable, text_input, Button, Column, Command, Container, Element, Length, Row,
     Scrollable, Space, Text,
 };
-use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo};
+use iced_aw::{Card, Modal, modal};
+use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo, Vault};
 
-use crate::{
-    error::PWDuckGuiError,
-    icons::{Icon, ICON_FONT},
-    password_score::PasswordScore,
-    utils::{
+use crate::{DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, Platform, error::PWDuckGuiError, icons::{Icon, ICON_FONT}, password_score::PasswordScore, utils::{
         centered_container_with_column, default_text_input, default_vertical_space,
         estimate_password_strength, icon_button, password_toggle, SomeIf,
-    },
-    Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING,
-};
+    }};
+
+use super::VaultContainer;
 
 /// The state of the modify entry view.
 #[derive(Getters, MutGetters, Setters)]
@@ -73,6 +70,9 @@ pub struct ModifyEntryView {
 
     /// The state of the [`Scrollable`](iced::Scrollable).
     scroll_state: scrollable::State,
+
+    /// TODO
+    modal_state: modal::State<ModifyEntryModal>,
 }
 
 /// The message that is send by the `ModifyEntryView`.
@@ -114,6 +114,9 @@ pub enum ModifyEntryMessage {
     ToggleAdvanced,
     /// The messages produced by the advanced area.
     Advanced(AdvancedStateMessage),
+
+    /// TODO
+    Modal(ModifyEntryModalMessage),
 }
 impl SomeIf for ModifyEntryMessage {}
 
@@ -154,6 +157,8 @@ impl ModifyEntryView {
             advanced_state: AdvancedState::new(),
 
             scroll_state: scrollable::State::new(),
+
+            modal_state: modal::State::default(),
         }
     }
 
@@ -243,7 +248,11 @@ impl ModifyEntryView {
         _clipboard: &mut iced::Clipboard,
     ) -> Result<Command<ModifyEntryMessage>, PWDuckGuiError> {
         match message {
-            AdvancedStateMessage::DeleteEntryRequest => todo!(),
+            AdvancedStateMessage::DeleteEntryRequest => {
+                self.modal_state = modal::State::new(ModifyEntryModal::delete_request());
+                self.modal_state.show(true);
+                Ok(Command::none())
+            },
             AdvancedStateMessage::AutoTypeInput(auto_type_sequence) => {
                 self.entry_head
                     .set_auto_type_sequence(auto_type_sequence.into());
@@ -252,10 +261,28 @@ impl ModifyEntryView {
         }
     }
 
+    fn update_modal(
+        &mut self,
+        message: ModifyEntryModalMessage,
+        vault: &mut Vault,
+    ) -> Result<Command<ModifyEntryMessage>, PWDuckGuiError> {
+        match message {
+            ModifyEntryModalMessage::Close => {
+                self.modal_state = modal::State::default();
+                Ok(Command::none())
+            },
+            ModifyEntryModalMessage::SubmitDelete => {
+                vault.delete_entry(self.entry_head.uuid());
+                Ok(Command::none())
+            },
+        }
+    }
+
     /// Update the state of the [`ModifyEntryView`](ModifyEntryView).
     pub fn update<P: Platform + 'static>(
         &mut self,
         message: ModifyEntryMessage,
+        vault: &mut Vault,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<ModifyEntryMessage>, PWDuckGuiError> {
         match message {
@@ -279,11 +306,32 @@ impl ModifyEntryView {
             }
             ModifyEntryMessage::ToggleAdvanced => Ok(self.toggle_advanced_visiblity()),
             ModifyEntryMessage::Advanced(message) => self.update_advanced::<P>(message, clipboard),
-            ModifyEntryMessage::PasswordGenerate
-            | ModifyEntryMessage::Cancel
-            | ModifyEntryMessage::Submit => {
-                PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into()
-            }
+            ModifyEntryMessage::Modal(message) => self.update_modal(message, vault),
+            //ModifyEntryMessage::PasswordGenerate
+            //| ModifyEntryMessage::Cancel
+            //| ModifyEntryMessage::Submit => {
+            //    PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into()
+            //}
+            ModifyEntryMessage::Cancel => Ok(Command::none()),
+            ModifyEntryMessage::Submit => {
+                // TODO async
+                let mem_key = crate::MEM_KEY.lock()?;
+                let masterkey = vault.masterkey().as_unprotected(
+                    &mem_key,
+                    vault.salt(),
+                    vault.nonce(),
+                )?;
+
+                vault.insert_entry(
+                    self.entry_head.clone(),
+                    self.entry_body.clone(),
+                    &masterkey
+                )?;
+
+                Ok(Command::none())
+            },
+            ModifyEntryMessage::PasswordGenerate => PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into(),
+
         }
     }
 
@@ -305,6 +353,7 @@ impl ModifyEntryView {
             &mut self.password_show_state,
             &mut self.password_generate_state,
             &mut self.password_copy_state,
+            &mut self.password_score,
         );
         let web_address = web_address_row::<P>(
             &mut self.web_address_state,
@@ -313,10 +362,10 @@ impl ModifyEntryView {
         );
         let email = email_text_input(&mut self.email_state, self.entry_body.email());
 
-        let password_score: Element<_> = self.password_score.as_mut().map_or_else(
-            || Container::new(default_vertical_space()).into(),
-            PasswordScore::view,
-        );
+        //let password_score: Element<_> = self.password_score.as_mut().map_or_else(
+        //    || Container::new(default_vertical_space()).into(),
+        //    PasswordScore::view,
+        //);
 
         let control_row = control_button_row(
             &mut self.cancel_state,
@@ -325,30 +374,13 @@ impl ModifyEntryView {
                 && !self.entry_head.title().is_empty(),
         );
 
-        let advanced_button = Button::new(
+        let advanced = advanced_area::<P>(
             &mut self.advanced_button_state,
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(
-                    Text::new(if self.show_advanced {
-                        Icon::CaretDown
-                    } else {
-                        Icon::CaretRight
-                    })
-                    .font(ICON_FONT),
-                )
-                .push(Text::new("Advanced")),
-        )
-        .style(ToggleAdvancedButtonStyle)
-        .on_press(ModifyEntryMessage::ToggleAdvanced);
-
-        let advanced: Element<_> = if self.show_advanced {
-            self.advanced_state
-                .view::<P>(&self.entry_head, &self.entry_body)
-                .map(ModifyEntryMessage::Advanced)
-        } else {
-            Space::new(Length::Fill, Length::Shrink).into()
-        };
+            self.show_advanced,
+            &mut self.advanced_state,
+            &self.entry_head,
+            &self.entry_body,
+        );
 
         let scrollable = Scrollable::new(&mut self.scroll_state)
             .padding(DEFAULT_COLUMN_PADDING)
@@ -361,16 +393,21 @@ impl ModifyEntryView {
             .push(default_vertical_space())
             .push(username)
             .push(password)
-            .push(password_score)
+            .push(default_vertical_space())
             .push(web_address)
             .push(email)
             .push(default_vertical_space())
             .push(control_row)
             .push(default_vertical_space())
-            .push(advanced_button)
             .push(advanced);
 
-        centered_container_with_column(vec![scrollable.into()]).into()
+        let content: Element<_> = centered_container_with_column(vec![scrollable.into()]).into();
+
+        Modal::new(
+            &mut self.modal_state,
+            content,
+            |state| state.view().map(ModifyEntryMessage::Modal),
+        ).into()
     }
 }
 
@@ -425,6 +462,7 @@ fn password_row<'a>(
     toggle_state: &'a mut button::State,
     generate_state: &'a mut button::State,
     copy_state: &'a mut button::State,
+    password_score: &'a mut Option<PasswordScore>,
 ) -> Element<'a, ModifyEntryMessage> {
     let mut password = default_text_input(
         text_input_state,
@@ -459,13 +497,22 @@ fn password_row<'a>(
         Some(ModifyEntryMessage::PasswordCopy),
     );
 
-    Row::new()
-        .spacing(DEFAULT_ROW_SPACING)
-        .push(password)
-        .push(password_show)
-        .push(password_generate)
-        .push(password_copy)
-        .into()
+    let row = Row::new()
+                .spacing(DEFAULT_ROW_SPACING)
+                .push(password)
+                .push(password_show)
+                .push(password_generate)
+                .push(password_copy);
+
+    if let Some(password_score) = password_score.as_mut() {
+        Column::new()
+            .spacing(DEFAULT_COLUMN_SPACING)
+            .push(row)
+            .push(password_score.view())
+            .into()
+    } else {
+        row.into()
+    }
 }
 
 /// Create the row of the web address field.
@@ -540,6 +587,45 @@ fn control_button_row<'a>(
         .spacing(DEFAULT_ROW_SPACING)
         .push(cancel)
         .push(submit)
+        .into()
+}
+
+fn advanced_area<'a, P: Platform + 'static>(
+    button_state: &'a mut button::State,
+    show_advanced: bool,
+    advanced_state: &'a mut AdvancedState,
+    entry_head: &'a EntryHead,
+    entry_body: &'a EntryBody,
+) -> Element<'a, ModifyEntryMessage> {
+    let advanced_button = Button::new(
+        button_state,
+        Row::new()
+            .spacing(DEFAULT_ROW_SPACING)
+            .push(
+                Text::new(if show_advanced {
+                    Icon::CaretDown
+                } else {
+                    Icon::CaretRight
+                })
+                .font(ICON_FONT),
+            )
+            .push(Text::new("Advanced")),
+    )
+    .style(ToggleAdvancedButtonStyle)
+    .on_press(ModifyEntryMessage::ToggleAdvanced);
+
+    let advanced: Element<_> = if show_advanced {
+        advanced_state
+            .view::<P>(entry_head, &entry_body)
+            .map(ModifyEntryMessage::Advanced)
+    } else {
+        Space::new(Length::Fill, Length::Shrink).into()
+    };
+
+    Column::new()
+        .spacing(DEFAULT_COLUMN_SPACING)
+        .push(advanced_button)
+        .push(advanced)
         .into()
 }
 
@@ -635,12 +721,78 @@ impl AdvancedState {
         );
 
         Column::new()
-            .padding(DEFAULT_COLUMN_PADDING)
             .spacing(DEFAULT_COLUMN_SPACING)
+            .push(default_vertical_space())
             .push(delete)
             .push(default_vertical_space())
             .push(auto_type_label)
             .push(auto_type)
             .into()
+    }
+}
+
+enum ModifyEntryModal {
+    DeleteRequest {
+        cancel_button_state: button::State,
+        submit_button_state: button::State,
+    },
+    None,
+}
+
+#[derive(Clone, Debug)]
+pub enum ModifyEntryModalMessage {
+    Close,
+    SubmitDelete,
+}
+
+impl ModifyEntryModal {
+    fn delete_request() -> Self {
+        Self::DeleteRequest {
+            cancel_button_state: button::State::new(),
+            submit_button_state: button::State::new(),
+        }
+    }
+
+    fn view<'a>(&'a mut self) -> Element<'a, ModifyEntryModalMessage> {
+        match self {
+            ModifyEntryModal::DeleteRequest { cancel_button_state, submit_button_state } => {
+                Card::new(
+                    Text::new("Confirm deletion"),
+                    Text::new("Do you really want to delete this entry? This cannot be undone!"),
+                )
+                .foot(
+                    Row::new()
+                        .push(
+                            icon_button(
+                                cancel_button_state,
+                                Icon::XSquare,
+                                "Cancel",
+                                "Cancel the deletion of the entry",
+                                false,
+                                Some(ModifyEntryModalMessage::Close),
+                            )
+                        )
+                        .push(
+                            icon_button(
+                                submit_button_state,
+                                Icon::XSquare,
+                                "Submit",
+                                "Submit the deletion of the entry",
+                                false,
+                                Some(ModifyEntryModalMessage::SubmitDelete)
+                            )
+                        )
+                )
+                .max_width(DEFAULT_MAX_WIDTH)
+                .into()
+            },
+            ModifyEntryModal::None => Text::new("This message should never appear!").into(),
+        }
+    }
+}
+
+impl Default for ModifyEntryModal {
+    fn default() -> Self {
+        Self::None
     }
 }

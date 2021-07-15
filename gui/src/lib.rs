@@ -386,6 +386,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         match cmd {
             Ok(cmd) => cmd,
             Err(error) => {
+                println!("{:?}", error);
                 self.error_dialog_state.inner_mut().error = format!("{}", error);
                 self.error_dialog_state.show(true);
                 Command::none()

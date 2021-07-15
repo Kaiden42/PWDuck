@@ -337,46 +337,25 @@ impl VaultContainer {
         message: ModifyEntryMessage,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
+        let vault = &mut self.vault;
+        let cmd = self.modify_entry_view.as_mut()
+            .map_or_else(
+                || Ok(Command::none()),
+                |view| view.update::<P>(message.clone(), vault, clipboard),
+            )
+            .map(|cmd| cmd.map(VaultContainerMessage::ModifyEntry));
+
         match message {
-            ModifyEntryMessage::Cancel => {
+            ModifyEntryMessage::Cancel | ModifyEntryMessage::Submit
+            | ModifyEntryMessage::Modal(modify_entry::ModifyEntryModalMessage::SubmitDelete) => {
                 self.current_view = CurrentView::ListView;
                 self.modify_entry_view = None;
-                Ok(Command::none())
-            }
-
-            ModifyEntryMessage::Submit => {
-                if let Some(modify_entry_view) = self.modify_entry_view.as_ref() {
-                    // TODO async
-                    let mem_key = crate::MEM_KEY.lock()?;
-                    let masterkey = self.vault.masterkey().as_unprotected(
-                        &mem_key,
-                        self.vault.salt(),
-                        self.vault.nonce(),
-                    )?;
-
-                    self.vault.insert_entry(
-                        modify_entry_view.entry_head().clone(),
-                        modify_entry_view.entry_body().clone(),
-                        &masterkey,
-                    )?;
-
-                    self.current_view = CurrentView::ListView;
-                    self.modify_entry_view = None;
-                    self.list_view.resize(&self.vault);
-                }
-
-                Ok(Command::none())
-            }
-
-            _ => self
-                .modify_entry_view
-                .as_mut()
-                .map_or_else(
-                    || Ok(Command::none()),
-                    |view| view.update::<P>(message, clipboard),
-                )
-                .map(|cmd| cmd.map(VaultContainerMessage::ModifyEntry)),
+                self.list_view.resize(&self.vault);
+            },
+            _ => {}
         }
+
+        cmd
     }
 }
 
