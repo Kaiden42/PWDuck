@@ -21,6 +21,8 @@ pub enum PWDuckGuiError {
     Unreachable(String),
     /// At least one vault contains unsaved changes and cannot be closed.
     VaultContainsUnsavedChanges,
+    /// If the xdotool is missing on the linux platform.
+    XDOToolsMissing,
 }
 
 impl Clone for PWDuckGuiError {
@@ -33,6 +35,7 @@ impl Clone for PWDuckGuiError {
             Self::String(error) => Self::String(error.clone()),
             Self::Unreachable(error) => Self::Unreachable(error.clone()),
             Self::VaultContainsUnsavedChanges => Self::VaultContainsUnsavedChanges,
+            Self::XDOToolsMissing => Self::XDOToolsMissing,
         }
     }
 }
@@ -79,6 +82,7 @@ impl Display for PWDuckGuiError {
             PWDuckGuiError::String(string) => write!(f, "{}", string),
             PWDuckGuiError::Unreachable(error) => write!(f, "An unreachable path was reached in: {}.", error),
             PWDuckGuiError::VaultContainsUnsavedChanges => write!(f, "Your vault contains unsaved changes. You have to save it before you are able to close it."),
+            PWDuckGuiError::XDOToolsMissing => write!(f, "The command xdotool was not found on your system."),
         }
     }
 }

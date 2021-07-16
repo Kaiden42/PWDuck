@@ -87,7 +87,7 @@ impl ToolBar {
             "AutoType",
             "Autofill the credentials into the target window",
             flags.contains(Flags::HIDE_TOOLBAR_LABELS),
-            ToolBarMessage::AutoFill.some_if(false),
+            ToolBarMessage::AutoFill.some_if(flags.contains(Flags::MODIFY_ENTRY_VIEW_IS_SOME)),
         );
 
         let lock_vault = icon_button(

@@ -390,7 +390,7 @@ impl ListEntryItem {
                             "AutoType",
                             "Autofill credentials to the target window",
                             icon_only,
-                            None,
+                            Some(ListItemMessage::Autofill(entry.uuid().as_string())),
                         ))
                 }),
         )

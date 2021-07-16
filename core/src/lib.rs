@@ -49,7 +49,7 @@
 extern crate pest_derive;
 
 mod auto_type;
-pub use auto_type::AutoTypeSequenceParser;
+pub use auto_type::{AutoTypeSequenceParser, Key, Part, Sequence};
 
 mod cryptography;
 

@@ -46,7 +46,11 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use pwduck_gui::{error::NfdError, PWDuckGui, Platform};
+use enigo::KeyboardControllable;
+use pwduck_gui::{
+    error::{NfdError, PWDuckGuiError},
+    PWDuckGui, Platform, Sequence,
+};
 use rfd::AsyncFileDialog;
 
 fn main() {
@@ -83,6 +87,41 @@ impl Platform for Desktop {
     async fn open_in_browser(url: String) -> Result<(), pwduck_gui::error::PWDuckGuiError> {
         opener::open_browser(url)
             .map_err(|err| pwduck_gui::error::PWDuckGuiError::String(format!("{}", err)))?;
+        Ok(())
+    }
+
+    fn is_auto_type_available() -> bool {
+        true
+    }
+
+    async fn auto_type(sequence: Sequence) -> Result<(), pwduck_gui::error::PWDuckGuiError> {
+        let mut enigo = enigo::Enigo::new();
+        enigo.set_delay(25);
+
+        if cfg!(target_os = "linux") {
+            // Check if xdotools is available
+            // TODO: maybe replace this by `get_program` in the future.
+            // <https://doc.rust-lang.org/std/process/struct.Command.html#method.get_program>
+            drop(
+                std::process::Command::new("xdotool")
+                    .output()
+                    .map_err(|_err| PWDuckGuiError::XDOToolsMissing)?,
+            );
+        }
+
+        async_std::task::sleep(std::time::Duration::from_millis(1000)).await;
+
+        for part in sequence.iter() {
+            match part {
+                pwduck_gui::Part::Literal(literal) => enigo.key_sequence(literal),
+                pwduck_gui::Part::Field(field) => enigo.key_sequence(field),
+                pwduck_gui::Part::Key(key) => match key {
+                    pwduck_gui::Key::Tab => enigo.key_click(enigo::Key::Tab),
+                    pwduck_gui::Key::Return => enigo.key_click(enigo::Key::Return),
+                },
+            }
+        }
+
         Ok(())
     }
 }

@@ -1,7 +1,7 @@
 //! TODO
 
 use iced::{Column, Command, Container, Length};
-use pwduck_core::{EntryBody, EntryHead, Group, Vault};
+use pwduck_core::{AutoTypeSequenceParser, EntryBody, EntryHead, Group, Vault};
 
 mod list;
 use list::{ListMessage, ListView};
@@ -52,7 +52,7 @@ pub struct VaultContainer {
 
 impl VaultContainer {
     /// Save the vault to disk.
-    fn save(&mut self) -> Result<Command<ToolBarMessage>, PWDuckGuiError> {
+    fn save(&mut self) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         // TODO: find a way to do this async
         let mem_key = crate::MEM_KEY.lock()?;
         self.vault.save(&mem_key)?;
@@ -60,7 +60,7 @@ impl VaultContainer {
     }
 
     /// Create a new group and switch to the [`ModifyGroupView`](ModifyGroupView) as the current view.
-    fn create_group(&mut self) -> Command<ToolBarMessage> {
+    fn create_group(&mut self) -> Command<VaultContainerMessage> {
         let group = Group::new(
             pwduck_core::Uuid::new(self.vault.path()),
             self.list_view.selected_group_uuid().clone(),
@@ -76,7 +76,7 @@ impl VaultContainer {
     }
 
     /// Create a new entry and switch to the [`ModifyEntryView`](ModifyEntryView) as the current view.
-    fn create_entry(&mut self) -> Command<ToolBarMessage> {
+    fn create_entry(&mut self) -> Command<VaultContainerMessage> {
         let entry_body = EntryBody::new(
             pwduck_core::Uuid::new(self.vault.path()),
             String::new(),
@@ -146,7 +146,7 @@ impl VaultContainer {
     }
 
     /// Update the [`ToolBar`](ToolBar) with the given message.
-    fn update_toolbar(
+    fn update_toolbar<P: Platform + 'static>(
         &mut self,
         message: &ToolBarMessage,
         _clipboard: &mut iced::Clipboard,
@@ -155,12 +155,21 @@ impl VaultContainer {
             ToolBarMessage::Save => self.save(),
             ToolBarMessage::NewGroup => Ok(self.create_group()),
             ToolBarMessage::NewEntry => Ok(self.create_entry()),
-            ToolBarMessage::AutoFill => todo!(),
+            ToolBarMessage::AutoFill => {
+                //if let Some(modify_entry_view) = self.modify_entry_view.as_ref() {
+                //    self.auto_fill::<P>(&modify_entry_view.entry_head().uuid().as_string())
+                //} else {
+                //    Ok(Command::none())
+                //}
+                self.modify_entry_view.as_ref().map_or_else(
+                    || Ok(Command::none()),
+                    |view| self.auto_fill::<P>(&view.entry_head().uuid().as_string()),
+                )
+            }
             ToolBarMessage::LockVault => {
                 PWDuckGuiError::Unreachable("ToolBarMessage".into()).into()
             }
         }
-        .map(|cmd| cmd.map(VaultContainerMessage::ToolBar))
     }
 
     /// Update the search and replace it with the given value. The [`ListView`](ListView) will be resized.
@@ -246,8 +255,48 @@ impl VaultContainer {
         Ok(Command::none())
     }
 
+    /// Autotype the credentials of the entry identified by it's UUID.
+    fn auto_fill<P: Platform + 'static>(
+        &self,
+        uuid: &str,
+    ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
+        let entry_head = self
+            .vault
+            .entries()
+            .get(uuid)
+            .ok_or(PWDuckGuiError::Option)?;
+
+        // TODO: clean up
+        let mem_key = crate::MEM_KEY.lock()?;
+        let masterkey = self.vault.masterkey().as_unprotected(
+            &mem_key,
+            self.vault.salt(),
+            self.vault.nonce(),
+        )?;
+
+        let entry_body = self
+            .vault
+            .unsaved_entry_bodies()
+            .get(entry_head.body())
+            .map_or_else(
+                || pwduck_core::EntryBody::load(self.vault.path(), entry_head.body(), &masterkey),
+                |dto| pwduck_core::EntryBody::decrypt(dto, &masterkey),
+            )?;
+
+        let sequence = AutoTypeSequenceParser::parse_sequence(
+            entry_head.auto_type_sequence(),
+            entry_head,
+            &entry_body,
+        )?;
+
+        Ok(Command::perform(
+            P::auto_type(sequence),
+            VaultContainerMessage::AutoTypeResult,
+        ))
+    }
+
     /// Handle the message that was send by the list items.
-    fn update_list_items(
+    fn update_list_items<P: Platform + 'static>(
         &mut self,
         message: ListItemMessage,
         clipboard: &mut iced::Clipboard,
@@ -257,12 +306,12 @@ impl VaultContainer {
             ListItemMessage::EntrySelected(uuid) => self.select_entry(&uuid),
             ListItemMessage::CopyUsername(uuid) => self.copy_username(&uuid, clipboard),
             ListItemMessage::CopyPassword(uuid) => self.copy_password(&uuid, clipboard),
-            ListItemMessage::Autofill(_) => todo!(),
+            ListItemMessage::Autofill(uuid) => self.auto_fill::<P>(&uuid),
         }
     }
 
     /// Handle the message that was send by the [`ListView`](ListView).
-    fn update_list(
+    fn update_list<P: Platform + 'static>(
         &mut self,
         message: ListMessage,
         clipboard: &mut iced::Clipboard,
@@ -271,7 +320,9 @@ impl VaultContainer {
             ListMessage::SearchInput(search) => Ok(self.update_search(search)),
             ListMessage::Back => self.go_to_parent_group(),
             ListMessage::EditGroup => self.edit_group(),
-            ListMessage::ListItemMessage(message) => self.update_list_items(message, clipboard),
+            ListMessage::ListItemMessage(message) => {
+                self.update_list_items::<P>(message, clipboard)
+            }
             ListMessage::SplitResize(position) => {
                 self.list_view
                     .split_state_mut()
@@ -383,6 +434,8 @@ pub enum VaultContainerMessage {
     ModifyGroup(ModifyGroupMessage),
     /// The message that is send by the ModifyEntryView.
     ModifyEntry(ModifyEntryMessage),
+    /// The result of the autotyper.
+    AutoTypeResult(Result<(), PWDuckGuiError>),
 }
 
 impl Component for VaultContainer {
@@ -417,9 +470,11 @@ impl Component for VaultContainer {
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<Self::Message>, PWDuckGuiError> {
         match message {
-            VaultContainerMessage::ToolBar(message) => self.update_toolbar(&message, clipboard),
+            VaultContainerMessage::ToolBar(message) => {
+                self.update_toolbar::<P>(&message, clipboard)
+            }
 
-            VaultContainerMessage::List(message) => self.update_list(message, clipboard),
+            VaultContainerMessage::List(message) => self.update_list::<P>(message, clipboard),
 
             VaultContainerMessage::ModifyGroup(message) => {
                 self.update_modify_group(&message, clipboard)
@@ -427,6 +482,11 @@ impl Component for VaultContainer {
 
             VaultContainerMessage::ModifyEntry(message) => {
                 self.update_modify_entry::<P>(&message, clipboard)
+            }
+
+            VaultContainerMessage::AutoTypeResult(result) => {
+                result?;
+                Ok(Command::none())
             }
         }
     }

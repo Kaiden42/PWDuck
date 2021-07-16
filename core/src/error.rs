@@ -20,6 +20,8 @@ pub enum PWDuckCoreError {
     Mutex(String),
     /// Serializing or deserializing with RON failed.
     Ron(ron::Error),
+    /// An error from the autotype sequence parser.
+    SequenceParseError(SequenceParseError),
     /// Wrong UFT8 encoding.
     Utf8(std::string::FromUtf8Error),
 }
@@ -35,6 +37,7 @@ impl Clone for PWDuckCoreError {
             Self::IO(error) => Self::Error(format!("{}", error)),
             Self::Mutex(error) => Self::Mutex(error.clone()),
             Self::Ron(error) => Self::Ron(error.clone()),
+            Self::SequenceParseError(error) => Self::SequenceParseError(error.clone()),
             Self::Utf8(error) => Self::Utf8(error.clone()),
         }
     }
@@ -88,6 +91,12 @@ impl From<ron::Error> for PWDuckCoreError {
     }
 }
 
+impl From<SequenceParseError> for PWDuckCoreError {
+    fn from(error: SequenceParseError) -> Self {
+        Self::SequenceParseError(error)
+    }
+}
+
 impl From<std::string::FromUtf8Error> for PWDuckCoreError {
     fn from(error: std::string::FromUtf8Error) -> Self {
         Self::Utf8(error)
@@ -113,9 +122,44 @@ impl Display for PWDuckCoreError {
             PWDuckCoreError::IO(error) => write!(f, "Could not access the vault ({})", error),
             PWDuckCoreError::Mutex(error) => write!(f, "Could not lock a mutex ({})", error),
             PWDuckCoreError::Ron(error) => write!(f, "Not a valid RON structure ({})", error),
+            PWDuckCoreError::SequenceParseError(error) => write!(
+                f,
+                "An error at parsing the autotype sequence occurred ({})",
+                error
+            ),
             PWDuckCoreError::Utf8(error) => {
                 write!(f, "The given data was no valid UTF-8 ({})", error)
             }
+        }
+    }
+}
+
+/// An error from parsing an autotype sequence.
+#[derive(Clone, Debug)]
+pub enum SequenceParseError {
+    /// Parsed an invalid field.
+    InvalidField(String),
+    /// Parsed an invalid key.
+    InvalidKey(String),
+    /// A parsing error.
+    ParseError(String),
+}
+
+impl<T> From<pest::error::Error<T>> for SequenceParseError
+where
+    T: std::fmt::Debug,
+{
+    fn from(error: pest::error::Error<T>) -> Self {
+        Self::ParseError(format!("{:?}", error))
+    }
+}
+
+impl Display for SequenceParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SequenceParseError::InvalidField(field) => write!(f, "Invalid field: {}", field),
+            SequenceParseError::InvalidKey(key) => write!(f, "Invadil key: {}", key),
+            SequenceParseError::ParseError(error) => write!(f, "Incorrect sequence: {}", error),
         }
     }
 }

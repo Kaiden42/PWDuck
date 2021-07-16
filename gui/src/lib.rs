@@ -78,6 +78,8 @@ mod password_score;
 
 mod icons;
 
+pub use pwduck_core::{Key, Part, Sequence};
+
 /// The default maximum width of a [`Container`](iced::Container).
 const DEFAULT_MAX_WIDTH: u32 = 600;
 /// The default padding of a [`Column`](iced::Column).
@@ -544,4 +546,10 @@ pub trait Platform {
 
     /// Open the given url in the default browser of the system.
     async fn open_in_browser(url: String) -> Result<(), PWDuckGuiError>;
+
+    /// True, if the system supports autotyping.
+    fn is_auto_type_available() -> bool;
+
+    /// Autotype the given sequence.
+    async fn auto_type(sequence: Sequence) -> Result<(), PWDuckGuiError>;
 }
