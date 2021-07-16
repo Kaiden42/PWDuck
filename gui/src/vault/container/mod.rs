@@ -304,24 +304,27 @@ impl VaultContainer {
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         let vault = &mut self.vault;
+        let selected_group_uuid = self.list_view.selected_group_uuid_mut();
 
         let cmd = self
             .modify_group_view
             .as_mut()
             .map_or_else(
                 || Ok(Command::none()),
-                |view| view.update(message.clone(), vault, clipboard),
+                |view| view.update(message.clone(), vault, selected_group_uuid, clipboard),
             )
             .map(|cmd| cmd.map(VaultContainerMessage::ModifyGroup));
 
         match message {
-            ModifyGroupMessage::Cancel | ModifyGroupMessage::Submit => {
+            ModifyGroupMessage::Cancel
+            | ModifyGroupMessage::Submit
+            | &ModifyGroupMessage::Modal(modify_group::ModifyGroupModalMessage::SubmitDelete) => {
                 self.list_view.resize(&self.vault);
                 self.list_view.group_tree_mut().refresh(&self.vault);
                 self.current_view = CurrentView::ListView;
                 self.modify_group_view = None
             }
-            ModifyGroupMessage::TitleInput(_) => {}
+            _ => {}
         }
 
         cmd

@@ -223,7 +223,7 @@ impl ModifyEntryView {
         Command::none()
     }
 
-    /// Toggle the visiblity of the advanced area.
+    /// Toggle the visibility of the advanced area.
     fn toggle_advanced_visiblity(&mut self) -> Command<ModifyEntryMessage> {
         self.show_advanced = !self.show_advanced;
         Command::none()
@@ -246,11 +246,23 @@ impl ModifyEntryView {
         Command::none()
     }
 
+    /// Submit the modification of the entry.
+    fn submit(&self, vault: &mut Vault) -> Result<Command<ModifyEntryMessage>, PWDuckGuiError> {
+        // TODO async
+        let mem_key = crate::MEM_KEY.lock()?;
+        let masterkey = vault
+            .masterkey()
+            .as_unprotected(&mem_key, vault.salt(), vault.nonce())?;
+
+        vault.insert_entry(self.entry_head.clone(), self.entry_body.clone(), &masterkey)?;
+
+        Ok(Command::none())
+    }
+
     /// Update the advanced state with the given message.
     fn update_advanced<P: Platform + 'static>(
         &mut self,
         message: AdvancedStateMessage,
-        _clipboard: &mut iced::Clipboard,
     ) -> Command<ModifyEntryMessage> {
         match message {
             AdvancedStateMessage::DeleteEntryRequest => {
@@ -311,9 +323,7 @@ impl ModifyEntryView {
                 Ok(self.set_password_score(password_info))
             }
             ModifyEntryMessage::ToggleAdvanced => Ok(self.toggle_advanced_visiblity()),
-            ModifyEntryMessage::Advanced(message) => {
-                Ok(self.update_advanced::<P>(message, clipboard))
-            }
+            ModifyEntryMessage::Advanced(message) => Ok(self.update_advanced::<P>(message)),
             ModifyEntryMessage::Modal(message) => Ok(self.update_modal(&message, vault)),
             //ModifyEntryMessage::PasswordGenerate
             //| ModifyEntryMessage::Cancel
@@ -321,18 +331,7 @@ impl ModifyEntryView {
             //    PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into()
             //}
             ModifyEntryMessage::Cancel => Ok(Command::none()),
-            ModifyEntryMessage::Submit => {
-                // TODO async
-                let mem_key = crate::MEM_KEY.lock()?;
-                let masterkey =
-                    vault
-                        .masterkey()
-                        .as_unprotected(&mem_key, vault.salt(), vault.nonce())?;
-
-                vault.insert_entry(self.entry_head.clone(), self.entry_body.clone(), &masterkey)?;
-
-                Ok(Command::none())
-            }
+            ModifyEntryMessage::Submit => self.submit(vault),
             ModifyEntryMessage::PasswordGenerate => {
                 PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into()
             }
@@ -682,8 +681,8 @@ pub struct AdvancedState {
     auto_type: text_input::State,
 }
 
-#[derive(Clone, Debug)]
 /// The message produced by the advanced view.
+#[derive(Clone, Debug)]
 pub enum AdvancedStateMessage {
     /// The deletion of an entry was requested.
     DeleteEntryRequest,
@@ -778,6 +777,7 @@ impl ModifyEntryModal {
             )
             .foot(
                 Row::new()
+                    .spacing(DEFAULT_ROW_SPACING)
                     .push(icon_button(
                         cancel_button_state,
                         Icon::XSquare,
@@ -788,7 +788,7 @@ impl ModifyEntryModal {
                     ))
                     .push(icon_button(
                         submit_button_state,
-                        Icon::XSquare,
+                        Icon::Save,
                         "Submit",
                         "Submit the deletion of the entry",
                         false,

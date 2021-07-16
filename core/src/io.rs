@@ -153,16 +153,23 @@ fn save_entry(path: &Path, uuid: &str, content: String) -> Result<(), PWDuckCore
 
 /// TODO
 pub fn delete_entry(path: &Path, head_uuid: &str, body_uuid: &str) -> Result<(), PWDuckCoreError> {
-    fs::remove_file(
-        path.join(ENTRIES_DIR)
-            .join(HEAD)
-            .join(sha256::digest(head_uuid)),
-    )?;
-    fs::remove_file(
-        path.join(ENTRIES_DIR)
-            .join(BODY)
-            .join(sha256::digest(body_uuid)),
-    )?;
+    let head_path = path
+        .join(ENTRIES_DIR)
+        .join(HEAD)
+        .join(sha256::digest(head_uuid));
+
+    if head_path.exists() {
+        fs::remove_file(head_path)?;
+    }
+
+    let body_path = path
+        .join(ENTRIES_DIR)
+        .join(BODY)
+        .join(sha256::digest(body_uuid));
+
+    if body_path.exists() {
+        fs::remove_file(body_path)?;
+    }
     Ok(())
 }
 
@@ -178,6 +185,15 @@ pub fn save_group(path: &Path, uuid: &str, group: &Group) -> Result<(), PWDuckCo
         path.join(GROUPS_DIR).join(file_name),
         ron::to_string(&group)?,
     )?;
+    Ok(())
+}
+
+/// TODO
+pub fn delete_group(path: &Path, group_uuid: &str) -> Result<(), PWDuckCoreError> {
+    let group_path = path.join(GROUPS_DIR).join(sha256::digest(group_uuid));
+    if group_path.exists() {
+        fs::remove_file(group_path)?;
+    }
     Ok(())
 }
 

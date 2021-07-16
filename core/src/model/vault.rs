@@ -49,6 +49,8 @@ pub struct Vault {
     #[getset(get = "pub")]
     unsaved_entry_bodies: HashMap<String, crate::dto::entry::EntryBody>,
 
+    /// TODO
+    deleted_groups: Vec<String>,
     /// TODO: (head, body)
     deleted_entries: Vec<(String, String)>,
 }
@@ -87,6 +89,7 @@ impl Vault {
             groups: HashMap::new(),
             entries: HashMap::new(),
             unsaved_entry_bodies: HashMap::new(),
+            deleted_groups: Vec::new(),
             deleted_entries: Vec::new(),
         };
 
@@ -133,6 +136,14 @@ impl Vault {
 
         masterkey.zeroize();
 
+        let delete_group_result: Result<(), PWDuckCoreError> = self
+            .deleted_groups
+            .iter()
+            .try_for_each(|group| crate::io::delete_group(&path, group));
+        if delete_group_result.is_ok() {
+            self.deleted_groups.clear();
+        }
+
         let delete_entry_result: Result<(), PWDuckCoreError> = self
             .deleted_entries
             .iter()
@@ -141,7 +152,8 @@ impl Vault {
             self.deleted_entries.clear();
         }
 
-        unsaved_entry_bodies_result.and(group_result.and(entry_result.and(delete_entry_result)))
+        unsaved_entry_bodies_result
+            .and(group_result.and(entry_result.and(delete_group_result.and(delete_entry_result))))
     }
 
     /// Load a [`Vault`](Vault) from disk.
@@ -183,6 +195,7 @@ impl Vault {
             groups,
             entries,
             unsaved_entry_bodies: HashMap::new(),
+            deleted_groups: Vec::new(),
             deleted_entries: Vec::new(),
         };
 
@@ -212,6 +225,14 @@ impl Vault {
     /// Insert a new [`Group`](Group) into this [`Vault`](Vault).
     pub fn insert_group(&mut self, group: Group) {
         drop(self.groups.insert(group.uuid().as_string(), group));
+    }
+
+    /// TODO
+    pub fn delete_group(&mut self, uuid: &Uuid) {
+        let uuid = uuid.as_string();
+        if let Some(_group) = self.groups.remove(&uuid) {
+            self.deleted_groups.push(uuid);
+        }
     }
 
     /// Insert a new entry into this [`Vault`](Vault).
@@ -278,6 +299,7 @@ impl Vault {
                 .any(|(_uuid, entry)| entry.is_modified())
             || !self.unsaved_entry_bodies.is_empty()
             || !self.deleted_entries.is_empty()
+            || !self.deleted_groups.is_empty()
     }
 
     /// Returns the [`ItemList`](ItemList) containing [`Group`](Group)s and [`EntryHead`](EntryHead) based on the given filters.

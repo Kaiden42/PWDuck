@@ -25,7 +25,7 @@ use getset::{Getters, MutGetters, Setters};
 #[derive(Debug, Getters, MutGetters, Setters)]
 pub struct ListView {
     /// The UUID of the selected group.
-    #[getset(get = "pub", set = "pub")]
+    #[getset(get = "pub", get_mut = "pub", set = "pub")]
     selected_group_uuid: String,
     /// The sub-groups of the selected group.
     #[getset(get)]
