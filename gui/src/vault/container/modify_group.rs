@@ -6,7 +6,7 @@ use iced::{
     Space, Text,
 };
 use iced_aw::{modal, Card};
-use pwduck_core::{Group, Vault};
+use pwduck_core::{Group, Uuid, Vault};
 
 use crate::{
     error::PWDuckGuiError,
@@ -118,12 +118,8 @@ impl ModifyGroupView {
     ) -> Command<ModifyGroupMessage> {
         match message {
             AdvancedStateMessage::DeleteGroupRequest => {
-                if vault
-                    .get_entries_of(&self.group.uuid().as_string())
-                    .is_empty()
-                    && vault
-                        .get_groups_of(&self.group.uuid().as_string())
-                        .is_empty()
+                if vault.get_entries_of(self.group.uuid()).is_empty()
+                    && vault.get_groups_of(self.group.uuid()).is_empty()
                 {
                     *modal_state = modal::State::new(crate::ModalState::ModifyGroup(
                         ModifyGroupModal::delete_request(),
@@ -145,17 +141,22 @@ impl ModifyGroupView {
         message: &ModifyGroupModalMessage,
         vault: &mut Vault,
         modal_state: &mut iced_aw::modal::State<crate::ModalState>,
-        selected_group_uuid: &mut String,
-    ) -> Command<ModifyGroupMessage> {
+        selected_group_uuid: &mut Uuid,
+    ) -> Result<Command<ModifyGroupMessage>, PWDuckGuiError> {
         match message {
             ModifyGroupModalMessage::Close => {
                 *modal_state = modal::State::default();
-                Command::none()
+                Ok(Command::none())
             }
             ModifyGroupModalMessage::SubmitDelete => {
-                *selected_group_uuid = self.group.parent().clone();
+                *selected_group_uuid = self
+                    .group()
+                    .parent()
+                    .as_ref()
+                    .ok_or(PWDuckGuiError::Option)?
+                    .clone();
                 vault.delete_group(self.group.uuid());
-                Command::none()
+                Ok(Command::none())
             }
         }
     }
@@ -166,7 +167,7 @@ impl ModifyGroupView {
         message: ModifyGroupMessage,
         vault: &mut Vault,
         modal_state: &mut iced_aw::modal::State<crate::ModalState>,
-        selected_group_uuid: &mut String,
+        selected_group_uuid: &mut Uuid,
         _clipboard: &mut iced::Clipboard,
     ) -> Result<Command<ModifyGroupMessage>, PWDuckGuiError> {
         match message {
@@ -178,7 +179,7 @@ impl ModifyGroupView {
                 Ok(self.update_advanced(&message, vault, modal_state))
             }
             ModifyGroupMessage::Modal(message) => {
-                Ok(self.update_modal(&message, vault, modal_state, selected_group_uuid))
+                self.update_modal(&message, vault, modal_state, selected_group_uuid)
             } //_ => PWDuckGuiError::Unreachable("ModifyGroupMessage".into()).into(),
         }
     }
@@ -187,7 +188,7 @@ impl ModifyGroupView {
     pub fn view(
         &mut self,
         vault: &Vault,
-        selected_group_uuid: &str,
+        selected_group_uuid: &Uuid,
     ) -> Element<ModifyGroupMessage> {
         let name = default_text_input(
             &mut self.title_state,

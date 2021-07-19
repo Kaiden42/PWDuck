@@ -6,7 +6,7 @@ use iced::{
     Space, Text,
 };
 use iced_aw::{modal, Card};
-use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo, Vault};
+use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo, Uuid, Vault};
 
 use crate::{
     error::PWDuckGuiError,
@@ -345,7 +345,7 @@ impl ModifyEntryView {
     /// Create the view of the [`ModifyEntryView`](ModifyEntryView).
     pub fn view<P: Platform + 'static>(
         &mut self,
-        _selected_group_uuid: &str,
+        _selected_group_uuid: &Uuid,
     ) -> Element<ModifyEntryMessage> {
         let title = title_text_input(&mut self.title_state, self.entry_head.title());
         let username = username_row(

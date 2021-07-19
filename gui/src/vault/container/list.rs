@@ -6,7 +6,7 @@ use iced::{
     Scrollable, Space, Text, TextInput, VerticalAlignment,
 };
 use iced_aw::{split, Split};
-use pwduck_core::{EntryHead, Group, Vault};
+use pwduck_core::{EntryHead, Group, Uuid, Vault};
 
 use crate::{
     error::PWDuckGuiError,
@@ -26,7 +26,7 @@ use getset::{Getters, MutGetters, Setters};
 pub struct ListView {
     /// The UUID of the selected group.
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
-    selected_group_uuid: String,
+    selected_group_uuid: Uuid,
     /// The sub-groups of the selected group.
     #[getset(get)]
     group_items: Vec<ListGroupItem>,
@@ -85,7 +85,7 @@ impl ListView {
     ///     - The UUID of the root group of the vault
     ///     - The number of sub-groups in the root group.
     ///     - The number of entries in the root group.
-    pub fn new(root_uuid: String, vault: &Vault) -> Self {
+    pub fn new(root_uuid: Uuid, vault: &Vault) -> Self {
         let (group_count, entry_count) = (
             vault.get_groups_of(&root_uuid).len(),
             vault.get_entries_of(&root_uuid).len(),
@@ -211,7 +211,7 @@ fn tree_view<'a>(
 #[allow(clippy::too_many_arguments)]
 fn group_view<'a>(
     vault: &'a Vault,
-    selected_group_uuid: &str,
+    selected_group_uuid: &Uuid,
     search: &str,
     back_state: &'a mut button::State,
     edit_group_state: &'a mut button::State,
@@ -328,7 +328,7 @@ impl ListGroupItem {
         )
         .padding(20)
         .width(Length::Fill)
-        .on_press(ListItemMessage::GroupSelected(group.uuid().as_string()))
+        .on_press(ListItemMessage::GroupSelected(group.uuid().clone()))
         .style(ListGroupStyle)
         .into()
     }
@@ -390,13 +390,13 @@ impl ListEntryItem {
                             "AutoType",
                             "Autofill credentials to the target window",
                             icon_only,
-                            Some(ListItemMessage::Autofill(entry.uuid().as_string())),
+                            Some(ListItemMessage::Autofill(entry.uuid().clone())),
                         ))
                 }),
         )
         .padding(20)
         .width(Length::Fill)
-        .on_press(ListItemMessage::EntrySelected(entry.uuid().as_string()))
+        .on_press(ListItemMessage::EntrySelected(entry.uuid().clone()))
         .style(ListEntryStyle)
         .into()
     }
@@ -406,15 +406,15 @@ impl ListEntryItem {
 #[derive(Clone, Debug)]
 pub enum ListItemMessage {
     /// Select the group identified by it's UUID.
-    GroupSelected(String),
+    GroupSelected(Uuid),
     /// Select the entry identified by it's UUID.
-    EntrySelected(String),
+    EntrySelected(Uuid),
     /// Copy the username from the entry body identified by it's UUID.
-    CopyUsername(String),
+    CopyUsername(Uuid),
     /// Copy the password from the entry body identified by it's UUID.
-    CopyPassword(String),
+    CopyPassword(Uuid),
     /// Autofill credentials from the entry body identified by it's UUID  to the target.
-    Autofill(String),
+    Autofill(Uuid),
 }
 
 /// The style of the [`ListGroupItem`](ListGroupItem)s.
@@ -455,7 +455,7 @@ impl button::StyleSheet for ListEntryStyle {
 #[derive(Debug)]
 pub struct GroupTree {
     /// The uuid of the group.
-    group_uuid: String,
+    group_uuid: Uuid,
     /// The cached title of the group.
     group_title: String,
     /// The children of this node.
@@ -473,7 +473,7 @@ pub enum GroupTreeMessage {
     /// Toggle the expansion of a tree node. The node will be identified by it's path.
     ToggleExpansion(Vec<usize>),
     /// The user selected a group. It will be identified by it's uuid.
-    GroupSelected(String),
+    GroupSelected(Uuid),
 }
 
 impl GroupTree {
@@ -482,7 +482,7 @@ impl GroupTree {
     /// It expects:
     ///     - The UUID of the group to display.
     ///     - The vault to extract the group information from.
-    pub fn new(group_uuid: String, vault: &Vault) -> Self {
+    pub fn new(group_uuid: Uuid, vault: &Vault) -> Self {
         let title = vault
             .groups()
             .get(&group_uuid)
@@ -505,7 +505,7 @@ impl GroupTree {
             self.children = vault
                 .get_groups_of(&self.group_uuid)
                 .iter()
-                .map(|group| Self::new(group.uuid().as_string(), vault))
+                .map(|group| Self::new(group.uuid().clone(), vault))
                 .collect();
             self.children
                 .sort_by(|a, b| a.group_title.cmp(&b.group_title));
@@ -532,8 +532,7 @@ impl GroupTree {
         let sub_groups = vault.get_groups_of(&self.group_uuid);
         match self.children.len().cmp(&sub_groups.len()) {
             std::cmp::Ordering::Less => {
-                let group_uuids: Vec<String> =
-                    sub_groups.iter().map(|g| g.uuid().as_string()).collect();
+                let group_uuids: Vec<Uuid> = sub_groups.iter().map(|g| g.uuid().clone()).collect();
 
                 let mut new_groups: Vec<Self> = group_uuids
                     .iter()
@@ -541,7 +540,7 @@ impl GroupTree {
                         !self
                             .children
                             .iter()
-                            .map(|child| child.group_uuid.as_str())
+                            .map(|child| &child.group_uuid)
                             .any(|u| u == *uuid)
                     })
                     .fold(Vec::new(), |mut children, uuid| {
@@ -555,8 +554,7 @@ impl GroupTree {
             }
             std::cmp::Ordering::Greater => {
                 let mut children_buffer = Vec::with_capacity(sub_groups.len());
-                let group_uuids: Vec<String> =
-                    sub_groups.iter().map(|g| g.uuid().as_string()).collect();
+                let group_uuids: Vec<Uuid> = sub_groups.iter().map(|g| g.uuid().clone()).collect();
 
                 swap(&mut self.children, &mut children_buffer);
 

@@ -1,7 +1,7 @@
 //! TODO
 
 use iced::{Column, Command, Container, Length};
-use pwduck_core::{AutoTypeSequenceParser, EntryBody, EntryHead, Group, Vault};
+use pwduck_core::{AutoTypeSequenceParser, EntryBody, EntryHead, Group, Uuid, Vault};
 
 mod list;
 use list::{ListMessage, ListView};
@@ -88,7 +88,7 @@ impl VaultContainer {
             pwduck_core::Uuid::new(self.vault.path()),
             self.list_view.selected_group_uuid().clone(),
             String::new(),
-            entry_body.uuid().as_string(),
+            entry_body.uuid().clone(),
         );
 
         self.modify_entry_view = Some(Box::new(ModifyEntryView::with(
@@ -104,7 +104,7 @@ impl VaultContainer {
     /// Copy the username to the clipboard.
     fn copy_username(
         &self,
-        uuid: &str,
+        uuid: &Uuid,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         let mem_key = crate::MEM_KEY.lock()?;
@@ -127,7 +127,7 @@ impl VaultContainer {
     /// Copy the password to the clipboard.
     fn copy_password(
         &self,
-        uuid: &str,
+        uuid: &Uuid,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         let mem_key = crate::MEM_KEY.lock()?;
@@ -165,7 +165,7 @@ impl VaultContainer {
                 //}
                 self.modify_entry_view.as_ref().map_or_else(
                     || Ok(Command::none()),
-                    |view| self.auto_fill::<P>(&view.entry_head().uuid().as_string()),
+                    |view| self.auto_fill::<P>(view.entry_head().uuid()),
                 )
             }
             ToolBarMessage::LockVault => {
@@ -188,9 +188,11 @@ impl VaultContainer {
             .groups()
             .get(self.list_view.selected_group_uuid())
             .ok_or(PWDuckGuiError::Option)?;
-        self.list_view
-            .set_selected_group_uuid(group.parent().clone());
-        self.list_view.resize(&self.vault);
+
+        if let Some(group_uuid) = group.parent() {
+            self.list_view.set_selected_group_uuid(group_uuid.clone());
+            self.list_view.resize(&self.vault);
+        }
         Ok(Command::none())
     }
 
@@ -211,7 +213,7 @@ impl VaultContainer {
     }
 
     /// Select the group identified by the UUID.
-    fn select_group(&mut self, uuid: String) -> Command<VaultContainerMessage> {
+    fn select_group(&mut self, uuid: Uuid) -> Command<VaultContainerMessage> {
         self.list_view.set_selected_group_uuid(uuid);
         self.list_view.search_mut().clear();
         self.list_view.resize(&self.vault);
@@ -222,7 +224,7 @@ impl VaultContainer {
     /// and finally displayed in the [`ModifyEntryView`](ModifyEntryView).
     fn select_entry(
         &mut self,
-        uuid: &str,
+        uuid: &Uuid,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         let entry_head = self
             .vault
@@ -260,7 +262,7 @@ impl VaultContainer {
     /// Autotype the credentials of the entry identified by it's UUID.
     fn auto_fill<P: Platform + 'static>(
         &self,
-        uuid: &str,
+        uuid: &Uuid,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         let entry_head = self
             .vault

@@ -39,20 +39,20 @@ pub struct Vault {
 
     /// The [`Group`](Group)s of this [`Vault`](Vault).
     #[getset(get = "pub", get_mut = "pub")]
-    groups: HashMap<String, Group>,
+    groups: HashMap<Uuid, Group>,
 
     /// The [`EntryHead`](EntryHead)s of this vault.
     #[getset(get = "pub")]
-    entries: HashMap<String, EntryHead>,
+    entries: HashMap<Uuid, EntryHead>,
 
     /// The encrypted data-transfer-objects (dtos) of unsaved [`EntryBody`](EntryBody)s.
     #[getset(get = "pub")]
-    unsaved_entry_bodies: HashMap<String, crate::dto::entry::EntryBody>,
+    unsaved_entry_bodies: HashMap<Uuid, crate::dto::entry::EntryBody>,
 
     /// TODO
-    deleted_groups: Vec<String>,
+    deleted_groups: Vec<Uuid>,
     /// TODO: (head, body)
-    deleted_entries: Vec<(String, String)>,
+    deleted_entries: Vec<(Uuid, Uuid)>,
 }
 
 impl Vault {
@@ -94,7 +94,7 @@ impl Vault {
         };
 
         let root = Group::create_root_for(vault.path());
-        drop(vault.groups_mut().insert(root.uuid().as_string(), root));
+        drop(vault.groups_mut().insert(root.uuid().clone(), root));
 
         save_masterkey(vault.path(), masterkey_dto)?;
         vault.save(mem_key)?;
@@ -213,25 +213,22 @@ impl Vault {
 
     /// Get the UUID of the root [`Group`](Group) of this [`Vault`](Vault).
     #[must_use]
-    pub fn get_root_uuid(&self) -> Option<String> {
-        //println!("groups: {:?}", self.get_groups());
-        //self.groups.get("").map(|r| r.get_uuid().as_string())
+    pub fn get_root_uuid(&self) -> Option<Uuid> {
         self.groups
             .iter()
             .find(|(_uuid, group)| group.is_root())
-            .map(|(_uuid, group)| group.uuid().as_string())
+            .map(|(_uuid, group)| group.uuid().clone())
     }
 
     /// Insert a new [`Group`](Group) into this [`Vault`](Vault).
     pub fn insert_group(&mut self, group: Group) {
-        drop(self.groups.insert(group.uuid().as_string(), group));
+        drop(self.groups.insert(group.uuid().clone(), group));
     }
 
     /// TODO
     pub fn delete_group(&mut self, uuid: &Uuid) {
-        let uuid = uuid.as_string();
-        if let Some(_group) = self.groups.remove(&uuid) {
-            self.deleted_groups.push(uuid);
+        if let Some(_group) = self.groups.remove(uuid) {
+            self.deleted_groups.push(uuid.clone());
         }
     }
 
@@ -247,41 +244,43 @@ impl Vault {
         entry_body: EntryBody,
         masterkey: &[u8],
     ) -> Result<(), PWDuckCoreError> {
-        drop(
-            self.entries
-                .insert(entry_head.uuid().as_string(), entry_head),
-        );
+        drop(self.entries.insert(entry_head.uuid().clone(), entry_head));
 
-        drop(self.unsaved_entry_bodies.insert(
-            entry_body.uuid().as_string(),
-            entry_body.encrypt(masterkey)?,
-        ));
+        drop(
+            self.unsaved_entry_bodies
+                .insert(entry_body.uuid().clone(), entry_body.encrypt(masterkey)?),
+        );
         drop(entry_body);
         Ok(())
     }
 
     /// TODO
     pub fn delete_entry(&mut self, uuid: &Uuid) {
-        let uuid = uuid.as_string();
-        if let Some(entry_head) = self.entries.remove(&uuid) {
+        if let Some(entry_head) = self.entries.remove(uuid) {
             let entry_body = entry_head.body();
-            self.deleted_entries.push((uuid, entry_body.clone()));
+            self.deleted_entries
+                .push((uuid.clone(), entry_body.clone()));
         }
     }
 
     /// Get all [`Group`](Group)s in this [`Vault`] that are the children of the specified parent [`Group`](Group).
     #[must_use]
-    pub fn get_groups_of(&self, parent_uuid: &str) -> Vec<&Group> {
+    pub fn get_groups_of(&self, parent_uuid: &Uuid) -> Vec<&Group> {
         self.groups
             .iter()
-            .filter(|(_uuid, group)| group.parent() == parent_uuid)
+            .filter(|(_uuid, group)| {
+                group
+                    .parent()
+                    .as_ref()
+                    .map_or(false, |parent| parent == parent_uuid)
+            })
             .map(|(_uuid, group)| group)
             .collect()
     }
 
     /// Get all [`EntryHead`](EntryHead)s in this [`Vault`] that are children of the specified parent [`Group`](Group).
     #[must_use]
-    pub fn get_entries_of(&self, parent_uuid: &str) -> Vec<&EntryHead> {
+    pub fn get_entries_of(&self, parent_uuid: &Uuid) -> Vec<&EntryHead> {
         self.entries
             .iter()
             .filter(|(_uuid, entry)| entry.parent() == parent_uuid)
@@ -310,7 +309,7 @@ impl Vault {
     #[must_use]
     pub fn get_item_list_for<'a>(
         &'a self,
-        selected_group_uuid: &str,
+        selected_group_uuid: &Uuid,
         search: Option<&str>,
     ) -> ItemList<'a> {
         let (mut groups, mut entries) = search.map_or_else(

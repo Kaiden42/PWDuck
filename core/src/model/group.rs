@@ -24,7 +24,7 @@ pub struct Group {
 
     /// The UUID of the parent of this group.
     #[getset(get = "pub")]
-    parent: String,
+    parent: Option<Uuid>,
 
     /// The title of this group.
     #[getset(get = "pub")]
@@ -38,10 +38,10 @@ pub struct Group {
 impl Group {
     /// Create an new [`Group`](Group).
     #[must_use]
-    pub const fn new(uuid: Uuid, parent: String, title: String) -> Self {
+    pub const fn new(uuid: Uuid, parent: Uuid, title: String) -> Self {
         Self {
             uuid,
-            parent,
+            parent: Some(parent),
             title,
             modified: true,
         }
@@ -54,7 +54,7 @@ impl Group {
     ///     - The masterkey to encrypt the group
     pub fn save(&mut self, path: &Path, masterkey: &[u8]) -> Result<(), PWDuckCoreError> {
         let group = self.encrypt(masterkey)?;
-        crate::io::save_group(path, &self.uuid.as_string(), &group)?;
+        crate::io::save_group(path, &self.uuid, &group)?;
         self.modified = false;
         Ok(())
     }
@@ -77,7 +77,7 @@ impl Group {
     ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///     - The UUID as the identifier of the [`Group`](Group)
     ///     - The masterkey to decrypt the [`Group`](Group)
-    pub fn load(path: &Path, uuid: &str, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
+    pub fn load(path: &Path, uuid: &Uuid, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_group(path, uuid)?;
         Self::decrypt(&dto, masterkey)
     }
@@ -87,19 +87,14 @@ impl Group {
     /// It expects:
     ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///     - The masterkey to decrypt the [`Group`](Group)s
-    pub fn load_all(
-        path: &Path,
-        masterkey: &[u8],
-    ) -> Result<HashMap<String, Self>, PWDuckCoreError> {
+    pub fn load_all(path: &Path, masterkey: &[u8]) -> Result<HashMap<Uuid, Self>, PWDuckCoreError> {
         let dtos = crate::io::load_all_groups(path)?;
 
-        //let mut results = Vec::with_capacity(dtos.len());
         let mut results = HashMap::new();
 
         for dto in dtos {
-            //results.push(Self::decrypt(dto, masterkey)?);
             let group = Self::decrypt(&dto, masterkey)?;
-            drop(results.insert(group.uuid().as_string(), group));
+            drop(results.insert(group.uuid().clone(), group));
         }
 
         Ok(results)
@@ -124,7 +119,7 @@ impl Group {
     pub fn create_root_for(path: &Path) -> Self {
         Self {
             uuid: Uuid::new(path),
-            parent: String::new(),
+            parent: None,
             title: String::new(),
             modified: true,
         }
@@ -133,7 +128,7 @@ impl Group {
     /// True, if this group is the root.
     #[must_use]
     pub fn is_root(&self) -> bool {
-        self.parent.is_empty()
+        self.parent().is_none()
     }
 
     /// Set the title of this group.

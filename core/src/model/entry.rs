@@ -22,7 +22,7 @@ pub struct EntryHead {
 
     /// The UUID of the parent [`Group`](crate::model::group::Group) of this head.
     #[getset(get = "pub")]
-    parent: String,
+    parent: Uuid,
 
     /// The title of this entry.
     #[getset(get = "pub", set = "pub")]
@@ -40,7 +40,7 @@ pub struct EntryHead {
 
     /// The UUID of the body of this entry.
     #[getset(get = "pub")]
-    body: String,
+    body: Uuid,
 
     /// If the head was modified.
     #[serde(skip)]
@@ -50,7 +50,7 @@ pub struct EntryHead {
 impl EntryHead {
     /// Create a new [`EntryHead`](EntryHead).
     #[must_use]
-    pub fn new(uuid: Uuid, parent: String, title: String, body: String) -> Self {
+    pub fn new(uuid: Uuid, parent: Uuid, title: String, body: Uuid) -> Self {
         Self {
             uuid,
             parent,
@@ -69,7 +69,7 @@ impl EntryHead {
     ///     - The masterkey to encrypt the head.
     pub fn save(&mut self, path: &Path, masterkey: &[u8]) -> Result<(), PWDuckCoreError> {
         let entry_head = self.encrypt(masterkey)?;
-        crate::io::save_entry_head(path, &self.uuid.as_string(), &entry_head)?;
+        crate::io::save_entry_head(path, &self.uuid, &entry_head)?;
         self.modified = false;
         Ok(())
     }
@@ -92,7 +92,7 @@ impl EntryHead {
     ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///     - The UUID as the identifier of the [`EntryHead`](EntryHead)
     ///     - The masterkey to decrypt the [`EntryHead`](EntryHead)
-    pub fn load(path: &Path, uuid: &str, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
+    pub fn load(path: &Path, uuid: &Uuid, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_entry_head(path, uuid)?;
         Self::decrypt(&dto, masterkey)
     }
@@ -102,19 +102,14 @@ impl EntryHead {
     /// It expects:
     ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///     - The masterkey to decrypt the [`EntryHead`](EntryHead)s
-    pub fn load_all(
-        path: &Path,
-        masterkey: &[u8],
-    ) -> Result<HashMap<String, Self>, PWDuckCoreError> {
+    pub fn load_all(path: &Path, masterkey: &[u8]) -> Result<HashMap<Uuid, Self>, PWDuckCoreError> {
         let dtos = crate::io::load_all_entry_heads(path)?;
 
-        //let mut results = Vec::with_capacity(dtos.len());
         let mut results = HashMap::new();
 
         for dto in dtos {
-            //results.push(Self::decrypt(dto, masterkey)?);
             let head = Self::decrypt(&dto, masterkey)?;
-            drop(results.insert(head.uuid().as_string(), head));
+            drop(results.insert(head.uuid().clone(), head));
         }
 
         Ok(results)
@@ -214,7 +209,7 @@ impl EntryBody {
     ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///     - The UUID as the identifier of the [`EntryBody`](EntryBody)
     ///     - The masterkey to decrypt the [`EntryBody`](EntryBody)
-    pub fn load(path: &Path, uuid: &str, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
+    pub fn load(path: &Path, uuid: &Uuid, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_entry_body(path, uuid)?;
         let body = Self::decrypt(&dto, masterkey)?;
         Ok(body)

@@ -6,13 +6,17 @@ use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
 use crate::io::generate_uuid;
+
+/// The size of an [`Uuid`](Uuid).
+pub const SIZE: usize = 16;
+
 /// Universally Unique Identifier (UUID) of each data element of the [`Vault`](crate::Vault).
 ///
 /// See: [`Group`](crate::Group), [`EntryHead`](crate::EntryHead) and [`EntryBody`](crate::EntryBody).
-#[derive(Clone, Debug, Deserialize, Serialize, Zeroize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Zeroize)]
 pub struct Uuid {
     /// The UUID.
-    id: Vec<u8>,
+    id: [u8; SIZE],
 }
 
 impl Uuid {
@@ -22,15 +26,15 @@ impl Uuid {
         generate_uuid(path)
     }
 
-    /// Returns the Base64 encoded SHA-256 hash of this [`Uuid`](Uuid).
+    /// Returns the Base64 encoded SHA256 hash of this [`Uuid`](Uuid).
     #[must_use]
-    pub fn as_string(&self) -> String {
+    pub fn base64hash(&self) -> String {
         base64::encode(sha256::digest_bytes(&self.id))
     }
 }
 
-impl From<Vec<u8>> for Uuid {
-    fn from(v: Vec<u8>) -> Self {
-        Self { id: v }
+impl From<[u8; SIZE]> for Uuid {
+    fn from(id: [u8; SIZE]) -> Self {
+        Self { id }
     }
 }

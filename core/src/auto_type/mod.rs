@@ -118,16 +118,19 @@ pub enum Key {
 mod tests {
 
     use crate::{
-        model::entry::{EntryBody, EntryHead},
+        model::{
+            entry::{EntryBody, EntryHead},
+            uuid,
+        },
         AutoTypeSequenceParser, Key, Part, Sequence,
     };
 
     fn default_head() -> EntryHead {
         let mut entry_head = EntryHead::new(
-            vec![0u8].into(),
-            "noparent".into(),
+            [0u8; uuid::SIZE].into(),
+            [1u8; uuid::SIZE].into(),
             "This is a test entry".into(),
-            "body".into(),
+            [2u8; uuid::SIZE].into(),
         );
         let _ = entry_head.set_web_address("https://example.org".into());
 
@@ -136,7 +139,7 @@ mod tests {
 
     fn default_body() -> EntryBody {
         let mut entry_body = EntryBody::new(
-            vec![0u8].into(),
+            [1u8; uuid::SIZE].into(),
             "SecretUsername".into(),
             "TopSecretPassword".into(),
         );
