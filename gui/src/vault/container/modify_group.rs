@@ -149,6 +149,7 @@ impl ModifyGroupView {
                 Ok(Command::none())
             }
             ModifyGroupModalMessage::SubmitDelete => {
+                *modal_state = modal::State::default();
                 *selected_group_uuid = self
                     .group()
                     .parent()

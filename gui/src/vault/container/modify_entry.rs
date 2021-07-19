@@ -289,6 +289,7 @@ impl ModifyEntryView {
                 Command::none()
             }
             ModifyEntryModalMessage::SubmitDelete => {
+                *modal_state = modal::State::default();
                 vault.delete_entry(self.entry_head.uuid());
                 Command::none()
             }
