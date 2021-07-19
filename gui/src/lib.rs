@@ -72,7 +72,10 @@ mod utils;
 
 use pw_modal::{PasswordGeneratorMessage, PasswordGeneratorState, Target};
 
-use crate::{utils::estimate_password_strength, vault::creator::VaultCreatorMessage};
+use crate::{
+    utils::estimate_password_strength,
+    vault::{container::ModifyGroupMessage, creator::VaultCreatorMessage},
+};
 
 mod password_score;
 
@@ -111,10 +114,8 @@ lazy_static! {
 /// The state of the GUI.
 #[derive(Debug)]
 pub struct PWDuckGui<P: Platform + 'static> {
-    /// The state of the error dialog.
-    error_dialog_state: modal::State<ErrorDialogState>,
-    /// The state of the password generator.
-    password_generator_state: modal::State<PasswordGeneratorState>,
+    /// The state of the modal
+    modal_state: modal::State<ModalState>,
     /// The tabs of open vaults.
     tabs: Vec<VaultTab>,
     /// The index of the currently selected tab.
@@ -136,9 +137,27 @@ pub struct PWDuckGui<P: Platform + 'static> {
 
 /// The state of the error dialog.
 #[derive(Debug, Default)]
-struct ErrorDialogState {
+pub struct ErrorDialogState {
     /// The text of the error.
     error: String,
+}
+
+impl ErrorDialogState {
+    /// Create a new state for the error modal.
+    const fn new(error: String) -> Self {
+        Self { error }
+    }
+
+    /// Create the view of the error modal.
+    fn view(&mut self) -> Element<'_, Message> {
+        Card::new(
+            Text::new("An error occurred"),
+            Text::new(self.error.clone()),
+        )
+        .max_width(DEFAULT_MAX_WIDTH)
+        .on_close(Message::ErrorDialogClose)
+        .into()
+    }
 }
 
 /// The size of the viewport.
@@ -165,25 +184,26 @@ impl<P: Platform + 'static> PWDuckGui<P> {
 
     /// Show the password generator.
     fn password_generator_show(&mut self, message: &Message) -> iced::Command<Message> {
-        self.password_generator_state
-            .inner_mut()
-            .generate_and_update_password();
-        self.password_generator_state.show(true);
+        // TODO: Clean up
+        let mut password_generator_state = PasswordGeneratorState::new();
+        password_generator_state.set_target(match message {
+            Message::VaultTab(
+                _,
+                VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(_)),
+            ) => Target::EntryModifier,
+            Message::VaultTab(_, VaultTabMessage::Creator(_)) => todo!(),
+            _ => Target::None,
+        });
 
-        self.password_generator_state
-            .inner_mut()
-            .set_target(match message {
-                Message::VaultTab(
-                    _,
-                    VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(_)),
-                ) => Target::EntryModifier,
-                Message::VaultTab(_, VaultTabMessage::Creator(_)) => todo!(),
-                _ => Target::None,
-            });
+        password_generator_state.generate_and_update_password();
+        let generated_password = password_generator_state.password().clone();
 
-        // TODO: clean up
+        self.modal_state =
+            modal::State::new(ModalState::Password(Box::new(password_generator_state)));
+        self.modal_state.show(true);
+
         Command::perform(
-            estimate_password_strength(self.password_generator_state.inner().password().clone()),
+            estimate_password_strength(generated_password),
             PasswordGeneratorMessage::PasswordScore,
         )
         .map(Message::PasswordGenerator)
@@ -191,33 +211,38 @@ impl<P: Platform + 'static> PWDuckGui<P> {
 
     /// Hide the password generator.
     fn password_generator_cancel(&mut self) -> iced::Command<Message> {
-        self.password_generator_state.show(false);
+        // TODO
+        self.modal_state = modal::State::new(ModalState::None);
         Command::none()
     }
 
     /// Process the submission of the password generator.
     fn password_generator_submit(&mut self) -> Result<iced::Command<Message>, PWDuckGuiError> {
-        self.password_generator_state.show(false);
-        // TODO: clean up
-        let password = self.password_generator_state.inner().password().clone();
-        let message = match self.password_generator_state.inner().target() {
-            Target::Creator => {
-                VaultTabMessage::Creator(VaultCreatorMessage::PasswordInput(password.into()))
-            }
-            Target::EntryModifier => {
-                VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
-                    ModifyEntryMessage::PasswordInput(password.into()),
-                ))
-            }
-            Target::None => return PWDuckGuiError::Unreachable("Message".into()).into(),
-        };
-        Ok(Command::perform(
-            {
-                let selected_tab = self.selected_tab;
-                async move { Message::VaultTab(selected_tab, message) }
-            },
-            |m| m,
-        ))
+        // TODO: Clean up
+        if let ModalState::Password(password_generator_state) = self.modal_state.inner_mut() {
+            let password = password_generator_state.password().clone();
+            let message = match password_generator_state.target() {
+                Target::Creator => {
+                    VaultTabMessage::Creator(VaultCreatorMessage::PasswordInput(password.into()))
+                }
+                Target::EntryModifier => {
+                    VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
+                        ModifyEntryMessage::PasswordInput(password.into()),
+                    ))
+                }
+                Target::None => return PWDuckGuiError::Unreachable("Message".into()).into(),
+            };
+
+            Ok(Command::perform(
+                {
+                    let selected_tab = self.selected_tab;
+                    async move { Message::VaultTab(selected_tab, message) }
+                },
+                |m| m,
+            ))
+        } else {
+            Ok(Command::none())
+        }
     }
 
     /// Update the state of the password generator.
@@ -226,16 +251,20 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         message: PasswordGeneratorMessage,
         clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Message>, PWDuckGuiError> {
-        self.password_generator_state
-            .inner_mut()
-            .update(message, clipboard)
-            .map(|cmd| cmd.map(Message::PasswordGenerator))
+        // TODO: Clean up
+        if let ModalState::Password(password_generator_state) = self.modal_state.inner_mut() {
+            password_generator_state
+                .update(message, clipboard)
+                .map(|cmd| cmd.map(Message::PasswordGenerator))
+        } else {
+            Ok(Command::none())
+        }
     }
 
     /// Hide the error dialog.
     fn close_error_dialog(&mut self) -> iced::Command<Message> {
-        self.error_dialog_state.inner_mut().error.clear();
-        self.error_dialog_state.show(false);
+        // TODO: Clean up
+        self.modal_state = modal::State::new(ModalState::None);
         Command::none()
     }
 
@@ -272,7 +301,7 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Message>, PWDuckGuiError> {
         self.tabs[index]
-            .update::<P>(message, clipboard)
+            .update::<P>(message, &mut self.modal_state, clipboard)
             .map(move |cmd| cmd.map(move |msg| Message::VaultTab(index, msg)))
     }
 }
@@ -304,8 +333,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
     fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
         (
             Self {
-                error_dialog_state: modal::State::default(),
-                password_generator_state: modal::State::new(PasswordGeneratorState::new()),
+                modal_state: modal::State::new(ModalState::None),
                 tabs: vec![VaultTab::new(())],
                 selected_tab: 0,
 
@@ -390,8 +418,12 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
             Ok(cmd) => cmd,
             Err(error) => {
                 println!("{:?}", error);
-                self.error_dialog_state.inner_mut().error = format!("{}", error);
-                self.error_dialog_state.show(true);
+
+                self.modal_state = modal::State::new(ModalState::Error(ErrorDialogState::new(
+                    format!("{}", error),
+                )));
+                self.modal_state.show(true);
+
                 Command::none()
             }
         }
@@ -460,9 +492,10 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
 
         let content: Element<_> = Column::new().push(top_row).push(tab).into();
 
-        let body = password_modal::<P>(&mut self.password_generator_state, content);
-
-        error_modal::<P>(&mut self.error_dialog_state, body)
+        Modal::new(&mut self.modal_state, content, move |state| {
+            state.view(selected_tab)
+        })
+        .into()
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
@@ -473,36 +506,6 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         self.can_exit
         //&& !self.tabs.iter().any(VaultTab::contains_unsaved_changes)
     }
-}
-
-/// Create the view of the password generator.
-fn password_modal<'a, P: Platform + 'static>(
-    state: &'a mut modal::State<pw_modal::PasswordGeneratorState>,
-    body: Element<'a, Message>,
-) -> Element<'a, Message> {
-    Modal::new(state, body, |state| {
-        state.view().map(Message::PasswordGenerator)
-    })
-    .into()
-}
-
-/// Create the view of the error dialog.
-fn error_modal<'a, P: Platform + 'static>(
-    state: &'a mut modal::State<ErrorDialogState>,
-    body: Element<'a, Message>,
-) -> Element<'a, Message> {
-    Modal::new(state, body, |state| {
-        Card::new(
-            Text::new("An error occurred"),
-            Text::new(state.error.clone()),
-        )
-        .max_width(DEFAULT_MAX_WIDTH)
-        .on_close(Message::ErrorDialogClose)
-        .into()
-    })
-    .on_esc(Message::ErrorDialogClose)
-    .backdrop(Message::ErrorDialogClose)
-    .into()
 }
 
 /// Component trait to define components of this gui.
@@ -522,6 +525,7 @@ trait Component {
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,
+        modal_state: &mut modal::State<ModalState>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Self::Message>, PWDuckGuiError>;
 
@@ -552,4 +556,58 @@ pub trait Platform {
 
     /// Autotype the given sequence.
     async fn auto_type(sequence: Sequence) -> Result<(), PWDuckGuiError>;
+}
+
+/// The state of the modal.
+#[derive(Debug)]
+pub enum ModalState {
+    /// The state of the error modal.
+    Error(ErrorDialogState),
+    /// The state of the password generator.
+    Password(Box<PasswordGeneratorState>),
+    /// The state of the group modifier modal.
+    ModifyGroup(crate::vault::container::ModifyGroupModal),
+    /// The state of the entry modifier modal.
+    ModifyEntry(crate::vault::container::ModifyEntryModal),
+    /// The modal is empty.
+    None,
+}
+
+impl Default for ModalState {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+impl ModalState {
+    /// Create the view of the modal.
+    fn view(&mut self, index: usize) -> Element<'_, Message> {
+        match self {
+            ModalState::Error(error_modal_state) => error_modal_state.view(),
+            ModalState::Password(password_generator_state) => password_generator_state
+                .view()
+                .map(Message::PasswordGenerator),
+            ModalState::ModifyGroup(modify_group_modal) => {
+                modify_group_modal.view().map(move |msg| {
+                    Message::VaultTab(
+                        index,
+                        VaultTabMessage::Container(VaultContainerMessage::ModifyGroup(
+                            ModifyGroupMessage::Modal(msg),
+                        )),
+                    )
+                })
+            }
+            ModalState::ModifyEntry(modify_entry_modal) => {
+                modify_entry_modal.view().map(move |msg| {
+                    Message::VaultTab(
+                        index,
+                        VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
+                            ModifyEntryMessage::Modal(msg),
+                        )),
+                    )
+                })
+            }
+            ModalState::None => todo!(),
+        }
+    }
 }

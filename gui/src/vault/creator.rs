@@ -193,6 +193,7 @@ impl Component for VaultCreator {
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,
+        _modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         _clipboard: &mut iced::Clipboard,
     ) -> Result<Command<Self::Message>, PWDuckGuiError> {
         let cmd = match message {

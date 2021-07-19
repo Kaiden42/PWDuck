@@ -80,20 +80,21 @@ impl VaultTab {
     fn update_state<P: Platform + 'static>(
         &mut self,
         message: VaultTabMessage,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultTabMessage>, PWDuckGuiError> {
         match (message, &mut self.state) {
             (VaultTabMessage::Loader(msg), VaultTabState::Empty(loader)) => Ok(loader
-                .update::<P>(msg, clipboard)?
+                .update::<P>(msg, modal_state, clipboard)?
                 .map(VaultTabMessage::Loader)),
             (VaultTabMessage::Creator(msg), VaultTabState::Create(creator)) => Ok(creator
-                .update::<P>(msg, clipboard)?
+                .update::<P>(msg, modal_state, clipboard)?
                 .map(VaultTabMessage::Creator)),
             (VaultTabMessage::Unlocker(msg), VaultTabState::Unlock(unlocker)) => Ok(unlocker
-                .update::<P>(msg, clipboard)?
+                .update::<P>(msg, modal_state, clipboard)?
                 .map(VaultTabMessage::Unlocker)),
             (VaultTabMessage::Container(msg), VaultTabState::Open(container)) => Ok(container
-                .update::<P>(msg, clipboard)?
+                .update::<P>(msg, modal_state, clipboard)?
                 .map(VaultTabMessage::Container)),
             _ => PWDuckGuiError::Unreachable("VaultTabMessage".into()).into(),
         }
@@ -149,6 +150,7 @@ impl Component for VaultTab {
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Self::Message>, PWDuckGuiError> {
         match (message.clone(), &mut self.state) {
@@ -184,7 +186,7 @@ impl Component for VaultTab {
             }
 
             // Passing every other message to sub elements
-            _ => self.update_state::<P>(message, clipboard),
+            _ => self.update_state::<P>(message, modal_state, clipboard),
         }
     }
 

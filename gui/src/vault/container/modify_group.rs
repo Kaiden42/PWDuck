@@ -5,7 +5,7 @@ use iced::{
     button, scrollable, text_input, Button, Column, Command, Element, Length, Row, Scrollable,
     Space, Text,
 };
-use iced_aw::{modal, Card, Modal};
+use iced_aw::{modal, Card};
 use pwduck_core::{Group, Vault};
 
 use crate::{
@@ -45,9 +45,6 @@ pub struct ModifyGroupView {
 
     /// The state of the [`Scrollable`](iced::Scrollable).
     scrollable_state: scrollable::State,
-
-    /// TODO
-    modal_state: modal::State<ModifyGroupModal>,
 }
 
 /// The message that is send by the [`ModifyGroupView`](ModifyGroupView).
@@ -91,8 +88,6 @@ impl ModifyGroupView {
             advanced_state: AdvancedState::new(),
 
             scrollable_state: scrollable::State::new(),
-
-            modal_state: modal::State::default(),
         }
     }
 
@@ -119,6 +114,7 @@ impl ModifyGroupView {
         &mut self,
         message: &AdvancedStateMessage,
         vault: &Vault,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
     ) -> Command<ModifyGroupMessage> {
         match message {
             AdvancedStateMessage::DeleteGroupRequest => {
@@ -129,11 +125,15 @@ impl ModifyGroupView {
                         .get_groups_of(&self.group.uuid().as_string())
                         .is_empty()
                 {
-                    self.modal_state = modal::State::new(ModifyGroupModal::delete_request());
+                    *modal_state = modal::State::new(crate::ModalState::ModifyGroup(
+                        ModifyGroupModal::delete_request(),
+                    ));
                 } else {
-                    self.modal_state = modal::State::new(ModifyGroupModal::group_not_empty());
+                    *modal_state = modal::State::new(crate::ModalState::ModifyGroup(
+                        ModifyGroupModal::group_not_empty(),
+                    ));
                 }
-                self.modal_state.show(true);
+                modal_state.show(true);
                 Command::none()
             }
         }
@@ -144,11 +144,12 @@ impl ModifyGroupView {
         &mut self,
         message: &ModifyGroupModalMessage,
         vault: &mut Vault,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         selected_group_uuid: &mut String,
     ) -> Command<ModifyGroupMessage> {
         match message {
             ModifyGroupModalMessage::Close => {
-                self.modal_state = modal::State::default();
+                *modal_state = modal::State::default();
                 Command::none()
             }
             ModifyGroupModalMessage::SubmitDelete => {
@@ -164,6 +165,7 @@ impl ModifyGroupView {
         &mut self,
         message: ModifyGroupMessage,
         vault: &mut Vault,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         selected_group_uuid: &mut String,
         _clipboard: &mut iced::Clipboard,
     ) -> Result<Command<ModifyGroupMessage>, PWDuckGuiError> {
@@ -172,9 +174,11 @@ impl ModifyGroupView {
             ModifyGroupMessage::Submit => Ok(self.submit(vault)),
             ModifyGroupMessage::TitleInput(title) => Ok(self.update_title(title)),
             ModifyGroupMessage::ToggleAdvanced => Ok(self.toggle_advanced_visibility()),
-            ModifyGroupMessage::Advanced(message) => Ok(self.update_advanced(&message, vault)),
+            ModifyGroupMessage::Advanced(message) => {
+                Ok(self.update_advanced(&message, vault, modal_state))
+            }
             ModifyGroupMessage::Modal(message) => {
-                Ok(self.update_modal(&message, vault, selected_group_uuid))
+                Ok(self.update_modal(&message, vault, modal_state, selected_group_uuid))
             } //_ => PWDuckGuiError::Unreachable("ModifyGroupMessage".into()).into(),
         }
     }
@@ -247,12 +251,7 @@ impl ModifyGroupView {
             .push(default_vertical_space())
             .push(advanced);
 
-        let content: Element<_> = centered_container_with_column(vec![scrollable.into()]).into();
-
-        Modal::new(&mut self.modal_state, content, |state| {
-            state.view().map(ModifyGroupMessage::Modal)
-        })
-        .into()
+        centered_container_with_column(vec![scrollable.into()]).into()
     }
 }
 
@@ -362,7 +361,7 @@ impl AdvancedState {
 
 /// The state of the modal.
 #[derive(Debug)]
-enum ModifyGroupModal {
+pub enum ModifyGroupModal {
     /// Confirm the deletion of the group.
     DeleteRequest {
         /// The state of the cancel [`Button`](iced::Button).
@@ -405,7 +404,7 @@ impl ModifyGroupModal {
     }
 
     /// Create the view of the modal.
-    fn view(&mut self) -> Element<'_, ModifyGroupModalMessage> {
+    pub fn view(&mut self) -> Element<'_, ModifyGroupModalMessage> {
         match self {
             ModifyGroupModal::DeleteRequest { cancel_button_state, submit_button_state } => {
                 Card::new(

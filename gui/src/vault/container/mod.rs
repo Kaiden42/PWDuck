@@ -7,12 +7,14 @@ mod list;
 use list::{ListMessage, ListView};
 
 mod modify_entry;
-pub use modify_entry::ModifyEntryMessage;
 use modify_entry::ModifyEntryView;
+pub use modify_entry::{ModifyEntryMessage, ModifyEntryModal};
 
 mod modify_group;
+use modify_group::ModifyGroupView;
+pub use modify_group::{ModifyGroupMessage, ModifyGroupModal};
+
 use getset::Getters;
-use modify_group::{ModifyGroupMessage, ModifyGroupView};
 
 mod toolbar;
 use toolbar::ToolBar;
@@ -352,6 +354,7 @@ impl VaultContainer {
     fn update_modify_group(
         &mut self,
         message: &ModifyGroupMessage,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         let vault = &mut self.vault;
@@ -362,7 +365,15 @@ impl VaultContainer {
             .as_mut()
             .map_or_else(
                 || Ok(Command::none()),
-                |view| view.update(message.clone(), vault, selected_group_uuid, clipboard),
+                |view| {
+                    view.update(
+                        message.clone(),
+                        vault,
+                        modal_state,
+                        selected_group_uuid,
+                        clipboard,
+                    )
+                },
             )
             .map(|cmd| cmd.map(VaultContainerMessage::ModifyGroup));
 
@@ -385,6 +396,7 @@ impl VaultContainer {
     fn update_modify_entry<P: Platform + 'static>(
         &mut self,
         message: &ModifyEntryMessage,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         let vault = &mut self.vault;
@@ -393,7 +405,7 @@ impl VaultContainer {
             .as_mut()
             .map_or_else(
                 || Ok(Command::none()),
-                |view| view.update::<P>(message.clone(), vault, clipboard),
+                |view| view.update::<P>(message.clone(), vault, modal_state, clipboard),
             )
             .map(|cmd| cmd.map(VaultContainerMessage::ModifyEntry));
 
@@ -467,6 +479,7 @@ impl Component for VaultContainer {
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<Self::Message>, PWDuckGuiError> {
         match message {
@@ -477,11 +490,11 @@ impl Component for VaultContainer {
             VaultContainerMessage::List(message) => self.update_list::<P>(message, clipboard),
 
             VaultContainerMessage::ModifyGroup(message) => {
-                self.update_modify_group(&message, clipboard)
+                self.update_modify_group(&message, modal_state, clipboard)
             }
 
             VaultContainerMessage::ModifyEntry(message) => {
-                self.update_modify_entry::<P>(&message, clipboard)
+                self.update_modify_entry::<P>(&message, modal_state, clipboard)
             }
 
             VaultContainerMessage::AutoTypeResult(result) => {

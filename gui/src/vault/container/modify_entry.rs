@@ -5,7 +5,7 @@ use iced::{
     button, scrollable, text_input, Button, Column, Command, Element, Length, Row, Scrollable,
     Space, Text,
 };
-use iced_aw::{modal, Card, Modal};
+use iced_aw::{modal, Card};
 use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo, Vault};
 
 use crate::{
@@ -75,9 +75,6 @@ pub struct ModifyEntryView {
 
     /// The state of the [`Scrollable`](iced::Scrollable).
     scroll_state: scrollable::State,
-
-    /// TODO
-    modal_state: modal::State<ModifyEntryModal>,
 }
 
 /// The message that is send by the `ModifyEntryView`.
@@ -162,8 +159,6 @@ impl ModifyEntryView {
             advanced_state: AdvancedState::new(),
 
             scroll_state: scrollable::State::new(),
-
-            modal_state: modal::State::default(),
         }
     }
 
@@ -263,11 +258,14 @@ impl ModifyEntryView {
     fn update_advanced<P: Platform + 'static>(
         &mut self,
         message: AdvancedStateMessage,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
     ) -> Command<ModifyEntryMessage> {
         match message {
             AdvancedStateMessage::DeleteEntryRequest => {
-                self.modal_state = modal::State::new(ModifyEntryModal::delete_request());
-                self.modal_state.show(true);
+                *modal_state = modal::State::new(crate::ModalState::ModifyEntry(
+                    ModifyEntryModal::delete_request(),
+                ));
+                modal_state.show(true);
                 Command::none()
             }
             AdvancedStateMessage::AutoTypeInput(auto_type_sequence) => {
@@ -283,10 +281,11 @@ impl ModifyEntryView {
         &mut self,
         message: &ModifyEntryModalMessage,
         vault: &mut Vault,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
     ) -> Command<ModifyEntryMessage> {
         match message {
             ModifyEntryModalMessage::Close => {
-                self.modal_state = modal::State::default();
+                *modal_state = modal::State::default();
                 Command::none()
             }
             ModifyEntryModalMessage::SubmitDelete => {
@@ -301,6 +300,7 @@ impl ModifyEntryView {
         &mut self,
         message: ModifyEntryMessage,
         vault: &mut Vault,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<ModifyEntryMessage>, PWDuckGuiError> {
         match message {
@@ -323,8 +323,12 @@ impl ModifyEntryView {
                 Ok(self.set_password_score(password_info))
             }
             ModifyEntryMessage::ToggleAdvanced => Ok(self.toggle_advanced_visiblity()),
-            ModifyEntryMessage::Advanced(message) => Ok(self.update_advanced::<P>(message)),
-            ModifyEntryMessage::Modal(message) => Ok(self.update_modal(&message, vault)),
+            ModifyEntryMessage::Advanced(message) => {
+                Ok(self.update_advanced::<P>(message, modal_state))
+            }
+            ModifyEntryMessage::Modal(message) => {
+                Ok(self.update_modal(&message, vault, modal_state))
+            }
             //ModifyEntryMessage::PasswordGenerate
             //| ModifyEntryMessage::Cancel
             //| ModifyEntryMessage::Submit => {
@@ -404,12 +408,7 @@ impl ModifyEntryView {
             .push(default_vertical_space())
             .push(advanced);
 
-        let content: Element<_> = centered_container_with_column(vec![scrollable.into()]).into();
-
-        Modal::new(&mut self.modal_state, content, |state| {
-            state.view().map(ModifyEntryMessage::Modal)
-        })
-        .into()
+        centered_container_with_column(vec![scrollable.into()]).into()
     }
 }
 
@@ -735,7 +734,8 @@ impl AdvancedState {
 }
 
 /// The state of the modal.
-enum ModifyEntryModal {
+#[derive(Debug)]
+pub enum ModifyEntryModal {
     /// Confirm the deletion of the entry.
     DeleteRequest {
         /// The state of the cancel [`Button`](iced::Button).
@@ -766,7 +766,7 @@ impl ModifyEntryModal {
     }
 
     /// Create the view of the modal.
-    fn view(&mut self) -> Element<'_, ModifyEntryModalMessage> {
+    pub fn view(&mut self) -> Element<'_, ModifyEntryModalMessage> {
         match self {
             ModifyEntryModal::DeleteRequest {
                 cancel_button_state,
