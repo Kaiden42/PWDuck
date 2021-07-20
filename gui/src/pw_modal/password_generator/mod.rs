@@ -17,6 +17,11 @@ use crate::{
         centered_container_with_column, default_vertical_space, estimate_password_strength,
         icon_button, password_toggle, vertical_space,
     },
+    vault::{
+        container::ModifyEntryMessage,
+        creator::VaultCreatorMessage,
+        tab::{VaultContainerMessage, VaultTabMessage},
+    },
     DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
 
@@ -97,6 +102,67 @@ impl PasswordGeneratorState {
             password_tab_state: PasswordTabState::new(),
             ..Self::default()
         }
+    }
+
+    /// Show the password modal.
+    pub fn show(
+        message: &crate::Message,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
+    ) -> iced::Command<PasswordGeneratorMessage> {
+        let mut password_generator_state = Self::new();
+        password_generator_state.set_target(match message {
+            crate::Message::VaultTab(
+                _,
+                VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(_)),
+            ) => Target::EntryModifier,
+            crate::Message::VaultTab(_, VaultTabMessage::Creator(_)) => todo!(),
+            _ => Target::None,
+        });
+
+        password_generator_state.generate_and_update_password();
+        let generated_password = password_generator_state.password().clone();
+
+        *modal_state = iced_aw::modal::State::new(crate::ModalState::Password(Box::new(
+            password_generator_state,
+        )));
+        modal_state.show(true);
+
+        Command::perform(
+            estimate_password_strength(generated_password),
+            PasswordGeneratorMessage::PasswordScore,
+        )
+    }
+
+    /// Close the password modal.
+    pub fn cancel(
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
+    ) -> iced::Command<PasswordGeneratorMessage> {
+        *modal_state = iced_aw::modal::State::default();
+        Command::none()
+    }
+
+    /// Submit the generated password.
+    pub fn submit(
+        &mut self,
+        selected_tab: usize,
+    ) -> Result<iced::Command<crate::Message>, PWDuckGuiError> {
+        let password = self.password().clone();
+        let message = match self.target() {
+            Target::Creator => {
+                VaultTabMessage::Creator(VaultCreatorMessage::PasswordInput(password.into()))
+            }
+            Target::EntryModifier => {
+                VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
+                    ModifyEntryMessage::PasswordInput(password.into()),
+                ))
+            }
+            Target::None => return PWDuckGuiError::Unreachable("Message".into()).into(),
+        };
+
+        Ok(Command::perform(
+            async move { crate::Message::VaultTab(selected_tab, message) },
+            |m| m,
+        ))
     }
 
     /// Calculate the strength of the generated password.

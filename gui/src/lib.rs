@@ -70,12 +70,9 @@ use vault::{
 mod pw_modal;
 mod utils;
 
-use pw_modal::{PasswordGeneratorMessage, PasswordGeneratorState, Target};
+use pw_modal::{PasswordGeneratorMessage, PasswordGeneratorState};
 
-use crate::{
-    utils::estimate_password_strength,
-    vault::{container::ModifyGroupMessage, creator::VaultCreatorMessage},
-};
+use crate::vault::container::ModifyGroupMessage;
 
 mod password_score;
 
@@ -180,69 +177,6 @@ impl<P: Platform + 'static> PWDuckGui<P> {
             ..Settings::default()
         })?;
         Ok(())
-    }
-
-    /// Show the password generator.
-    fn password_generator_show(&mut self, message: &Message) -> iced::Command<Message> {
-        // TODO: Clean up
-        let mut password_generator_state = PasswordGeneratorState::new();
-        password_generator_state.set_target(match message {
-            Message::VaultTab(
-                _,
-                VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(_)),
-            ) => Target::EntryModifier,
-            Message::VaultTab(_, VaultTabMessage::Creator(_)) => todo!(),
-            _ => Target::None,
-        });
-
-        password_generator_state.generate_and_update_password();
-        let generated_password = password_generator_state.password().clone();
-
-        self.modal_state =
-            modal::State::new(ModalState::Password(Box::new(password_generator_state)));
-        self.modal_state.show(true);
-
-        Command::perform(
-            estimate_password_strength(generated_password),
-            PasswordGeneratorMessage::PasswordScore,
-        )
-        .map(Message::PasswordGenerator)
-    }
-
-    /// Hide the password generator.
-    fn password_generator_cancel(&mut self) -> iced::Command<Message> {
-        // TODO
-        self.modal_state = modal::State::new(ModalState::None);
-        Command::none()
-    }
-
-    /// Process the submission of the password generator.
-    fn password_generator_submit(&mut self) -> Result<iced::Command<Message>, PWDuckGuiError> {
-        // TODO: Clean up
-        if let ModalState::Password(password_generator_state) = self.modal_state.inner_mut() {
-            let password = password_generator_state.password().clone();
-            let message = match password_generator_state.target() {
-                Target::Creator => {
-                    VaultTabMessage::Creator(VaultCreatorMessage::PasswordInput(password.into()))
-                }
-                Target::EntryModifier => {
-                    VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
-                        ModifyEntryMessage::PasswordInput(password.into()),
-                    ))
-                }
-                Target::None => return PWDuckGuiError::Unreachable("Message".into()).into(),
-            };
-
-            Ok(Command::perform(
-                {
-                    let selected_tab = self.selected_tab;
-                    async move { Message::VaultTab(selected_tab, message) }
-                },
-                |m| m,
-            ))
-        } else {
-            Ok(Command::none())
-        }
     }
 
     /// Update the state of the password generator.
@@ -364,16 +298,35 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                 VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
                     ModifyEntryMessage::PasswordGenerate,
                 )),
-            ) => Ok(self.password_generator_show(&message)),
+                //) => Ok(self.password_generator_show(&message)),
+            ) => Ok(
+                PasswordGeneratorState::show(&message, &mut self.modal_state)
+                    .map(Message::PasswordGenerator),
+            ),
 
             Message::ErrorDialogClose => Ok(self.close_error_dialog()),
 
             Message::PasswordGenerator(PasswordGeneratorMessage::Cancel) => {
-                Ok(self.password_generator_cancel())
+                //Ok(self.password_generator_cancel())
+                Ok(PasswordGeneratorState::cancel(&mut self.modal_state)
+                    .map(Message::PasswordGenerator))
             }
 
             Message::PasswordGenerator(PasswordGeneratorMessage::Submit) => {
-                self.password_generator_submit()
+                //self.password_generator_submit()
+                let cmd = if let ModalState::Password(password_generator_state) =
+                    self.modal_state.inner_mut()
+                {
+                    password_generator_state.submit(self.selected_tab)
+                } else {
+                    Ok(Command::none())
+                };
+
+                if cmd.is_ok() {
+                    self.modal_state = modal::State::default();
+                }
+
+                cmd
             }
 
             Message::PasswordGenerator(message) => {
