@@ -40,6 +40,8 @@ pub struct Vault {
     /// The [`Group`](Group)s of this [`Vault`](Vault).
     #[getset(get = "pub", get_mut = "pub")]
     groups: HashMap<Uuid, Group>,
+    /// The children of a group,
+    children: HashMap<Uuid, Children>,
 
     /// The [`EntryHead`](EntryHead)s of this vault.
     #[getset(get = "pub")]
@@ -87,6 +89,7 @@ impl Vault {
             nonce,
             path,
             groups: HashMap::new(),
+            children: HashMap::new(),
             entries: HashMap::new(),
             unsaved_entry_bodies: HashMap::new(),
             deleted_groups: Vec::new(),
@@ -94,6 +97,11 @@ impl Vault {
         };
 
         let root = Group::create_root_for(vault.path());
+        drop(
+            vault
+                .children
+                .insert(root.uuid().clone(), Children::default()),
+        );
         drop(vault.groups_mut().insert(root.uuid().clone(), root));
 
         save_masterkey(vault.path(), masterkey_dto)?;
@@ -187,12 +195,34 @@ impl Vault {
         let entries = EntryHead::load_all(&path, &unprotected_masterkey)?;
         drop(unprotected_masterkey);
 
+        let mut children: HashMap<Uuid, Children> = HashMap::new();
+
+        for (uuid, group) in &groups {
+            drop(children.insert(uuid.clone(), Children::default()));
+            if let Some(parent) = group.parent() {
+                children
+                    .entry(parent.clone())
+                    .or_insert_with(Children::default)
+                    .groups_mut()
+                    .push(uuid.clone());
+            }
+        }
+
+        for (uuid, entry) in &entries {
+            children
+                .entry(entry.parent().clone())
+                .or_insert_with(Children::default)
+                .entries_mut()
+                .push(uuid.clone())
+        }
+
         let vault = Self {
             masterkey,
             salt,
             nonce,
             path,
             groups,
+            children,
             entries,
             unsaved_entry_bodies: HashMap::new(),
             deleted_groups: Vec::new(),
@@ -222,12 +252,31 @@ impl Vault {
 
     /// Insert a new [`Group`](Group) into this [`Vault`](Vault).
     pub fn insert_group(&mut self, group: Group) {
+        // Insert into parent's children.
+        let _ = group
+            .parent()
+            .as_ref()
+            .and_then(|parent| self.children.get_mut(parent))
+            .map(|parent| parent.groups_mut().push(group.uuid().clone()));
+        // Add own children.
+        drop(
+            self.children
+                .insert(group.uuid().clone(), Children::default()),
+        );
         drop(self.groups.insert(group.uuid().clone(), group));
     }
 
     /// TODO
     pub fn delete_group(&mut self, uuid: &Uuid) {
-        if let Some(_group) = self.groups.remove(uuid) {
+        if let Some(group) = self.groups.remove(uuid) {
+            // Remove from parent's children.
+            let _ = group
+                .parent()
+                .as_ref()
+                .and_then(|parent| self.children.get_mut(parent))
+                .map(|parent| parent.groups_mut().retain(|e| e != uuid));
+            // Remove own children.
+            drop(self.children.remove(uuid));
             self.deleted_groups.push(uuid.clone());
         }
     }
@@ -244,6 +293,11 @@ impl Vault {
         entry_body: EntryBody,
         masterkey: &[u8],
     ) -> Result<(), PWDuckCoreError> {
+        // Insert into parent's children.
+        let _ = self
+            .children
+            .get_mut(entry_head.parent())
+            .map(|parent| parent.entries_mut().push(entry_head.uuid().clone()));
         drop(self.entries.insert(entry_head.uuid().clone(), entry_head));
 
         drop(
@@ -257,6 +311,11 @@ impl Vault {
     /// TODO
     pub fn delete_entry(&mut self, uuid: &Uuid) {
         if let Some(entry_head) = self.entries.remove(uuid) {
+            // Remove from parent's children.
+            let _ = self
+                .children
+                .get_mut(entry_head.parent())
+                .map(|parent| parent.entries_mut().retain(|e| e != uuid));
             let entry_body = entry_head.body();
             self.deleted_entries
                 .push((uuid.clone(), entry_body.clone()));
@@ -266,26 +325,29 @@ impl Vault {
     /// Get all [`Group`](Group)s in this [`Vault`] that are the children of the specified parent [`Group`](Group).
     #[must_use]
     pub fn get_groups_of(&self, parent_uuid: &Uuid) -> Vec<&Group> {
-        self.groups
-            .iter()
-            .filter(|(_uuid, group)| {
-                group
-                    .parent()
-                    .as_ref()
-                    .map_or(false, |parent| parent == parent_uuid)
+        self.children
+            .get(parent_uuid)
+            .map_or_else(Vec::new, |parent| {
+                parent
+                    .groups()
+                    .iter()
+                    .map(|group| &self.groups[group])
+                    .collect()
             })
-            .map(|(_uuid, group)| group)
-            .collect()
     }
 
     /// Get all [`EntryHead`](EntryHead)s in this [`Vault`] that are children of the specified parent [`Group`](Group).
     #[must_use]
     pub fn get_entries_of(&self, parent_uuid: &Uuid) -> Vec<&EntryHead> {
-        self.entries
-            .iter()
-            .filter(|(_uuid, entry)| entry.parent() == parent_uuid)
-            .map(|(_uuid, entry)| entry)
-            .collect()
+        self.children
+            .get(parent_uuid)
+            .map_or_else(Vec::new, |parent| {
+                parent
+                    .entries()
+                    .iter()
+                    .map(|entry| &self.entries[entry])
+                    .collect()
+            })
     }
 
     /// Trie, if this [`Vault`](Vault) contains unsaved changes.
@@ -341,6 +403,17 @@ impl Vault {
 
         ItemList { groups, entries }
     }
+}
+
+/// The children of a group.
+#[derive(Clone, Debug, Default, Getters, MutGetters)]
+pub struct Children {
+    /// The list of sub groups.
+    #[getset(get = "pub", get_mut = "pub")]
+    groups: Vec<Uuid>,
+    /// The list of entries.
+    #[getset(get = "pub", get_mut = "pub")]
+    entries: Vec<Uuid>,
 }
 
 /// Filtered collection of [`Group`](Group)s and [`EntryHead`](EntryHead)s.
