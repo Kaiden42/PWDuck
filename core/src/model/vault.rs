@@ -198,7 +198,9 @@ impl Vault {
         let mut children: HashMap<Uuid, Children> = HashMap::new();
 
         for (uuid, group) in &groups {
-            drop(children.insert(uuid.clone(), Children::default()));
+            if !children.contains_key(uuid) {
+                drop(children.insert(uuid.clone(), Children::default()));
+            }
             if let Some(parent) = group.parent() {
                 children
                     .entry(parent.clone())
@@ -257,6 +259,7 @@ impl Vault {
             .parent()
             .as_ref()
             .and_then(|parent| self.children.get_mut(parent))
+            .filter(|parent| !parent.groups().contains(group.uuid())) // TODO: find better way
             .map(|parent| parent.groups_mut().push(group.uuid().clone()));
         // Add own children.
         drop(
@@ -297,6 +300,7 @@ impl Vault {
         let _ = self
             .children
             .get_mut(entry_head.parent())
+            .filter(|parent| !parent.entries().contains(entry_head.uuid())) // TODO: find better way
             .map(|parent| parent.entries_mut().push(entry_head.uuid().clone()));
         drop(self.entries.insert(entry_head.uuid().clone(), entry_head));
 

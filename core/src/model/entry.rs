@@ -25,7 +25,7 @@ pub struct EntryHead {
     parent: Uuid,
 
     /// The title of this entry.
-    #[getset(get = "pub", set = "pub")]
+    #[getset(get = "pub")]
     title: String,
 
     /// The address of the website this entry belongs to.
@@ -130,6 +130,14 @@ impl EntryHead {
         let head = ron::from_str(&content)?;
 
         Ok(head)
+    }
+
+    /// Set the title of this entry.
+    pub fn set_title(&mut self, title: String) -> &mut Self {
+        self.title.zeroize();
+        self.title = title;
+        self.modified = true;
+        self
     }
 
     /// Set the web address of this entry.
