@@ -1,70 +1,106 @@
 //! TODO
 
-use iced::{button, container, text_input, Color, Vector};
-use iced_aw::{card, modal, split, tab_bar};
+use iced::{button, container, slider, text_input, Background, Color, Vector};
+use iced_aw::{card, modal, number_input, split, tab_bar};
 
-/// #02e790
-const PRIMARY: Color = Color::from_rgb(0.008, 0.906, 0.565);
-/// #01dd73
-const PRIMARY_DARK: Color = Color::from_rgb(0.004, 0.867, 0.451);
-/// #b3f8de
-const PRIMARY_LIGHT: Color = Color::from_rgb(0.702, 0.973, 0.871);
+// TODO: replace this with constant functions once floating-point arithmetic is const
+// see <https://github.com/rust-lang/rust/issues/57241>
+use lazy_static::lazy_static;
+lazy_static! {
+    /// The primary color (#02e790).
+    static ref PRIMARY_1: Color = Color::from_rgb(0.008, 0.906, 0.565);
+    /// The primary color with a shade of 10%.
+    static ref PRIMARY_2: Color = shade(*PRIMARY_1, 0.9);
+    /// The primary color with a shade of 20%.
+    static ref PRIMARY_3: Color = shade(*PRIMARY_1, 0.8);
+    /// The primary color with a shade of 30%.
+    static ref PRIMARY_4: Color = shade(*PRIMARY_1, 0.7);
+    /// The primary color with a shade of 40%.
+    static ref PRIMARY_5: Color = shade(*PRIMARY_1, 0.6);
+    /// The primary color with a shade of 50%.
+    static ref PRIMARY_6: Color = shade(*PRIMARY_1, 0.5);
+    /// The secondary color (#797979).
+    static ref SECONDARY_1: Color = Color::from_rgb(0.475, 0.475, 0.475);
+    /// The secondary color with a shade of 10%.
+    static ref SECONDARY_2: Color = shade(*SECONDARY_1, 0.9);
+    /// The secondary color with a shade of 20%.
+    static ref SECONDARY_3: Color = shade(*SECONDARY_1, 0.8);
+    /// The secondary color with a shade of 30%.
+    static ref SECONDARY_4: Color = shade(*SECONDARY_1, 0.7);
+    /// The secondary color with a shade of 40%.
+    static ref SECONDARY_5: Color = shade(*SECONDARY_1, 0.6);
+    /// The secondary color with a shade of 50%.
+    static ref SECONDARY_6: Color = shade(*SECONDARY_1, 0.5);
+    /// The warning color (#ff0000)
+    static ref WARNING_1: Color = Color::from_rgb(1.0, 0.0, 0.0);
+    /// The warning color with a shade of 10%.
+    static ref WARNING_2: Color = shade(*WARNING_1, 0.9);
+    /// The warning color with a shade of 20%.
+    static ref WARNING_3: Color = shade(*WARNING_1, 0.8);
+    /// The warning color with a shade of 30%.
+    static ref WARNING_4: Color = shade(*WARNING_1, 0.7);
+    /// The warning color with a shade of 40%.
+    static ref WARNING_5: Color = shade(*WARNING_1, 0.6);
+    /// The warning color with a shade of 50%.
+    static ref WARNING_6: Color = shade(*WARNING_1, 0.5);
+    /// The text color of the light theme (#000000).
+    static ref TEXT_LIGHT: Color = Color::from_rgb(0.0, 0.0, 0.0);
+    /// The text color of the dark theme (#ffffff).
+    static ref TEXT_DARK: Color = Color::from_rgb(1.0, 1.0, 1.0);
+    /// The background color of the light theme (#fafafa).
+    static ref BACKGROUND_LIGHT: Color = Color::from_rgb(0.98, 0.98, 0.98);
+    /// The background color of the dark theme (#2c2c2c).
+    static ref BACKGROUND_DARK: Color = Color::from_rgb(0.173, 0.173, 0.173);
+}
+/// Calculates the tint of the given color based on the specified tint-factor.
+/// Thanks to: <https://maketintsandshades.com/about>
+fn tint(mut color: Color, factor: f32) -> Color {
+    color.r += (1.0 - color.r) * factor;
+    color.g += (1.0 - color.g) * factor;
+    color.b += (1.0 - color.b) * factor;
+    color
+}
 
-/// #797979
-const ACCENT: Color = Color::from_rgb(0.475, 0.475, 0.475);
-/// #5c5c5c
-const ACCENT_DARK: Color = Color::from_rgb(0.361, 0.361, 0.361);
-/// #d7d7d7
-const ACCENT_LIGHT: Color = Color::from_rgb(0.843, 0.843, 0.843);
-
-/// #ff0000
-const WARNING: Color = Color::from_rgb(1.0, 0.0, 0.0);
-/// #ff0000
-const WARNING_DARK: Color = Color::from_rgb(1.0, 0.0, 0.0);
-/// #ffb3b3
-const WARNING_LIGHT: Color = Color::from_rgb(1.0, 0.702, 0.702);
-
-/// #000000
-const TEXT_LIGHT: Color = Color::from_rgb(0.0, 0.0, 0.0);
-/// #ffffff
-const TEXT_DARK: Color = Color::from_rgb(1.0, 1.0, 1.0);
-
-/// #fafafa
-const BACKGROUND_LIGHT: Color = Color::from_rgb(0.98, 0.98, 0.98);
-/// #2c2c2c
-const BACKGROUND_DARK: Color = Color::from_rgb(0.173, 0.173, 0.173);
+/// Calculates the shade of the given color based on the specified shade-factor.
+/// Thanks to: <https://maketintsandshades.com/about>
+fn shade(mut color: Color, factor: f32) -> Color {
+    color.r *= factor;
+    color.g *= factor;
+    color.b *= factor;
+    color
+}
 
 /// The theme of the application.
 pub trait Theme: std::fmt::Debug {
-    /// The style sheet of a text input.
+    /// The style sheet of a [`TextInput`](iced::TextInput).
     fn text_input(&self) -> Box<dyn text_input::StyleSheet>;
     /// The style sheet if the password mismatch.
     fn password_missmatch(&self) -> Box<dyn text_input::StyleSheet>;
 
-    /// The style sheet of a container.
+    /// The style sheet of a [`Container`](iced::Container).
     fn container(&self) -> Box<dyn container::StyleSheet>;
-    /// The style sheet of a container with accent.
+    /// The style sheet of a [`Container`](iced::Container) with accent.
     fn container_accent(&self) -> Box<dyn container::StyleSheet>;
 
-    /// The style sheet of a default button.
+    /// The style sheet of a default [`Button`](iced::Button).
     fn button(&self) -> Box<dyn button::StyleSheet>;
-    /// The style sheet of a primary button.
+    /// The style sheet of a primary [`Button`](iced::Button).
     fn button_primary(&self) -> Box<dyn button::StyleSheet>;
-    /// The style sheet of a warning button.
+    /// The style sheet of a warning [`Button`](iced::Button).
     fn button_warning(&self) -> Box<dyn button::StyleSheet>;
 
-    /// The style sheet of a default modal.
+    /// The style sheet of a default [`Modal`](iced_aw::Modal).
     fn modal(&self) -> Box<dyn modal::StyleSheet>;
-    /// The style sheet of a warning modal.
+    /// The style sheet of a warning [`Modal`](iced_aw::Modal).
     fn modal_warning(&self) -> Box<dyn modal::StyleSheet>;
-    /// The style sheet of a default card.
+    /// The style sheet of a default [`Card`](iced_aw::Card).
     fn card(&self) -> Box<dyn card::StyleSheet>;
-    /// The style sheet of a warning card.
+    /// The style sheet of a warning [`Card`](iced_aw::Card).
     fn card_warning(&self) -> Box<dyn card::StyleSheet>;
 
-    /// The style sheet of the `TabBar`.
+    /// The style sheet of the [`TabBar`](iced_aw::TabBar).
     fn tab_bar(&self) -> Box<dyn tab_bar::StyleSheet>;
-    /// The style sheet of the `Split`.
+    /// The style sheet of the [`Split`](iced_aw::Split).
     fn split(&self) -> Box<dyn split::StyleSheet>;
 
     /// The style sheet of a group list item.
@@ -72,22 +108,27 @@ pub trait Theme: std::fmt::Debug {
     /// The style sheet of an entry list item.
     fn list_item_entry(&self) -> Box<dyn button::StyleSheet>;
 
-    /// The style sheet of the tooltip.
+    /// The style sheet of the [`Tooltip`](iced::Tooltip).
     fn tooltip(&self) -> Box<dyn container::StyleSheet>;
-    /// The style sheet for an active toggle button;
+    /// The style sheet for an active toggle [`Button`](iced::Button);
     fn toggle_button_active(&self) -> Box<dyn button::StyleSheet>;
-    /// The style sheet for an inactive toggle button.
+    /// The style sheet for an inactive toggle [`Button`](iced::Button).
     fn toggle_button_inactive(&self) -> Box<dyn button::StyleSheet>;
-    /// The style sheet of the toggle button for the advanced area.
+    /// The style sheet of the toggle [`Button`](iced::Button) for the advanced area.
     fn toggle_button_advanced_area(&self) -> Box<dyn button::StyleSheet>;
 
     /// The style sheet of a tree node.
     fn tree_node(&self) -> Box<dyn button::StyleSheet>;
-    /// The style sheet of the expand button of the tree view.
+    /// The style sheet of the expand [`Button`](iced::Button) of the tree view.
     fn tree_expand_button(&self) -> Box<dyn button::StyleSheet>;
+
+    /// The style sheet of a [`NumberInput`](iced::Button).
+    fn number_input(&self) -> Box<dyn number_input::StyleSheet>;
+    /// The style sheet of a [`Slider`](iced::Slider).
+    fn slider(&self) -> Box<dyn slider::StyleSheet>;
 }
 
-/// TODO
+/// The light theme of the application.
 #[derive(Debug)]
 pub struct Light;
 
@@ -98,16 +139,16 @@ impl Theme for Light {
         impl text_input::StyleSheet for Style {
             fn active(&self) -> text_input::Style {
                 text_input::Style {
-                    background: BACKGROUND_LIGHT.into(),
+                    background: Background::Color(*BACKGROUND_LIGHT),
                     border_radius: 5.0,
                     border_width: 1.0,
-                    border_color: ACCENT_LIGHT,
+                    border_color: *SECONDARY_1,
                 }
             }
 
             fn focused(&self) -> text_input::Style {
                 text_input::Style {
-                    border_color: PRIMARY,
+                    border_color: *PRIMARY_2,
                     ..self.active()
                 }
             }
@@ -115,18 +156,18 @@ impl Theme for Light {
             fn placeholder_color(&self) -> Color {
                 Color {
                     a: 0.87,
-                    ..TEXT_LIGHT
+                    ..*TEXT_LIGHT
                 }
             }
 
             fn value_color(&self) -> Color {
-                TEXT_LIGHT
+                *TEXT_LIGHT
             }
 
             fn selection_color(&self) -> Color {
                 Color {
                     a: 0.87,
-                    ..TEXT_LIGHT
+                    ..*TEXT_LIGHT
                 }
             }
         }
@@ -139,10 +180,10 @@ impl Theme for Light {
         impl text_input::StyleSheet for Style {
             fn active(&self) -> text_input::Style {
                 text_input::Style {
-                    background: BACKGROUND_LIGHT.into(),
+                    background: Background::Color(*BACKGROUND_LIGHT),
                     border_radius: 5.0,
                     border_width: 1.0,
-                    border_color: WARNING,
+                    border_color: *WARNING_2,
                 }
             }
 
@@ -151,15 +192,21 @@ impl Theme for Light {
             }
 
             fn placeholder_color(&self) -> Color {
-                Color { a: 0.87, ..WARNING }
+                Color {
+                    a: 0.87,
+                    ..*WARNING_2
+                }
             }
 
             fn value_color(&self) -> Color {
-                WARNING
+                *WARNING_2
             }
 
             fn selection_color(&self) -> Color {
-                Color { a: 0.87, ..WARNING }
+                Color {
+                    a: 0.87,
+                    ..*WARNING_2
+                }
             }
         }
         Style.into()
@@ -171,8 +218,8 @@ impl Theme for Light {
         impl container::StyleSheet for Style {
             fn style(&self) -> container::Style {
                 container::Style {
-                    text_color: Some(TEXT_LIGHT),
-                    background: Some(BACKGROUND_LIGHT.into()),
+                    text_color: Some(*TEXT_LIGHT),
+                    background: Some(Background::Color(*BACKGROUND_LIGHT)),
                     border_radius: 0.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
@@ -188,16 +235,18 @@ impl Theme for Light {
         impl container::StyleSheet for Style {
             fn style(&self) -> container::Style {
                 container::Style {
-                    text_color: Some(TEXT_LIGHT),
+                    text_color: Some(*TEXT_LIGHT),
                     //background: Some(Color::from_rgb(0.97, 0.97, 0.97).into()),
                     background: Some(
-                        Color {
-                            r: BACKGROUND_LIGHT.r - 0.03,
-                            g: BACKGROUND_LIGHT.g - 0.03,
-                            b: BACKGROUND_LIGHT.b - 0.03,
-                            a: BACKGROUND_LIGHT.a,
-                        }
-                        .into(),
+                        //Color {
+                        //    r: BACKGROUND_LIGHT.r + 0.03,
+                        //    g: BACKGROUND_LIGHT.g + 0.03,
+                        //    b: BACKGROUND_LIGHT.b + 0.03,
+                        //    a: BACKGROUND_LIGHT.a,
+                        //}
+                        //.into(),
+                        // TODO
+                        tint(*BACKGROUND_LIGHT, 0.1).into(), //shade(*BACKGROUND_LIGHT, 0.99).into()
                     ),
                     border_radius: 0.0,
                     border_width: 0.0,
@@ -215,11 +264,11 @@ impl Theme for Light {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::default(),
-                    background: Some(PRIMARY_LIGHT.into()),
+                    background: Some(Background::Color(*PRIMARY_1)),
                     border_radius: 5.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_LIGHT,
+                    text_color: *TEXT_LIGHT,
                 }
             }
         }
@@ -233,11 +282,11 @@ impl Theme for Light {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::default(),
-                    background: Some(PRIMARY.into()),
+                    background: Some(Background::Color(*PRIMARY_2)),
                     border_radius: 5.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_LIGHT,
+                    text_color: *TEXT_LIGHT,
                 }
             }
         }
@@ -251,11 +300,11 @@ impl Theme for Light {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::default(),
-                    background: Some(WARNING.into()),
+                    background: Some(Background::Color(*WARNING_2)),
                     border_radius: 5.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_DARK,
+                    text_color: *TEXT_DARK,
                 }
             }
         }
@@ -270,7 +319,7 @@ impl Theme for Light {
                 modal::Style {
                     background: Color {
                         a: 0.3,
-                        ..ACCENT_LIGHT
+                        ..*SECONDARY_1
                     }
                     .into(),
                 }
@@ -287,7 +336,7 @@ impl Theme for Light {
                 modal::Style {
                     background: Color {
                         a: 0.3,
-                        ..WARNING_LIGHT
+                        ..*WARNING_1
                     }
                     .into(),
                 }
@@ -302,17 +351,17 @@ impl Theme for Light {
         impl card::StyleSheet for Style {
             fn active(&self) -> card::Style {
                 card::Style {
-                    background: BACKGROUND_LIGHT.into(),
+                    background: Background::Color(*BACKGROUND_LIGHT),
                     border_radius: 10.0,
                     border_width: 1.0,
-                    border_color: PRIMARY,
-                    head_background: PRIMARY.into(),
-                    head_text_color: TEXT_LIGHT,
+                    border_color: *PRIMARY_2,
+                    head_background: Background::Color(*PRIMARY_2),
+                    head_text_color: *TEXT_LIGHT,
                     body_background: Color::TRANSPARENT.into(),
-                    body_text_color: TEXT_LIGHT,
+                    body_text_color: *TEXT_LIGHT,
                     foot_background: Color::TRANSPARENT.into(),
-                    foot_text_color: TEXT_LIGHT,
-                    close_color: TEXT_LIGHT,
+                    foot_text_color: *TEXT_LIGHT,
+                    close_color: *TEXT_LIGHT,
                 }
             }
         }
@@ -325,17 +374,17 @@ impl Theme for Light {
         impl card::StyleSheet for Style {
             fn active(&self) -> card::Style {
                 card::Style {
-                    background: BACKGROUND_LIGHT.into(),
+                    background: Background::Color(*BACKGROUND_LIGHT),
                     border_radius: 10.0,
                     border_width: 1.0,
-                    border_color: WARNING,
-                    head_background: WARNING.into(),
-                    head_text_color: TEXT_DARK,
+                    border_color: *WARNING_2,
+                    head_background: Background::Color(*WARNING_2),
+                    head_text_color: *TEXT_DARK,
                     body_background: Color::TRANSPARENT.into(),
-                    body_text_color: TEXT_LIGHT,
+                    body_text_color: *TEXT_LIGHT,
                     foot_background: Color::TRANSPARENT.into(),
-                    foot_text_color: TEXT_LIGHT,
-                    close_color: TEXT_DARK,
+                    foot_text_color: *TEXT_LIGHT,
+                    close_color: *TEXT_DARK,
                 }
             }
         }
@@ -351,21 +400,21 @@ impl Theme for Light {
                     background: None,
                     border_color: None,
                     border_width: 0.0,
-                    tab_label_background: if is_active {
-                        PRIMARY.into()
+                    tab_label_background: Background::Color(if is_active {
+                        *PRIMARY_2
                     } else {
-                        PRIMARY_LIGHT.into()
-                    },
+                        *PRIMARY_1
+                    }),
                     tab_label_border_color: Color::TRANSPARENT,
                     tab_label_border_width: 0.0,
-                    icon_color: TEXT_LIGHT,
-                    text_color: TEXT_LIGHT,
+                    icon_color: *TEXT_LIGHT,
+                    text_color: *TEXT_LIGHT,
                 }
             }
 
             fn hovered(&self, is_active: bool) -> tab_bar::Style {
                 tab_bar::Style {
-                    tab_label_background: PRIMARY_DARK.into(),
+                    tab_label_background: Background::Color(*PRIMARY_3),
                     ..self.active(is_active)
                 }
             }
@@ -379,12 +428,12 @@ impl Theme for Light {
         impl split::StyleSheet for Style {
             fn active(&self) -> split::Style {
                 split::Style {
-                    background: Some(BACKGROUND_LIGHT.into()),
-                    first_background: Some(BACKGROUND_LIGHT.into()),
-                    second_background: Some(BACKGROUND_LIGHT.into()),
+                    background: Some(Background::Color(*BACKGROUND_LIGHT)),
+                    first_background: Some(Background::Color(*BACKGROUND_LIGHT)),
+                    second_background: Some(Background::Color(*BACKGROUND_LIGHT)),
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    divider_background: BACKGROUND_LIGHT.into(),
+                    divider_background: Background::Color(*BACKGROUND_LIGHT),
                     divider_border_width: 0.0,
                     divider_border_color: Color::TRANSPARENT,
                 }
@@ -392,14 +441,14 @@ impl Theme for Light {
 
             fn hovered(&self) -> split::Style {
                 split::Style {
-                    divider_background: ACCENT_LIGHT.into(),
+                    divider_background: Background::Color(*SECONDARY_1),
                     ..self.active()
                 }
             }
 
             fn dragged(&self) -> split::Style {
                 split::Style {
-                    divider_background: ACCENT_DARK.into(),
+                    divider_background: Background::Color(*SECONDARY_3),
                     ..self.active()
                 }
             }
@@ -414,11 +463,11 @@ impl Theme for Light {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::new(1.0, 1.0),
-                    background: Some(BACKGROUND_LIGHT.into()),
+                    background: Some(Background::Color(*BACKGROUND_LIGHT)),
                     border_radius: 2.0,
                     border_width: 1.0,
-                    border_color: ACCENT,
-                    text_color: TEXT_LIGHT,
+                    border_color: *SECONDARY_2,
+                    text_color: *TEXT_LIGHT,
                 }
             }
         }
@@ -432,11 +481,11 @@ impl Theme for Light {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::new(1.0, 1.0),
-                    background: Some(BACKGROUND_LIGHT.into()),
+                    background: Some(Background::Color(*BACKGROUND_LIGHT)),
                     border_radius: 2.0,
                     border_width: 1.0,
-                    border_color: ACCENT_LIGHT,
-                    text_color: TEXT_LIGHT,
+                    border_color: *SECONDARY_1,
+                    text_color: *TEXT_LIGHT,
                 }
             }
         }
@@ -449,11 +498,11 @@ impl Theme for Light {
         impl container::StyleSheet for Style {
             fn style(&self) -> container::Style {
                 container::Style {
-                    text_color: Some(TEXT_LIGHT),
-                    background: Some(BACKGROUND_LIGHT.into()),
+                    text_color: Some(*TEXT_LIGHT),
+                    background: Some(Background::Color(*BACKGROUND_LIGHT)),
                     border_radius: 5.0,
                     border_width: 1.0,
-                    border_color: ACCENT_LIGHT,
+                    border_color: *SECONDARY_1,
                 }
             }
         }
@@ -467,11 +516,11 @@ impl Theme for Light {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::new(0.0, 0.0),
-                    background: Some(PRIMARY.into()),
+                    background: Some(Background::Color(*PRIMARY_2)),
                     border_radius: 2.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_LIGHT,
+                    text_color: *TEXT_LIGHT,
                 }
             }
         }
@@ -485,11 +534,11 @@ impl Theme for Light {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::new(0.0, 0.0),
-                    background: Some(PRIMARY_LIGHT.into()),
+                    background: Some(Background::Color(*PRIMARY_1)),
                     border_radius: 2.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_LIGHT,
+                    text_color: *TEXT_LIGHT,
                 }
             }
         }
@@ -507,7 +556,7 @@ impl Theme for Light {
                     border_radius: 0.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_LIGHT,
+                    text_color: *TEXT_LIGHT,
                 }
             }
         }
@@ -525,13 +574,13 @@ impl Theme for Light {
                     border_radius: 0.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_LIGHT,
+                    text_color: *TEXT_LIGHT,
                 }
             }
 
             fn hovered(&self) -> button::Style {
                 button::Style {
-                    background: Some(PRIMARY_LIGHT.into()),
+                    background: Some(Background::Color(*PRIMARY_1)),
                     ..self.active()
                 }
             }
@@ -546,20 +595,84 @@ impl Theme for Light {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::new(0.0, 0.0),
-                    background: Some(BACKGROUND_LIGHT.into()),
+                    background: Some(Background::Color(*BACKGROUND_LIGHT)),
                     border_radius: 2.0,
                     border_width: 1.0,
-                    border_color: PRIMARY,
-                    text_color: PRIMARY,
+                    border_color: *PRIMARY_2,
+                    text_color: *PRIMARY_2,
                 }
             }
 
             fn hovered(&self) -> button::Style {
                 button::Style {
-                    background: Some(PRIMARY.into()),
-                    border_color: PRIMARY,
-                    text_color: BACKGROUND_LIGHT,
+                    background: Some(Background::Color(*PRIMARY_2)),
+                    border_color: *PRIMARY_2,
+                    text_color: *BACKGROUND_LIGHT,
                     ..self.active()
+                }
+            }
+        }
+        Style.into()
+    }
+
+    #[allow(clippy::missing_docs_in_private_items)]
+    fn number_input(&self) -> Box<dyn number_input::StyleSheet> {
+        struct Style;
+        impl number_input::StyleSheet for Style {
+            fn active(&self) -> number_input::Style {
+                number_input::Style {
+                    button_background: None,
+                    icon_color: *TEXT_LIGHT,
+                }
+            }
+        }
+        Style.into()
+    }
+
+    #[allow(clippy::missing_docs_in_private_items)]
+    fn slider(&self) -> Box<dyn slider::StyleSheet> {
+        struct Style;
+        impl slider::StyleSheet for Style {
+            fn active(&self) -> slider::Style {
+                slider::Style {
+                    rail_colors: (
+                        Color {
+                            a: 0.5,
+                            ..*SECONDARY_6
+                        },
+                        *BACKGROUND_LIGHT,
+                    ),
+                    handle: iced::slider::Handle {
+                        shape: iced::slider::HandleShape::Rectangle {
+                            width: 8,
+                            border_radius: 4.0,
+                        },
+                        color: *SECONDARY_4,
+                        border_color: *SECONDARY_5,
+                        border_width: 1.0,
+                    },
+                }
+            }
+
+            fn hovered(&self) -> slider::Style {
+                let active = self.active();
+                slider::Style {
+                    handle: iced::slider::Handle {
+                        color: *SECONDARY_6,
+                        ..active.handle
+                    },
+                    ..active
+                }
+            }
+
+            fn dragging(&self) -> slider::Style {
+                let active = self.active();
+                slider::Style {
+                    handle: iced::slider::Handle {
+                        color: *SECONDARY_5,
+                        ..active.handle
+                    },
+                    ..active
                 }
             }
         }
@@ -573,26 +686,27 @@ impl From<Light> for Box<dyn Theme> {
     }
 }
 
-/// TODO
+/// The dark theme of the application.
 #[derive(Debug)]
 pub struct Dark;
 
 impl Theme for Dark {
+    #[allow(clippy::missing_docs_in_private_items)]
     fn text_input(&self) -> Box<dyn text_input::StyleSheet> {
         struct Style;
         impl text_input::StyleSheet for Style {
             fn active(&self) -> text_input::Style {
                 text_input::Style {
-                    background: BACKGROUND_DARK.into(),
+                    background: Background::Color(*BACKGROUND_DARK),
                     border_radius: 5.0,
                     border_width: 1.0,
-                    border_color: ACCENT_LIGHT,
+                    border_color: *SECONDARY_6,
                 }
             }
 
             fn focused(&self) -> text_input::Style {
                 text_input::Style {
-                    border_color: PRIMARY,
+                    border_color: *PRIMARY_5,
                     ..self.active()
                 }
             }
@@ -600,33 +714,34 @@ impl Theme for Dark {
             fn placeholder_color(&self) -> Color {
                 Color {
                     a: 0.87,
-                    ..TEXT_DARK
+                    ..*TEXT_DARK
                 }
             }
 
             fn value_color(&self) -> Color {
-                TEXT_DARK
+                *TEXT_DARK
             }
 
             fn selection_color(&self) -> Color {
                 Color {
                     a: 0.87,
-                    ..TEXT_DARK
+                    ..*TEXT_DARK
                 }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn password_missmatch(&self) -> Box<dyn text_input::StyleSheet> {
         struct Style;
         impl text_input::StyleSheet for Style {
             fn active(&self) -> text_input::Style {
                 text_input::Style {
-                    background: BACKGROUND_DARK.into(),
+                    background: Background::Color(*BACKGROUND_DARK),
                     border_radius: 5.0,
                     border_width: 1.0,
-                    border_color: WARNING,
+                    border_color: *WARNING_5,
                 }
             }
 
@@ -635,27 +750,34 @@ impl Theme for Dark {
             }
 
             fn placeholder_color(&self) -> Color {
-                Color { a: 0.87, ..WARNING }
+                Color {
+                    a: 0.87,
+                    ..*WARNING_5
+                }
             }
 
             fn value_color(&self) -> Color {
-                WARNING
+                *WARNING_5
             }
 
             fn selection_color(&self) -> Color {
-                Color { a: 0.87, ..WARNING }
+                Color {
+                    a: 0.87,
+                    ..*WARNING_5
+                }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn container(&self) -> Box<dyn container::StyleSheet> {
         struct Style;
         impl container::StyleSheet for Style {
             fn style(&self) -> container::Style {
                 container::Style {
-                    text_color: Some(TEXT_DARK),
-                    background: Some(BACKGROUND_DARK.into()),
+                    text_color: Some(*TEXT_DARK),
+                    background: Some(Background::Color(*BACKGROUND_DARK)),
                     border_radius: 0.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
@@ -665,20 +787,23 @@ impl Theme for Dark {
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn container_accent(&self) -> Box<dyn container::StyleSheet> {
         struct Style;
         impl container::StyleSheet for Style {
             fn style(&self) -> container::Style {
                 container::Style {
-                    text_color: Some(TEXT_DARK),
+                    text_color: Some(*TEXT_DARK),
                     background: Some(
-                        Color {
-                            r: BACKGROUND_DARK.r + 0.03,
-                            g: BACKGROUND_DARK.g + 0.03,
-                            b: BACKGROUND_DARK.b + 0.03,
-                            a: BACKGROUND_DARK.a,
-                        }
-                        .into(),
+                        //Color {
+                        //    r: BACKGROUND_DARK.r + 0.03,
+                        //    g: BACKGROUND_DARK.g + 0.03,
+                        //    b: BACKGROUND_DARK.b + 0.03,
+                        //    a: BACKGROUND_DARK.a,
+                        //}
+                        //.into(),
+                        // TODO
+                        tint(*BACKGROUND_DARK, 0.03).into(),
                     ),
                     border_radius: 0.0,
                     border_width: 0.0,
@@ -689,57 +814,61 @@ impl Theme for Dark {
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn button(&self) -> Box<dyn button::StyleSheet> {
         struct Style;
         impl button::StyleSheet for Style {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::default(),
-                    background: Some(PRIMARY_LIGHT.into()),
+                    background: Some(Background::Color(*PRIMARY_6)),
                     border_radius: 5.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_DARK,
+                    text_color: *TEXT_DARK,
                 }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn button_primary(&self) -> Box<dyn button::StyleSheet> {
         struct Style;
         impl button::StyleSheet for Style {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::default(),
-                    background: Some(PRIMARY.into()),
+                    background: Some(Background::Color(*PRIMARY_5)),
                     border_radius: 5.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_DARK,
+                    text_color: *TEXT_DARK,
                 }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn button_warning(&self) -> Box<dyn button::StyleSheet> {
         struct Style;
         impl button::StyleSheet for Style {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::default(),
-                    background: Some(WARNING.into()),
+                    background: Some(Background::Color(*WARNING_5)),
                     border_radius: 5.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_DARK,
+                    text_color: *TEXT_DARK,
                 }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn modal(&self) -> Box<dyn modal::StyleSheet> {
         struct Style;
         impl modal::StyleSheet for Style {
@@ -747,7 +876,7 @@ impl Theme for Dark {
                 modal::Style {
                     background: Color {
                         a: 0.3,
-                        ..ACCENT_DARK
+                        ..*SECONDARY_6
                     }
                     .into(),
                 }
@@ -756,6 +885,7 @@ impl Theme for Dark {
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn modal_warning(&self) -> Box<dyn modal::StyleSheet> {
         struct Style;
         impl modal::StyleSheet for Style {
@@ -763,7 +893,7 @@ impl Theme for Dark {
                 modal::Style {
                     background: Color {
                         a: 0.3,
-                        ..WARNING_DARK
+                        ..*WARNING_6
                     }
                     .into(),
                 }
@@ -772,50 +902,53 @@ impl Theme for Dark {
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn card(&self) -> Box<dyn card::StyleSheet> {
         struct Style;
         impl card::StyleSheet for Style {
             fn active(&self) -> card::Style {
                 card::Style {
-                    background: BACKGROUND_DARK.into(),
+                    background: Background::Color(*BACKGROUND_DARK),
                     border_radius: 10.0,
                     border_width: 1.0,
-                    border_color: PRIMARY,
-                    head_background: PRIMARY.into(),
-                    head_text_color: TEXT_DARK,
+                    border_color: *PRIMARY_5,
+                    head_background: Background::Color(*PRIMARY_5),
+                    head_text_color: *TEXT_DARK,
                     body_background: Color::TRANSPARENT.into(),
-                    body_text_color: TEXT_DARK,
+                    body_text_color: *TEXT_DARK,
                     foot_background: Color::TRANSPARENT.into(),
-                    foot_text_color: TEXT_DARK,
-                    close_color: TEXT_DARK,
+                    foot_text_color: *TEXT_DARK,
+                    close_color: *TEXT_DARK,
                 }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn card_warning(&self) -> Box<dyn card::StyleSheet> {
         struct Style;
         impl card::StyleSheet for Style {
             fn active(&self) -> card::Style {
                 card::Style {
-                    background: BACKGROUND_DARK.into(),
+                    background: Background::Color(*BACKGROUND_DARK),
                     border_radius: 10.0,
                     border_width: 1.0,
-                    border_color: WARNING,
-                    head_background: WARNING.into(),
-                    head_text_color: TEXT_DARK,
+                    border_color: *WARNING_5,
+                    head_background: Background::Color(*WARNING_5),
+                    head_text_color: *TEXT_DARK,
                     body_background: Color::TRANSPARENT.into(),
-                    body_text_color: TEXT_DARK,
+                    body_text_color: *TEXT_DARK,
                     foot_background: Color::TRANSPARENT.into(),
-                    foot_text_color: TEXT_DARK,
-                    close_color: TEXT_DARK,
+                    foot_text_color: *TEXT_DARK,
+                    close_color: *TEXT_DARK,
                 }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn tab_bar(&self) -> Box<dyn tab_bar::StyleSheet> {
         struct Style;
         impl tab_bar::StyleSheet for Style {
@@ -824,21 +957,21 @@ impl Theme for Dark {
                     background: None,
                     border_color: None,
                     border_width: 0.0,
-                    tab_label_background: if is_active {
-                        PRIMARY.into()
+                    tab_label_background: Background::Color(if is_active {
+                        *PRIMARY_5
                     } else {
-                        PRIMARY_LIGHT.into()
-                    },
+                        *PRIMARY_6
+                    }),
                     tab_label_border_color: Color::TRANSPARENT,
                     tab_label_border_width: 0.0,
-                    icon_color: TEXT_DARK,
-                    text_color: TEXT_DARK,
+                    icon_color: *TEXT_DARK,
+                    text_color: *TEXT_DARK,
                 }
             }
 
             fn hovered(&self, is_active: bool) -> tab_bar::Style {
                 tab_bar::Style {
-                    tab_label_background: PRIMARY_DARK.into(),
+                    tab_label_background: Background::Color(*PRIMARY_4),
                     ..self.active(is_active)
                 }
             }
@@ -846,17 +979,18 @@ impl Theme for Dark {
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn split(&self) -> Box<dyn split::StyleSheet> {
         struct Style;
         impl split::StyleSheet for Style {
             fn active(&self) -> split::Style {
                 split::Style {
-                    background: Some(BACKGROUND_DARK.into()),
-                    first_background: Some(BACKGROUND_DARK.into()),
-                    second_background: Some(BACKGROUND_DARK.into()),
+                    background: Some(Background::Color(*BACKGROUND_DARK)),
+                    first_background: Some(Background::Color(*BACKGROUND_DARK)),
+                    second_background: Some(Background::Color(*BACKGROUND_DARK)),
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    divider_background: BACKGROUND_DARK.into(),
+                    divider_background: Background::Color(*BACKGROUND_DARK),
                     divider_border_width: 0.0,
                     divider_border_color: Color::TRANSPARENT,
                 }
@@ -864,14 +998,14 @@ impl Theme for Dark {
 
             fn hovered(&self) -> split::Style {
                 split::Style {
-                    divider_background: ACCENT_DARK.into(),
+                    divider_background: Background::Color(*SECONDARY_6),
                     ..self.active()
                 }
             }
 
             fn dragged(&self) -> split::Style {
                 split::Style {
-                    divider_background: ACCENT_LIGHT.into(),
+                    divider_background: Background::Color(*SECONDARY_4),
                     ..self.active()
                 }
             }
@@ -879,90 +1013,96 @@ impl Theme for Dark {
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn list_item_group(&self) -> Box<dyn button::StyleSheet> {
         struct Style;
         impl button::StyleSheet for Style {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::new(1.0, 1.0),
-                    background: Some(BACKGROUND_DARK.into()),
+                    background: Some(Background::Color(*BACKGROUND_DARK)),
                     border_radius: 2.0,
                     border_width: 1.0,
-                    border_color: ACCENT_DARK,
-                    text_color: TEXT_DARK,
+                    border_color: *SECONDARY_5,
+                    text_color: *TEXT_DARK,
                 }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn list_item_entry(&self) -> Box<dyn button::StyleSheet> {
         struct Style;
         impl button::StyleSheet for Style {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::new(1.0, 1.0),
-                    background: Some(BACKGROUND_DARK.into()),
+                    background: Some(Background::Color(*BACKGROUND_DARK)),
                     border_radius: 2.0,
                     border_width: 1.0,
-                    border_color: ACCENT,
-                    text_color: TEXT_DARK,
+                    border_color: *SECONDARY_6,
+                    text_color: *TEXT_DARK,
                 }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn tooltip(&self) -> Box<dyn container::StyleSheet> {
         struct Style;
         impl container::StyleSheet for Style {
             fn style(&self) -> container::Style {
                 container::Style {
-                    text_color: Some(TEXT_DARK),
-                    background: Some(BACKGROUND_DARK.into()),
+                    text_color: Some(*TEXT_DARK),
+                    background: Some(Background::Color(*BACKGROUND_DARK)),
                     border_radius: 5.0,
                     border_width: 1.0,
-                    border_color: ACCENT_DARK,
+                    border_color: *SECONDARY_6,
                 }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn toggle_button_active(&self) -> Box<dyn button::StyleSheet> {
         struct Style;
         impl button::StyleSheet for Style {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::new(0.0, 0.0),
-                    background: Some(PRIMARY.into()),
+                    background: Some(Background::Color(*PRIMARY_5)),
                     border_radius: 2.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_DARK,
+                    text_color: *TEXT_DARK,
                 }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn toggle_button_inactive(&self) -> Box<dyn button::StyleSheet> {
         struct Style;
         impl button::StyleSheet for Style {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::new(0.0, 0.0),
-                    background: Some(PRIMARY_LIGHT.into()),
+                    background: Some(Background::Color(*PRIMARY_6)),
                     border_radius: 2.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_DARK,
+                    text_color: *TEXT_DARK,
                 }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn toggle_button_advanced_area(&self) -> Box<dyn button::StyleSheet> {
         struct Style;
         impl button::StyleSheet for Style {
@@ -973,13 +1113,14 @@ impl Theme for Dark {
                     border_radius: 0.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_DARK,
+                    text_color: *TEXT_DARK,
                 }
             }
         }
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn tree_node(&self) -> Box<dyn button::StyleSheet> {
         struct Style;
         impl button::StyleSheet for Style {
@@ -990,13 +1131,13 @@ impl Theme for Dark {
                     border_radius: 0.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
-                    text_color: TEXT_DARK,
+                    text_color: *TEXT_DARK,
                 }
             }
 
             fn hovered(&self) -> button::Style {
                 button::Style {
-                    background: Some(PRIMARY_DARK.into()),
+                    background: Some(Background::Color(*PRIMARY_6)),
                     ..self.active()
                 }
             }
@@ -1004,26 +1145,91 @@ impl Theme for Dark {
         Style.into()
     }
 
+    #[allow(clippy::missing_docs_in_private_items)]
     fn tree_expand_button(&self) -> Box<dyn button::StyleSheet> {
         struct Style;
         impl button::StyleSheet for Style {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::new(0.0, 0.0),
-                    background: Some(BACKGROUND_DARK.into()),
+                    background: Some(Background::Color(*BACKGROUND_DARK)),
                     border_radius: 2.0,
                     border_width: 1.0,
-                    border_color: PRIMARY_DARK,
-                    text_color: PRIMARY_DARK,
+                    border_color: *PRIMARY_5,
+                    text_color: *PRIMARY_5,
                 }
             }
 
             fn hovered(&self) -> button::Style {
                 button::Style {
-                    background: Some(PRIMARY.into()),
-                    border_color: PRIMARY,
-                    text_color: BACKGROUND_DARK,
+                    background: Some(Background::Color(*PRIMARY_5)),
+                    border_color: *PRIMARY_5,
+                    text_color: *BACKGROUND_DARK,
                     ..self.active()
+                }
+            }
+        }
+        Style.into()
+    }
+
+    #[allow(clippy::missing_docs_in_private_items)]
+    fn number_input(&self) -> Box<dyn number_input::StyleSheet> {
+        struct Style;
+        impl number_input::StyleSheet for Style {
+            fn active(&self) -> number_input::Style {
+                number_input::Style {
+                    button_background: None,
+                    icon_color: *TEXT_DARK,
+                }
+            }
+        }
+        Style.into()
+    }
+
+    #[allow(clippy::missing_docs_in_private_items)]
+    fn slider(&self) -> Box<dyn slider::StyleSheet> {
+        struct Style;
+        impl slider::StyleSheet for Style {
+            fn active(&self) -> slider::Style {
+                slider::Style {
+                    rail_colors: (
+                        Color {
+                            a: 0.5,
+                            ..*SECONDARY_1
+                        },
+                        *BACKGROUND_DARK,
+                    ),
+                    handle: iced::slider::Handle {
+                        shape: iced::slider::HandleShape::Rectangle {
+                            width: 8,
+                            border_radius: 4.0,
+                        },
+                        color: *SECONDARY_3,
+                        border_color: *SECONDARY_2,
+                        border_width: 1.0,
+                    },
+                }
+            }
+
+            fn hovered(&self) -> slider::Style {
+                let active = self.active();
+                slider::Style {
+                    handle: iced::slider::Handle {
+                        color: *SECONDARY_1,
+                        ..active.handle
+                    },
+                    ..active
+                }
+            }
+
+            fn dragging(&self) -> slider::Style {
+                let active = self.active();
+                slider::Style {
+                    handle: iced::slider::Handle {
+                        color: *SECONDARY_2,
+                        ..active.handle
+                    },
+                    ..active
                 }
             }
         }

@@ -106,14 +106,17 @@ impl PasswordTabState {
             RangeInclusive::new(0, 128),
             self.length,
             PasswordTabMessage::LengthSlider,
-        );
+        )
+        .style(theme.slider());
 
         let length_number_input = NumberInput::new(
             &mut self.length_input_state,
             self.length,
             128,
             PasswordTabMessage::LengthInput,
-        );
+        )
+        .style(theme.number_input())
+        .input_style(theme.text_input());
 
         let length_row = Row::new()
             .spacing(DEFAULT_ROW_SPACING)

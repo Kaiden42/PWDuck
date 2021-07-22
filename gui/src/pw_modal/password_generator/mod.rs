@@ -272,6 +272,7 @@ impl PasswordGeneratorState {
             &self.password,
             PasswordGeneratorMessage::PasswordInput,
         )
+        .style(theme.text_input())
         .padding(DEFAULT_TEXT_INPUT_PADDING);
         if !self.password_show {
             password = password.password();
@@ -366,7 +367,7 @@ impl PasswordGeneratorState {
                     state: &mut self.submit_state,
                     icon: Icon::Save,
                     text: "Submit",
-                    kind: ButtonKind::Normal,
+                    kind: ButtonKind::Primary,
                     on_press: Some(PasswordGeneratorMessage::Submit),
                 },
                 "Submit generated password",

@@ -753,7 +753,8 @@ impl AdvancedState {
             "AutoType sequence",
             entry_head.auto_type_sequence(),
             AdvancedStateMessage::AutoTypeInput,
-        );
+        )
+        .style(theme.text_input());
 
         Column::new()
             .spacing(DEFAULT_COLUMN_SPACING)

@@ -49,8 +49,8 @@ use std::{marker::PhantomData, path::PathBuf};
 
 use async_trait::async_trait;
 use iced::{
-    button, executor, tooltip, Application, Button, Column, Command, Element, Length, Row,
-    Settings, Subscription, Text, Tooltip,
+    button, executor, tooltip, Application, Button, Column, Command, Container, Element, Length,
+    Row, Settings, Subscription, Text, Tooltip,
 };
 
 pub mod error;
@@ -284,8 +284,8 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                 can_exit: false,
                 phantom: PhantomData,
 
-                //theme: theme::Light.into(),
-                theme: theme::Dark.into(),
+                theme: theme::Light.into(),
+                //theme: theme::Dark.into(),
             },
             Command::none(),
         )
@@ -462,10 +462,15 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
             ModalState::Password(_) => self.theme.modal(),
             _ => self.theme.modal_warning(),
         };
-        Modal::new(&mut self.modal_state, content, move |state| {
-            state.view(selected_tab, theme)
-        })
-        .style(modal_style)
+        Container::new(
+            Modal::new(&mut self.modal_state, content, move |state| {
+                state.view(selected_tab, theme)
+            })
+            .style(modal_style),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(self.theme.container())
         .into()
     }
 
