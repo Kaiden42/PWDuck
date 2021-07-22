@@ -8,7 +8,8 @@ use iced::{
 use iced_aw::{number_input, NumberInput};
 
 use crate::{
-    error::PWDuckGuiError, utils::vertical_space, DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING,
+    error::PWDuckGuiError, theme::Theme, utils::vertical_space, DEFAULT_COLUMN_SPACING,
+    DEFAULT_ROW_SPACING,
 };
 
 use bitflags::bitflags;
@@ -97,7 +98,7 @@ impl PasswordTabState {
     }
 
     /// Create the view of the [`PasswordTabState`](PasswordTabState).
-    pub fn view(&mut self) -> Element<PasswordTabMessage> {
+    pub fn view(&mut self, theme: &dyn Theme) -> Element<PasswordTabMessage> {
         let length = Text::new("Length:");
 
         let length_slider = Slider::new(
@@ -125,28 +126,36 @@ impl PasswordTabState {
 
         let mut include_upper = Button::new(&mut self.include_upper_state, Text::new("A-Z"))
             .on_press(PasswordTabMessage::IncludeUpper);
-        if self.flags.contains(Flags::INCLUDE_UPPER) {
-            include_upper = include_upper.style(ActivatedButtonStyle);
-        }
+        include_upper = include_upper.style(if self.flags.contains(Flags::INCLUDE_UPPER) {
+            theme.toggle_button_active()
+        } else {
+            theme.toggle_button_inactive()
+        });
 
         let mut include_lower = Button::new(&mut self.include_lower_state, Text::new("a-z"))
             .on_press(PasswordTabMessage::IncludeLower);
-        if self.flags.contains(Flags::INCLUDE_LOWER) {
-            include_lower = include_lower.style(ActivatedButtonStyle);
-        }
+        include_lower = include_lower.style(if self.flags.contains(Flags::INCLUDE_LOWER) {
+            theme.toggle_button_active()
+        } else {
+            theme.toggle_button_inactive()
+        });
 
         let mut include_numbers = Button::new(&mut self.include_numbers_state, Text::new("0-9"))
             .on_press(PasswordTabMessage::IncludeNumbers);
-        if self.flags.contains(Flags::INCLUDE_NUMBERS) {
-            include_numbers = include_numbers.style(ActivatedButtonStyle)
-        }
+        include_numbers = include_numbers.style(if self.flags.contains(Flags::INCLUDE_NUMBERS) {
+            theme.toggle_button_active()
+        } else {
+            theme.toggle_button_inactive()
+        });
 
         let mut include_special =
             Button::new(&mut self.include_special_state, Text::new("&?!*..."))
                 .on_press(PasswordTabMessage::IncludeSpecial);
-        if self.flags.contains(Flags::INCLUDE_SPECIAL) {
-            include_special = include_special.style(ActivatedButtonStyle)
-        }
+        include_special = include_special.style(if self.flags.contains(Flags::INCLUDE_SPECIAL) {
+            theme.toggle_button_active()
+        } else {
+            theme.toggle_button_inactive()
+        });
 
         let character_container = Container::new(
             Row::new()
@@ -209,20 +218,5 @@ bitflags! {
 impl Default for Flags {
     fn default() -> Self {
         Self::all()
-    }
-}
-
-/// The style of the toggle buttons.
-#[derive(Debug, Default)]
-struct ActivatedButtonStyle;
-
-impl button::StyleSheet for ActivatedButtonStyle {
-    fn active(&self) -> button::Style {
-        button::Style {
-            shadow_offset: iced::Vector::default(),
-            background: Some(iced::Color::from_rgb(0.2, 0.7, 0.2).into()),
-            border_color: iced::Color::BLACK,
-            ..button::Style::default()
-        }
     }
 }

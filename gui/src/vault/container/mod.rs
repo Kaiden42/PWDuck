@@ -21,8 +21,8 @@ use toolbar::ToolBar;
 pub use toolbar::ToolBarMessage;
 
 use crate::{
-    error::PWDuckGuiError, utils::default_vertical_space, Component, Platform, Viewport,
-    DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING,
+    error::PWDuckGuiError, theme::Theme, utils::default_vertical_space, Component, Platform,
+    Viewport, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING,
 };
 
 use self::list::ListItemMessage;
@@ -508,6 +508,7 @@ impl Component for VaultContainer {
 
     fn view<P: Platform + 'static>(
         &mut self,
+        theme: &dyn Theme,
         viewport: &Viewport,
     ) -> iced::Element<'_, Self::Message> {
         let mut flags = toolbar::Flags::empty();
@@ -527,25 +528,25 @@ impl Component for VaultContainer {
 
         let tool_bar = self
             .tool_bar
-            .view(flags)
+            .view(flags, theme)
             .map(VaultContainerMessage::ToolBar);
 
         let body = match self.current_view {
             CurrentView::ListView => self
                 .list_view
-                .view(&self.vault, viewport)
+                .view(&self.vault, theme, viewport)
                 .map(VaultContainerMessage::List),
 
             CurrentView::ModifyGroup => match &mut self.modify_group_view {
                 Some(modify_group_view) => modify_group_view
-                    .view(&self.vault, self.list_view.selected_group_uuid())
+                    .view(&self.vault, self.list_view.selected_group_uuid(), theme)
                     .map(VaultContainerMessage::ModifyGroup),
                 None => unreachable!(),
             },
 
             CurrentView::ModifyEntry => match &mut self.modify_entry_view {
                 Some(modify_enty_view) => modify_enty_view
-                    .view::<P>(self.list_view.selected_group_uuid())
+                    .view::<P>(self.list_view.selected_group_uuid(), theme)
                     .map(VaultContainerMessage::ModifyEntry),
                 None => unreachable!(),
             },
@@ -559,6 +560,7 @@ impl Component for VaultContainer {
                 .push(default_vertical_space())
                 .push(body),
         )
+        .style(theme.container())
         .width(Length::Fill)
         .height(Length::Fill)
         .into()

@@ -1,10 +1,7 @@
 //! TODO
 
 use getset::{Getters, Setters};
-use iced::{
-    button, container, text_input, Column, Command, Container, Element, Length, Row, Text,
-    TextInput,
-};
+use iced::{button, text_input, Column, Command, Container, Element, Length, Row, Text, TextInput};
 use iced_aw::{Card, TabBar, TabLabel};
 use lazy_static::__Deref;
 use pwduck_core::{PWDuckCoreError, PasswordInfo, SecString};
@@ -13,9 +10,10 @@ use crate::{
     error::PWDuckGuiError,
     icons::Icon,
     password_score::PasswordScore,
+    theme::Theme,
     utils::{
         centered_container_with_column, default_vertical_space, estimate_password_strength,
-        icon_button, password_toggle, vertical_space,
+        icon_button, password_toggle, vertical_space, ButtonData, ButtonKind,
     },
     vault::{
         container::ModifyEntryMessage,
@@ -264,7 +262,8 @@ impl PasswordGeneratorState {
     }
 
     /// Create the view of the [`PasswordGeneratorState`](PasswordGeneratorState).
-    pub fn view(&mut self) -> Element<PasswordGeneratorMessage> {
+    #[allow(clippy::too_many_lines)]
+    pub fn view(&mut self, theme: &dyn Theme) -> Element<PasswordGeneratorMessage> {
         let head = Text::new("Generate new password");
 
         let mut password = TextInput::new(
@@ -282,24 +281,33 @@ impl PasswordGeneratorState {
             &mut self.password_show_state,
             self.password_show,
             PasswordGeneratorMessage::PasswordShow,
+            theme,
         );
 
         let password_copy = icon_button(
-            &mut self.password_copy_state,
-            Icon::FileEarmarkLock,
-            "Copy Password",
-            "Copy Password to clipboard",
+            ButtonData {
+                state: &mut self.password_copy_state,
+                icon: Icon::FileEarmarkLock,
+                text: "Copy password",
+                kind: ButtonKind::Normal,
+                on_press: Some(PasswordGeneratorMessage::PasswordCopy),
+            },
+            "Copy password to clipboard",
             true,
-            Some(PasswordGeneratorMessage::PasswordCopy),
+            theme,
         );
 
         let password_reroll = icon_button(
-            &mut self.password_reroll_state,
-            Icon::ArrowClockwise,
-            "Reroll",
-            "Reroll Password",
+            ButtonData {
+                state: &mut self.password_reroll_state,
+                icon: Icon::ArrowClockwise,
+                text: "Reroll",
+                kind: ButtonKind::Normal,
+                on_press: Some(PasswordGeneratorMessage::PasswordReroll),
+            },
+            "Reroll password",
             true,
-            Some(PasswordGeneratorMessage::PasswordReroll),
+            theme,
         );
 
         let password_row = Row::new()
@@ -315,20 +323,24 @@ impl PasswordGeneratorState {
         );
 
         let tab_bar = TabBar::new(self.active_tab, PasswordGeneratorMessage::TabSelected)
+            .style(theme.tab_bar())
             .push(TabLabel::Text("Password".into()))
             .push(TabLabel::Text("Passphrase".into()));
 
-        let tab_content = centered_container_with_column(vec![match self.active_tab {
-            0 => self
-                .password_tab_state
-                .view()
-                .map(PasswordGeneratorMessage::PasswordTabMessage),
-            _ => self
-                .passphrase_tab_state
-                .view()
-                .map(PasswordGeneratorMessage::PassphraseTabMessage),
-        }])
-        .style(TabContainerStyle)
+        let tab_content = centered_container_with_column(
+            vec![match self.active_tab {
+                0 => self
+                    .password_tab_state
+                    .view(theme)
+                    .map(PasswordGeneratorMessage::PasswordTabMessage),
+                _ => self
+                    .passphrase_tab_state
+                    .view()
+                    .map(PasswordGeneratorMessage::PassphraseTabMessage),
+            }],
+            theme,
+        )
+        .style(theme.container())
         .height(Length::Shrink);
 
         let tabs = Column::new().push(tab_bar).push(tab_content);
@@ -336,36 +348,48 @@ impl PasswordGeneratorState {
         let mut buttons = Row::new().spacing(DEFAULT_ROW_SPACING);
 
         buttons = buttons.push(icon_button(
-            &mut self.cancel_state,
-            Icon::XSquare,
-            "Cancel",
+            ButtonData {
+                state: &mut self.cancel_state,
+                icon: Icon::XSquare,
+                text: "Cancel",
+                kind: ButtonKind::Normal,
+                on_press: Some(PasswordGeneratorMessage::Cancel),
+            },
             "Cancel password generation",
             false,
-            Some(PasswordGeneratorMessage::Cancel),
+            theme,
         ));
 
         if self.target != Target::None {
             buttons = buttons.push(icon_button(
-                &mut self.submit_state,
-                Icon::Save,
-                "Submit",
+                ButtonData {
+                    state: &mut self.submit_state,
+                    icon: Icon::Save,
+                    text: "Submit",
+                    kind: ButtonKind::Normal,
+                    on_press: Some(PasswordGeneratorMessage::Submit),
+                },
                 "Submit generated password",
                 false,
-                Some(PasswordGeneratorMessage::Submit),
+                theme,
             ));
         }
 
-        let body = centered_container_with_column(vec![
-            password_row.into(),
-            password_score,
-            vertical_space(3).into(),
-            tabs.into(),
-            buttons.into(),
-        ])
+        let body = centered_container_with_column(
+            vec![
+                password_row.into(),
+                password_score,
+                vertical_space(3).into(),
+                tabs.into(),
+                buttons.into(),
+            ],
+            theme,
+        )
         .height(Length::Shrink);
 
         Card::new(head, body)
             .max_width(DEFAULT_MAX_WIDTH)
+            .style(theme.card())
             .on_close(PasswordGeneratorMessage::Cancel)
             .into()
     }
@@ -377,22 +401,6 @@ impl PasswordGeneratorState {
             _ => self.passphrase_tab_state.generate(),
         }
         .into()
-    }
-}
-
-/// The style of the tab container.
-#[derive(Debug, Default)]
-struct TabContainerStyle;
-
-impl container::StyleSheet for TabContainerStyle {
-    fn style(&self) -> container::Style {
-        container::Style {
-            text_color: None,
-            background: None,
-            border_radius: 1.0,
-            border_width: 1.0,
-            border_color: iced::Color::from_rgb(0.8, 0.8, 0.8),
-        }
     }
 }
 

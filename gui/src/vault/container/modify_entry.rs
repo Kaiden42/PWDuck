@@ -12,9 +12,10 @@ use crate::{
     error::PWDuckGuiError,
     icons::{Icon, ICON_FONT},
     password_score::PasswordScore,
+    theme::Theme,
     utils::{
         centered_container_with_column, default_text_input, default_vertical_space,
-        estimate_password_strength, icon_button, password_toggle, SomeIf,
+        estimate_password_strength, icon_button, password_toggle, ButtonData, ButtonKind, SomeIf,
     },
     Platform, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_MAX_WIDTH,
     DEFAULT_ROW_SPACING,
@@ -347,12 +348,14 @@ impl ModifyEntryView {
     pub fn view<P: Platform + 'static>(
         &mut self,
         _selected_group_uuid: &Uuid,
+        theme: &dyn Theme,
     ) -> Element<ModifyEntryMessage> {
-        let title = title_text_input(&mut self.title_state, self.entry_head.title());
+        let title = title_text_input(&mut self.title_state, self.entry_head.title(), theme);
         let username = username_row(
             &mut self.username_state,
             self.entry_body.username(),
             &mut self.username_copy_state,
+            theme,
         );
         let password = password_row(
             &mut self.password_state,
@@ -362,13 +365,15 @@ impl ModifyEntryView {
             &mut self.password_generate_state,
             &mut self.password_copy_state,
             &mut self.password_score,
+            theme,
         );
         let web_address = web_address_row::<P>(
             &mut self.web_address_state,
             self.entry_head.web_address(),
             &mut self.open_in_browser_state,
+            theme,
         );
-        let email = email_text_input(&mut self.email_state, self.entry_body.email());
+        let email = email_text_input(&mut self.email_state, self.entry_body.email(), theme);
 
         //let password_score: Element<_> = self.password_score.as_mut().map_or_else(
         //    || Container::new(default_vertical_space()).into(),
@@ -380,6 +385,7 @@ impl ModifyEntryView {
             &mut self.submit_state,
             (self.entry_head.is_modified() || self.entry_body.is_modified())
                 && !self.entry_head.title().is_empty(),
+            theme,
         );
 
         let advanced = advanced_area::<P>(
@@ -388,6 +394,7 @@ impl ModifyEntryView {
             &mut self.advanced_state,
             &self.entry_head,
             &self.entry_body,
+            theme,
         );
 
         let scrollable = Scrollable::new(&mut self.scroll_state)
@@ -409,7 +416,7 @@ impl ModifyEntryView {
             .push(default_vertical_space())
             .push(advanced);
 
-        centered_container_with_column(vec![scrollable.into()]).into()
+        centered_container_with_column(vec![scrollable.into()], theme).into()
     }
 }
 
@@ -417,6 +424,7 @@ impl ModifyEntryView {
 fn title_text_input<'a>(
     state: &'a mut text_input::State,
     title: &'a str,
+    theme: &dyn Theme,
 ) -> Element<'a, ModifyEntryMessage> {
     default_text_input(
         state,
@@ -424,6 +432,7 @@ fn title_text_input<'a>(
         title,
         ModifyEntryMessage::TitleInput,
     )
+    .style(theme.text_input())
     .into()
 }
 
@@ -432,21 +441,27 @@ fn username_row<'a>(
     text_input_state: &'a mut text_input::State,
     username: &'a str,
     button_state: &'a mut button::State,
+    theme: &dyn Theme,
 ) -> Element<'a, ModifyEntryMessage> {
     let username = default_text_input(
         text_input_state,
         "Username",
         username,
         ModifyEntryMessage::UsernameInput,
-    );
+    )
+    .style(theme.text_input());
 
     let username_copy = icon_button(
-        button_state,
-        Icon::FileEarmarkPerson,
-        "Copy Username",
-        "Copy Username to clipboard",
+        ButtonData {
+            state: button_state,
+            icon: Icon::FileEarmarkPerson,
+            text: "Copy username",
+            kind: ButtonKind::Normal,
+            on_press: Some(ModifyEntryMessage::UsernameCopy),
+        },
+        "Copy username to clipboard",
         true,
-        Some(ModifyEntryMessage::UsernameCopy),
+        theme,
     );
 
     Row::new()
@@ -457,6 +472,7 @@ fn username_row<'a>(
 }
 
 /// Create the row for the password field.
+#[allow(clippy::too_many_arguments)]
 fn password_row<'a>(
     text_input_state: &'a mut text_input::State,
     password: &'a str,
@@ -465,13 +481,15 @@ fn password_row<'a>(
     generate_state: &'a mut button::State,
     copy_state: &'a mut button::State,
     password_score: &'a mut Option<PasswordScore>,
+    theme: &dyn Theme,
 ) -> Element<'a, ModifyEntryMessage> {
     let mut password = default_text_input(
         text_input_state,
         "Password",
         password,
         ModifyEntryMessage::PasswordInput,
-    );
+    )
+    .style(theme.text_input());
     if !show_password {
         password = password.password();
     }
@@ -480,23 +498,32 @@ fn password_row<'a>(
         toggle_state,
         show_password,
         ModifyEntryMessage::PasswordShow,
+        theme,
     );
 
     let password_generate = icon_button(
-        generate_state,
-        Icon::Dice3,
-        "Generate Password",
-        "Generate a random password",
+        ButtonData {
+            state: generate_state,
+            icon: Icon::Dice3,
+            text: "Generate password",
+            kind: ButtonKind::Normal,
+            on_press: Some(ModifyEntryMessage::PasswordGenerate),
+        },
+        "Generate a new random password",
         true,
-        Some(ModifyEntryMessage::PasswordGenerate),
+        theme,
     );
     let password_copy = icon_button(
-        copy_state,
-        Icon::FileEarmarkLock,
-        "Copy Password",
-        "Copy Password to clipboard",
+        ButtonData {
+            state: copy_state,
+            icon: Icon::FileEarmarkLock,
+            text: "Copy password",
+            kind: ButtonKind::Normal,
+            on_press: Some(ModifyEntryMessage::PasswordCopy),
+        },
+        "Copy password to clipboard",
         true,
-        Some(ModifyEntryMessage::PasswordCopy),
+        theme,
     );
 
     let row = Row::new()
@@ -531,21 +558,27 @@ fn web_address_row<'a, P: Platform + 'static>(
     text_input_state: &'a mut text_input::State,
     web_address: &'a str,
     button_state: &'a mut button::State,
+    theme: &dyn Theme,
 ) -> Element<'a, ModifyEntryMessage> {
     let web_address = default_text_input(
         text_input_state,
         "Web address",
         web_address,
         ModifyEntryMessage::WebAddressInput,
-    );
+    )
+    .style(theme.text_input());
 
     let open_in_browser = icon_button(
-        button_state,
-        Icon::Globe2,
-        "Open in browser",
+        ButtonData {
+            state: button_state,
+            icon: Icon::Globe2,
+            text: "Open in browser",
+            kind: ButtonKind::Normal,
+            on_press: ModifyEntryMessage::OpenInBrowser.some_if(P::is_open_in_browser_available()),
+        },
         "Open the web address in a browser",
         true,
-        ModifyEntryMessage::OpenInBrowser.some_if(P::is_open_in_browser_available()),
+        theme,
     );
 
     Row::new()
@@ -559,6 +592,7 @@ fn web_address_row<'a, P: Platform + 'static>(
 fn email_text_input<'a>(
     text_input_state: &'a mut text_input::State,
     email: &'a str,
+    theme: &dyn Theme,
 ) -> Element<'a, ModifyEntryMessage> {
     default_text_input(
         text_input_state,
@@ -566,6 +600,7 @@ fn email_text_input<'a>(
         email,
         ModifyEntryMessage::EmailInput,
     )
+    .style(theme.text_input())
     .into()
 }
 
@@ -574,24 +609,32 @@ fn control_button_row<'a>(
     cancel_button_state: &'a mut button::State,
     submit_button_state: &'a mut button::State,
     can_submit: bool,
+    theme: &dyn Theme,
 ) -> Element<'a, ModifyEntryMessage> {
     let cancel = icon_button(
-        cancel_button_state,
-        Icon::XSquare,
-        "Cancel",
+        ButtonData {
+            state: cancel_button_state,
+            icon: Icon::XSquare,
+            text: "Cancel",
+            kind: ButtonKind::Normal,
+            on_press: Some(ModifyEntryMessage::Cancel),
+        },
         "Cancel changes",
         false,
-        Some(ModifyEntryMessage::Cancel),
+        theme,
     );
 
     let submit = icon_button(
-        submit_button_state,
-        Icon::Save,
-        "Submit",
+        ButtonData {
+            state: submit_button_state,
+            icon: Icon::Save,
+            text: "Submit",
+            kind: ButtonKind::Primary,
+            on_press: ModifyEntryMessage::Submit.some_if(can_submit),
+        },
         "Submit changes",
         false,
-        //Some(ModifyEntryMessage::Submit)
-        ModifyEntryMessage::Submit.some_if(can_submit),
+        theme,
     );
 
     Row::new()
@@ -608,6 +651,7 @@ fn advanced_area<'a, P: Platform + 'static>(
     advanced_state: &'a mut AdvancedState,
     entry_head: &'a EntryHead,
     entry_body: &'a EntryBody,
+    theme: &dyn Theme,
 ) -> Element<'a, ModifyEntryMessage> {
     let advanced_button = Button::new(
         button_state,
@@ -623,12 +667,12 @@ fn advanced_area<'a, P: Platform + 'static>(
             )
             .push(Text::new("Advanced")),
     )
-    .style(ToggleAdvancedButtonStyle)
+    .style(theme.toggle_button_advanced_area())
     .on_press(ModifyEntryMessage::ToggleAdvanced);
 
     let advanced: Element<_> = if show_advanced {
         advanced_state
-            .view::<P>(entry_head, entry_body)
+            .view::<P>(entry_head, entry_body, theme)
             .map(ModifyEntryMessage::Advanced)
     } else {
         Space::new(Length::Fill, Length::Shrink).into()
@@ -654,23 +698,6 @@ pub enum State {
     Create,
     /// An existing entry will be modified.
     Modify,
-}
-
-/// The style of the toggler to toggle the advanced view.
-#[derive(Clone, Copy, Debug)]
-struct ToggleAdvancedButtonStyle;
-
-impl button::StyleSheet for ToggleAdvancedButtonStyle {
-    fn active(&self) -> button::Style {
-        button::Style {
-            shadow_offset: iced::Vector::new(0.0, 0.0),
-            background: iced::Color::TRANSPARENT.into(),
-            border_radius: 0.0,
-            border_width: 0.0,
-            border_color: iced::Color::TRANSPARENT,
-            text_color: iced::Color::BLACK,
-        }
-    }
 }
 
 /// The state of the advanced view.
@@ -704,14 +731,19 @@ impl AdvancedState {
         &mut self,
         entry_head: &EntryHead,
         _entry_body: &EntryBody,
+        theme: &dyn Theme,
     ) -> Element<AdvancedStateMessage> {
         let delete = icon_button(
-            &mut self.delete,
-            Icon::Trash,
-            "Delete",
+            ButtonData {
+                state: &mut self.delete,
+                icon: Icon::Trash,
+                text: "Delete",
+                kind: ButtonKind::Warning,
+                on_press: Some(AdvancedStateMessage::DeleteEntryRequest),
+            },
             "Delete this entry",
             false,
-            Some(AdvancedStateMessage::DeleteEntryRequest),
+            theme,
         );
 
         let auto_type_label = Text::new("AutoType sequence:");
@@ -767,7 +799,7 @@ impl ModifyEntryModal {
     }
 
     /// Create the view of the modal.
-    pub fn view(&mut self) -> Element<'_, ModifyEntryModalMessage> {
+    pub fn view(&mut self, theme: &dyn Theme) -> Element<'_, ModifyEntryModalMessage> {
         match self {
             ModifyEntryModal::DeleteRequest {
                 cancel_button_state,
@@ -780,22 +812,31 @@ impl ModifyEntryModal {
                 Row::new()
                     .spacing(DEFAULT_ROW_SPACING)
                     .push(icon_button(
-                        cancel_button_state,
-                        Icon::XSquare,
-                        "Cancel",
+                        ButtonData {
+                            state: cancel_button_state,
+                            icon: Icon::XSquare,
+                            text: "Cancel",
+                            kind: ButtonKind::Normal,
+                            on_press: Some(ModifyEntryModalMessage::Close),
+                        },
                         "Cancel the deletion of the entry",
                         false,
-                        Some(ModifyEntryModalMessage::Close),
+                        theme,
                     ))
                     .push(icon_button(
-                        submit_button_state,
-                        Icon::Save,
-                        "Submit",
+                        ButtonData {
+                            state: submit_button_state,
+                            icon: Icon::Save,
+                            text: "Submit",
+                            kind: ButtonKind::Warning,
+                            on_press: Some(ModifyEntryModalMessage::SubmitDelete),
+                        },
                         "Submit the deletion of the entry",
                         false,
-                        Some(ModifyEntryModalMessage::SubmitDelete),
+                        theme,
                     )),
             )
+            .style(theme.card_warning())
             .max_width(DEFAULT_MAX_WIDTH)
             .into(),
             ModifyEntryModal::None => Text::new("This message should never appear!").into(),

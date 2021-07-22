@@ -9,8 +9,10 @@ use zeroize::Zeroize;
 use crate::{
     error::{NfdError, PWDuckGuiError},
     icons::Icon,
+    theme::Theme,
     utils::{
-        centered_container_with_column, default_text_input, icon_button, password_toggle, SomeIf,
+        centered_container_with_column, default_text_input, icon_button, password_toggle,
+        ButtonData, ButtonKind, SomeIf,
     },
     Component, Platform, Viewport, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING,
 };
@@ -167,16 +169,21 @@ impl Component for VaultLoader {
 
     fn view<P: Platform + 'static>(
         &mut self,
+        theme: &dyn Theme,
         _viewport: &Viewport,
         //platform: &dyn Platform
     ) -> iced::Element<'_, Self::Message> {
         let path_fd_button = icon_button(
-            &mut self.path_open_fd_state,
-            Icon::Folder,
-            "Open",
-            "Select directory of the vault",
+            ButtonData {
+                state: &mut self.path_open_fd_state,
+                icon: Icon::Folder,
+                text: "Open",
+                kind: ButtonKind::Normal,
+                on_press: VaultLoaderMessage::OpenFileDialog.some_if(P::is_nfd_available()),
+            },
+            "Select the directory of the vault",
             true,
-            VaultLoaderMessage::OpenFileDialog.some_if(P::is_nfd_available()),
+            theme,
         );
 
         let vault_path = default_text_input(
@@ -184,14 +191,16 @@ impl Component for VaultLoader {
             "Choose a Vault",
             &self.path,
             VaultLoaderMessage::PathInput,
-        );
+        )
+        .style(theme.text_input());
 
         let mut password = default_text_input(
             &mut self.password_state,
             "Password",
             &self.password,
             VaultLoaderMessage::PasswordInput,
-        );
+        )
+        .style(theme.text_input());
         if !self.show_password {
             password = password.password();
         }
@@ -200,47 +209,59 @@ impl Component for VaultLoader {
             &mut self.show_password_state,
             self.show_password,
             VaultLoaderMessage::ShowPassword,
+            theme,
         );
 
         let create = icon_button(
-            &mut self.create_state,
-            Icon::Safe,
-            "Create new",
+            ButtonData {
+                state: &mut self.create_state,
+                icon: Icon::Safe,
+                text: "Create new",
+                kind: ButtonKind::Normal,
+                on_press: Some(VaultLoaderMessage::Create),
+            },
             "Create a new vault",
             false,
-            Some(VaultLoaderMessage::Create),
+            theme,
         );
 
         let unlock_vault = icon_button(
-            &mut self.confirm_state,
-            Icon::Unlock,
-            "Unlock",
+            ButtonData {
+                state: &mut self.confirm_state,
+                icon: Icon::Unlock,
+                text: "Unlock",
+                kind: ButtonKind::Primary,
+                on_press: VaultLoaderMessage::Confirm
+                    .some_if_not(self.path.is_empty() || self.password.is_empty()),
+            },
             "Unlock vault",
             false,
-            VaultLoaderMessage::Confirm
-                .some_if_not(self.path.is_empty() || self.password.is_empty()),
+            theme,
         );
 
-        centered_container_with_column(vec![
-            Text::new("Open existing Vault:")
-                .size(DEFAULT_HEADER_SIZE)
-                .into(),
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(vault_path)
-                .push(path_fd_button)
-                .into(),
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(password)
-                .push(show_password)
-                .into(),
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(create)
-                .push(unlock_vault)
-                .into(),
-        ])
+        centered_container_with_column(
+            vec![
+                Text::new("Open existing Vault:")
+                    .size(DEFAULT_HEADER_SIZE)
+                    .into(),
+                Row::new()
+                    .spacing(DEFAULT_ROW_SPACING)
+                    .push(vault_path)
+                    .push(path_fd_button)
+                    .into(),
+                Row::new()
+                    .spacing(DEFAULT_ROW_SPACING)
+                    .push(password)
+                    .push(show_password)
+                    .into(),
+                Row::new()
+                    .spacing(DEFAULT_ROW_SPACING)
+                    .push(create)
+                    .push(unlock_vault)
+                    .into(),
+            ],
+            theme,
+        )
         .into()
     }
 }

@@ -11,9 +11,10 @@ use pwduck_core::{Group, Uuid, Vault};
 use crate::{
     error::PWDuckGuiError,
     icons::{Icon, ICON_FONT},
+    theme::Theme,
     utils::{
         centered_container_with_column, default_text_input, default_vertical_space, icon_button,
-        SomeIf,
+        ButtonData, ButtonKind, SomeIf,
     },
     DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING,
 };
@@ -190,6 +191,7 @@ impl ModifyGroupView {
         &mut self,
         vault: &Vault,
         selected_group_uuid: &Uuid,
+        theme: &dyn Theme,
     ) -> Element<ModifyGroupMessage> {
         let name = default_text_input(
             &mut self.title_state,
@@ -199,27 +201,35 @@ impl ModifyGroupView {
             },
             self.group.title(),
             ModifyGroupMessage::TitleInput,
-        );
+        )
+        .style(theme.text_input());
 
         let group = vault.groups().get(selected_group_uuid).unwrap();
 
         let cancel = icon_button(
-            &mut self.cancel_state,
-            Icon::XSquare,
-            "Cancel",
+            ButtonData {
+                state: &mut self.cancel_state,
+                icon: Icon::XSquare,
+                text: "Cancel",
+                kind: ButtonKind::Normal,
+                on_press: Some(ModifyGroupMessage::Cancel),
+            },
             "Cancel changes",
             false,
-            Some(ModifyGroupMessage::Cancel),
+            theme,
         );
 
         let submit = icon_button(
-            &mut self.submit_state,
-            Icon::Save,
-            "Submit",
+            ButtonData {
+                state: &mut self.submit_state,
+                icon: Icon::Save,
+                text: "Submit",
+                kind: ButtonKind::Primary,
+                on_press: ModifyGroupMessage::Submit.some_if(self.group.is_modified()),
+            },
             "Submit changes",
             false,
-            //Some(ModifyGroupMessage::Submit),
-            ModifyGroupMessage::Submit.some_if(self.group.is_modified()),
+            theme,
         );
 
         let parent_name = if group.title().is_empty() {
@@ -233,6 +243,7 @@ impl ModifyGroupView {
             self.show_advanced,
             &mut self.advanced_state,
             &self.group,
+            theme,
         );
 
         let scrollable = Scrollable::new(&mut self.scrollable_state)
@@ -253,7 +264,7 @@ impl ModifyGroupView {
             .push(default_vertical_space())
             .push(advanced);
 
-        centered_container_with_column(vec![scrollable.into()]).into()
+        centered_container_with_column(vec![scrollable.into()], theme).into()
     }
 }
 
@@ -263,6 +274,7 @@ fn advanced_area<'a>(
     show_advanced: bool,
     advanced_state: &'a mut AdvancedState,
     group: &Group,
+    theme: &dyn Theme,
 ) -> Element<'a, ModifyGroupMessage> {
     let advanced_button = Button::new(
         button_state,
@@ -278,11 +290,13 @@ fn advanced_area<'a>(
             )
             .push(Text::new("Advanced")),
     )
-    .style(ToggleAdvancedButtonStyle)
+    .style(theme.toggle_button_advanced_area())
     .on_press(ModifyGroupMessage::ToggleAdvanced);
 
     let advanced: Element<_> = if show_advanced {
-        advanced_state.view(group).map(ModifyGroupMessage::Advanced)
+        advanced_state
+            .view(group, theme)
+            .map(ModifyGroupMessage::Advanced)
     } else {
         Space::new(Length::Fill, Length::Shrink).into()
     };
@@ -301,23 +315,6 @@ pub enum State {
     Create,
     /// An existing group will be modified.
     Modify,
-}
-
-/// The style of the toggler to toggle the advanced view.
-#[derive(Clone, Copy, Debug)]
-struct ToggleAdvancedButtonStyle;
-
-impl button::StyleSheet for ToggleAdvancedButtonStyle {
-    fn active(&self) -> button::Style {
-        button::Style {
-            shadow_offset: iced::Vector::new(0.0, 0.0),
-            background: iced::Color::TRANSPARENT.into(),
-            border_radius: 0.0,
-            border_width: 0.0,
-            border_color: iced::Color::TRANSPARENT,
-            text_color: iced::Color::BLACK,
-        }
-    }
 }
 
 /// The state of the advanced view.
@@ -343,14 +340,18 @@ impl AdvancedState {
     }
 
     /// Create the advanced view.
-    pub fn view(&mut self, _group: &Group) -> Element<AdvancedStateMessage> {
+    pub fn view(&mut self, _group: &Group, theme: &dyn Theme) -> Element<AdvancedStateMessage> {
         let delete = icon_button(
-            &mut self.delete,
-            Icon::Trash,
-            "Delete",
+            ButtonData {
+                state: &mut self.delete,
+                icon: Icon::Trash,
+                text: "Delete",
+                kind: ButtonKind::Warning,
+                on_press: Some(AdvancedStateMessage::DeleteGroupRequest),
+            },
             "Delete this group",
             false,
-            Some(AdvancedStateMessage::DeleteGroupRequest),
+            theme,
         );
 
         Column::new()
@@ -406,7 +407,7 @@ impl ModifyGroupModal {
     }
 
     /// Create the view of the modal.
-    pub fn view(&mut self) -> Element<'_, ModifyGroupModalMessage> {
+    pub fn view(&mut self, theme: &dyn Theme) -> Element<'_, ModifyGroupModalMessage> {
         match self {
             ModifyGroupModal::DeleteRequest { cancel_button_state, submit_button_state } => {
                 Card::new(
@@ -417,22 +418,31 @@ impl ModifyGroupModal {
                     Row::new()
                         .spacing(DEFAULT_ROW_SPACING)
                         .push(icon_button(
-                            cancel_button_state,
-                            Icon::XSquare,
-                            "Cancel",
+                            ButtonData {
+                                state: cancel_button_state,
+                                icon: Icon::XSquare,
+                                text: "Cancel",
+                                kind: ButtonKind::Normal,
+                                on_press: Some(ModifyGroupModalMessage::Close),
+                            },
                             "Cancel the deletion of the group",
                             false,
-                            Some(ModifyGroupModalMessage::Close),
+                            theme
                         ))
                         .push(icon_button(
-                            submit_button_state,
-                            Icon::Save,
-                            "Submit",
+                            ButtonData {
+                                state: submit_button_state,
+                                icon: Icon::Save,
+                                text: "Submit",
+                                kind: ButtonKind::Warning,
+                                on_press: Some(ModifyGroupModalMessage::SubmitDelete),
+                            },
                             "Submit the deletion of the group",
                             false,
-                            Some(ModifyGroupModalMessage::SubmitDelete),
-                        )),
+                            theme
+                        ))
                 )
+                .style(theme.card_warning())
                 .max_width(DEFAULT_MAX_WIDTH)
                 .into()
             },
@@ -442,13 +452,18 @@ impl ModifyGroupModal {
                     Text::new("This group is not empty and cannot be deleted. Remove all subgroups and entries first before you delete this group.")
                 )
                 .foot(icon_button(
-                    cancel_button_state,
-                    Icon::XSquare,
-                    "Cancel",
+                    ButtonData {
+                        state: cancel_button_state,
+                        icon: Icon::XSquare,
+                        text: "Cancel",
+                        kind: ButtonKind::Normal,
+                        on_press: Some(ModifyGroupModalMessage::Close),
+                    },
                     "Close this modal",
                     false,
-                    Some(ModifyGroupModalMessage::Close)
+                    theme
                 ))
+                .style(theme.card_warning())
                 .max_width(DEFAULT_MAX_WIDTH)
                 .into()
             },

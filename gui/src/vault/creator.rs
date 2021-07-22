@@ -10,9 +10,10 @@ use crate::{
     error::{NfdError, PWDuckGuiError},
     icons::Icon,
     password_score::PasswordScore,
+    theme::Theme,
     utils::{
         centered_container_with_column, default_text_input, default_vertical_space,
-        estimate_password_strength, icon_button, password_toggle, SomeIf,
+        estimate_password_strength, icon_button, password_toggle, ButtonData, ButtonKind, SomeIf,
     },
     Component, Platform, Viewport, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING,
 };
@@ -232,6 +233,7 @@ impl Component for VaultCreator {
 
     fn view<P: Platform + 'static>(
         &mut self,
+        theme: &dyn Theme,
         _viewport: &Viewport,
     ) -> iced::Element<'_, Self::Message> {
         let name = default_text_input(
@@ -239,12 +241,14 @@ impl Component for VaultCreator {
             "Enter the name of your new vault",
             &self.name,
             VaultCreatorMessage::NameInput,
-        );
+        )
+        .style(theme.text_input());
 
         let path_row = path_row::<P>(
             &mut self.path_state,
             &self.path,
             &mut self.path_open_fd_state,
+            theme,
         );
 
         let password_row = password_row(
@@ -252,6 +256,7 @@ impl Component for VaultCreator {
             &self.password,
             self.password_show,
             &mut self.password_show_state,
+            theme,
         );
 
         let password_confirm_row = password_confirm_row(
@@ -261,6 +266,7 @@ impl Component for VaultCreator {
             &mut self.password_confirm_show_state,
             self.password.is_empty(),
             self.password_equal,
+            theme,
         );
 
         let password_score: Element<_> = self.password_score.as_mut().map_or_else(
@@ -275,22 +281,26 @@ impl Component for VaultCreator {
                 && !self.password.is_empty()
                 && !self.name.is_empty()
                 && !self.path.is_empty(),
+            theme,
         );
 
-        centered_container_with_column(vec![
-            Text::new("Create a new Vault:")
-                .size(DEFAULT_HEADER_SIZE)
-                .into(),
-            name.into(),
-            default_vertical_space().into(),
-            path_row,
-            default_vertical_space().into(),
-            password_row,
-            password_confirm_row,
-            password_score,
-            default_vertical_space().into(),
-            button_row,
-        ])
+        centered_container_with_column(
+            vec![
+                Text::new("Create a new Vault:")
+                    .size(DEFAULT_HEADER_SIZE)
+                    .into(),
+                name.into(),
+                default_vertical_space().into(),
+                path_row,
+                default_vertical_space().into(),
+                password_row,
+                password_confirm_row,
+                password_score,
+                default_vertical_space().into(),
+                button_row,
+            ],
+            theme,
+        )
         .into()
     }
 }
@@ -305,21 +315,27 @@ fn path_row<'a, P: Platform + 'static>(
     path_state: &'a mut text_input::State,
     path: &'a str,
     path_open_fd_state: &'a mut button::State,
+    theme: &dyn Theme,
 ) -> Element<'a, VaultCreatorMessage> {
     let path = default_text_input(
         path_state,
         "Choose the location for your new vault",
         path,
         VaultCreatorMessage::PathInput,
-    );
+    )
+    .style(theme.text_input());
 
     let path_fd_button = icon_button(
-        path_open_fd_state,
-        Icon::Folder,
-        "Open",
-        "Choose the location to store your new Vault",
+        ButtonData {
+            state: path_open_fd_state,
+            icon: Icon::Folder,
+            text: "Open",
+            kind: ButtonKind::Normal,
+            on_press: VaultCreatorMessage::PathOpenFD.some_if(P::is_nfd_available()),
+        },
+        "Choose the location to store your new vault",
         true,
-        VaultCreatorMessage::PathOpenFD.some_if(P::is_nfd_available()),
+        theme,
     );
 
     Row::new()
@@ -341,13 +357,15 @@ fn password_row<'a>(
     password: &'a str,
     password_show: bool,
     password_show_state: &'a mut button::State,
+    theme: &dyn Theme,
 ) -> Element<'a, VaultCreatorMessage> {
     let mut password = default_text_input(
         password_state,
         "Enter your password",
         password,
         VaultCreatorMessage::PasswordInput,
-    );
+    )
+    .style(theme.text_input());
     if !password_show {
         password = password.password();
     }
@@ -356,6 +374,7 @@ fn password_row<'a>(
         password_show_state,
         password_show,
         VaultCreatorMessage::PasswordShow,
+        theme,
     );
 
     Row::new()
@@ -381,6 +400,7 @@ fn password_confirm_row<'a>(
     password_confirm_show_state: &'a mut button::State,
     password_empty: bool,
     password_equal: bool,
+    theme: &dyn Theme,
 ) -> Element<'a, VaultCreatorMessage> {
     let mut password_confirm = default_text_input(
         password_confirm_state,
@@ -396,11 +416,14 @@ fn password_confirm_row<'a>(
         password_confirm_show_state,
         password_confirm_show,
         VaultCreatorMessage::PasswordConfirmShow,
+        theme,
     );
 
-    if !password_empty && !password_equal {
-        password_confirm = password_confirm.style(PasswordNotEqualStyle)
-    }
+    password_confirm = password_confirm.style(if !password_empty && !password_equal {
+        theme.password_missmatch()
+    } else {
+        theme.text_input()
+    });
 
     Row::new()
         .spacing(DEFAULT_ROW_SPACING)
@@ -419,23 +442,32 @@ fn button_row<'a>(
     cancel_state: &'a mut button::State,
     submit_state: &'a mut button::State,
     can_submit: bool,
+    theme: &dyn Theme,
 ) -> Element<'a, VaultCreatorMessage> {
     let cancel_button = icon_button(
-        cancel_state,
-        Icon::XSquare,
-        "Cancel",
-        "Cancel creation of new Vault",
+        ButtonData {
+            state: cancel_state,
+            icon: Icon::XSquare,
+            text: "Cancel",
+            kind: ButtonKind::Normal,
+            on_press: Some(VaultCreatorMessage::Cancel),
+        },
+        "Cancel the creation of a new vault",
         false,
-        Some(VaultCreatorMessage::Cancel),
+        theme,
     );
 
     let submit_button = icon_button(
-        submit_state,
-        Icon::Save,
-        "Submit",
-        "Submit creation of new Vault",
+        ButtonData {
+            state: submit_state,
+            icon: Icon::Save,
+            text: "Submit",
+            kind: ButtonKind::Primary,
+            on_press: VaultCreatorMessage::Submit.some_if(can_submit),
+        },
+        "Submit the creation of a new vault",
         false,
-        VaultCreatorMessage::Submit.some_if(can_submit),
+        theme,
     );
 
     Row::new()
@@ -443,40 +475,4 @@ fn button_row<'a>(
         .push(cancel_button)
         .push(submit_button)
         .into()
-}
-
-/// The style of the password confirmation if the passwords are not equal.
-#[derive(Default)]
-struct PasswordNotEqualStyle;
-
-impl text_input::StyleSheet for PasswordNotEqualStyle {
-    fn active(&self) -> text_input::Style {
-        use iced::{Background, Color};
-        text_input::Style {
-            background: Background::Color(Color::WHITE),
-            border_radius: 5.0,
-            border_width: 1.0,
-            border_color: Color::from_rgb(1.0, 0.3, 0.3),
-        }
-    }
-
-    fn focused(&self) -> text_input::Style {
-        use iced::Color;
-        text_input::Style {
-            border_color: Color::from_rgb(1.0, 0.5, 0.5),
-            ..self.active()
-        }
-    }
-
-    fn placeholder_color(&self) -> iced::Color {
-        iced::Color::from_rgb(1.0, 0.3, 0.3)
-    }
-
-    fn value_color(&self) -> iced::Color {
-        iced::Color::from_rgb(1.0, 0.3, 0.3)
-    }
-
-    fn selection_color(&self) -> iced::Color {
-        iced::Color::from_rgb(1.0, 0.8, 0.8)
-    }
 }

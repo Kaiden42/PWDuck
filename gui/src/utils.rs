@@ -1,101 +1,136 @@
 //! Utility functions.
 
 use iced::{
-    button, container, text_input, tooltip, Button, Column, Container, Element, Length, Row, Space,
-    Text, TextInput, Tooltip,
+    button, text_input, tooltip, Button, Column, Container, Element, Length, Row, Space, Text,
+    TextInput, Tooltip,
 };
 
 use crate::{
     icons::{Icon, ICON_FONT},
+    theme::Theme,
     DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING,
     DEFAULT_SPACE_HEIGHT, DEFAULT_TEXT_INPUT_PADDING,
 };
 
+/// Helper struct to reduce function argument count.
+pub struct ButtonData<'a, Message: 'a + Clone> {
+    /// The [`State`](button::State) of the [`Button`](Button).
+    pub state: &'a mut button::State,
+    /// The icon of the [`Button`](Button).
+    pub icon: Icon,
+    /// The text of the [`Button`](Button).
+    pub text: &'a str,
+    /// The kind of a [`Button`](Button).
+    pub kind: ButtonKind,
+    /// The optional message that is send by the [`Button`](Button).
+    pub on_press: Option<Message>,
+}
+
+impl<'a, Message: 'a + Clone> ButtonData<'a, Message> {
+    /// Create the element containing only the icon.
+    pub fn icon_element(&self) -> Element<'a, Message> {
+        icon_text(self.icon).into()
+    }
+
+    /// Create the element containing the icon and the text.
+    pub fn icon_text_element(&self) -> Element<'a, Message> {
+        Row::new()
+            .spacing(DEFAULT_ROW_SPACING)
+            .push(icon_text(self.icon))
+            .push(Text::new(self.text))
+            .width(Length::Shrink)
+            .into()
+    }
+}
+
+/// The kind of a [`Button`](Button).
+pub enum ButtonKind {
+    /// The button is a normal [`Button`](Button).
+    Normal,
+    /// The button is a primary [`Button`](Button).
+    Primary,
+    /// The button is a warning [`Button`](Button).
+    Warning,
+}
+
+impl ButtonKind {
+    /// Returns the style sheet for the specific [`ButtonKind`](ButtonKind).
+    pub fn style_sheet(&self, theme: &dyn Theme) -> Box<dyn button::StyleSheet> {
+        match self {
+            ButtonKind::Normal => theme.button(),
+            ButtonKind::Primary => theme.button_primary(),
+            ButtonKind::Warning => theme.button_warning(),
+        }
+    }
+}
+
 /// Create a [`Button`] with an [`Icon`](Icon) and a [`Text`](iced::Text).
 ///
 /// It expects:
-///     - The [`State`](button::State) of the [`Button`](Button)
-///     - The [`Icon`](Icon) of the [`Button`](Button)
-///     - The text of the [`Button`](Button)
-///     - The tooltip of the [`Button`](Button)
-///     - If only the [`Icon`](Icon) of the [`Button`](Button) should be visible
-///     - The message that the [`Button`](Button) sends if the user presses on it
+///     - The data of the [`Button`](Button).
+///     - The tooltip of the [`Button`](Button).
+///     - If only the [`Icon`](Icon) of the [`Button`](Button) should be visible.
+///     - The theme of the application.
 pub fn icon_button<'a, Message: 'a + Clone>(
-    state: &'a mut button::State,
-    icon: Icon,
-    text: impl Into<String>,
+    button_data: ButtonData<'a, Message>,
     tooltip: impl Into<String>,
     icon_only: bool,
-    on_press: Option<Message>,
-) -> Element<Message> {
+    theme: &dyn Theme,
+) -> Element<'a, Message> {
     let element: Element<_> = if icon_only {
-        icon_text(icon).into()
+        button_data.icon_element()
     } else {
-        Container::new(
-            Row::new()
-                .spacing(DEFAULT_ROW_SPACING)
-                .push(icon_text(icon))
-                //.push(horizontal_centered_text(text))
-                .push(Text::new(text))
-                .width(Length::Shrink),
-        )
-        .width(Length::FillPortion(1))
-        .align_x(iced::Align::Center)
-        .into()
+        Container::new(button_data.icon_text_element())
+            .width(Length::FillPortion(1))
+            .align_x(iced::Align::Center)
+            .into()
     };
 
-    let mut button = Button::new(state, element).width(if icon_only {
-        Length::Shrink
-    } else {
-        Length::Fill
-    });
+    let mut button = Button::new(button_data.state, element)
+        .width(if icon_only {
+            Length::Shrink
+        } else {
+            Length::Fill
+        })
+        .style(button_data.kind.style_sheet(theme));
 
-    if let Some(message) = on_press {
+    if let Some(message) = button_data.on_press {
         button = button.on_press(message);
     }
 
     Tooltip::new(button, tooltip.into(), tooltip::Position::FollowCursor)
-        .style(TooltipStyle)
+        .style(theme.tooltip())
         .into()
 }
 
 /// Create a [`Button`](Button) with an [`Icon`](Icon), a [`Text`](iced::Text) and a specified width.
 ///
 /// It expects:
-///     - The [`State`](button::State) of the [`Button`](Button)
-///     - The [`Icon`](Icon) of the [`Button`](Button)
-///     - The text of the [`Button`](Button)
-///     - The tooltip of the [`Button`](Button)
-///     - The message that the [`Button`](Button) sends if the user presses on it
-///     - The width of the [`Button`](Button)
+///     - The data o fteh [`Button`](Button).
+///     - The tooltip of the [`Button`](Button).
+///     - The width of the [`Button`](Button).
+///     - The theme of the application.
 pub fn icon_button_with_width<'a, Message: 'a + Clone>(
-    state: &'a mut button::State,
-    icon: Icon,
-    text: impl Into<String>,
+    button_data: ButtonData<'a, Message>,
     tooltip: impl Into<String>,
-    on_press: Option<Message>,
     width: Length,
-) -> Element<Message> {
-    let element: Element<_> = Container::new(
-        Row::new()
-            .spacing(DEFAULT_ROW_SPACING)
-            .push(icon_text(icon))
-            //.push(horizontal_centered_text(text))
-            .push(Text::new(text))
-            .width(Length::Shrink),
-    )
-    .width(Length::FillPortion(1))
-    .align_x(iced::Align::Center)
-    .into();
+    theme: &dyn Theme,
+) -> Element<'a, Message> {
+    let element: Element<_> = Container::new(button_data.icon_text_element())
+        .width(Length::FillPortion(1))
+        .align_x(iced::Align::Center)
+        .into();
 
-    let mut button = Button::new(state, element).width(width);
+    let mut button = Button::new(button_data.state, element)
+        .width(width)
+        .style(button_data.kind.style_sheet(theme));
 
-    if let Some(message) = on_press {
+    if let Some(message) = button_data.on_press {
         button = button.on_press(message);
     }
 
     Tooltip::new(button, tooltip.into(), tooltip::Position::FollowCursor)
-        .style(TooltipStyle)
+        .style(theme.tooltip())
         .into()
 }
 
@@ -110,28 +145,38 @@ pub fn icon_text(icon: Icon) -> Text {
 ///     - The [`State`](button::State) of the [`Button`](Button)
 ///     - The state of the password visibility
 ///     - The message that the [`Button`](Button) sends if the user presses on it
+///     - The theme of the application.
 pub fn password_toggle<'a, Message: 'a + Clone>(
     state: &'a mut button::State,
     show_password: bool,
     on_press: Message,
-) -> Element<Message> {
+    theme: &dyn Theme,
+) -> Element<'a, Message> {
     if show_password {
         icon_button(
-            state,
-            Icon::EyeSlash,
-            "Hide",
+            ButtonData {
+                state,
+                icon: Icon::EyeSlash,
+                text: "Hide",
+                kind: ButtonKind::Normal,
+                on_press: Some(on_press),
+            },
             "Hide password",
             true,
-            Some(on_press),
+            theme,
         )
     } else {
         icon_button(
-            state,
-            Icon::Eye,
-            "Show",
-            "Show password",
+            ButtonData {
+                state,
+                icon: Icon::Eye,
+                text: "Show",
+                kind: ButtonKind::Normal,
+                on_press: Some(on_press),
+            },
+            "Hide password",
             true,
-            Some(on_press),
+            theme,
         )
     }
 }
@@ -165,6 +210,7 @@ where
 /// Create a default container.
 pub fn centered_container_with_column<'a, Message: 'a>(
     children: Vec<Element<'a, Message>>,
+    theme: &dyn Theme,
 ) -> Container<'a, Message> {
     Container::new(
         Column::with_children(children)
@@ -172,6 +218,7 @@ pub fn centered_container_with_column<'a, Message: 'a>(
             .padding(DEFAULT_COLUMN_PADDING)
             .spacing(DEFAULT_COLUMN_SPACING),
     )
+    .style(theme.container())
     .width(Length::Fill)
     .height(Length::Fill)
     .center_x()
@@ -218,22 +265,6 @@ pub trait SomeIf {
             None
         } else {
             Some(self)
-        }
-    }
-}
-
-/// The default style of a [`Tooltip`](iced::Tooltip).
-#[derive(Clone, Copy, Debug, Default)]
-pub struct TooltipStyle;
-
-impl container::StyleSheet for TooltipStyle {
-    fn style(&self) -> container::Style {
-        container::Style {
-            text_color: Some(iced::Color::BLACK),
-            background: iced::Color::WHITE.into(),
-            border_radius: 5.0,
-            border_width: 1.0,
-            border_color: iced::Color::from_rgb(0.5, 0.5, 0.5),
         }
     }
 }

@@ -61,6 +61,7 @@ use iced_aw::{modal, Card, Modal, TabBar, TabLabel};
 use icons::{Icon, ICON_FONT};
 use lazy_static::lazy_static;
 use pwduck_core::MemKey;
+use theme::Theme;
 use vault::{
     container::ModifyEntryMessage,
     tab::VaultTabMessage,
@@ -68,6 +69,7 @@ use vault::{
 };
 
 mod pw_modal;
+mod theme;
 mod utils;
 
 use pw_modal::{PasswordGeneratorMessage, PasswordGeneratorState};
@@ -130,6 +132,9 @@ pub struct PWDuckGui<P: Platform + 'static> {
 
     /// PhantomData for the [`Platform`](Platform) information.
     phantom: PhantomData<P>,
+
+    /// TODO
+    theme: Box<dyn Theme>,
 }
 
 /// The state of the error dialog.
@@ -146,13 +151,14 @@ impl ErrorDialogState {
     }
 
     /// Create the view of the error modal.
-    fn view(&mut self) -> Element<'_, Message> {
+    fn view(&mut self, theme: &dyn Theme) -> Element<'_, Message> {
         Card::new(
             Text::new("An error occurred"),
             Text::new(self.error.clone()),
         )
         .max_width(DEFAULT_MAX_WIDTH)
         .on_close(Message::ErrorDialogClose)
+        .style(theme.card_warning())
         .into()
     }
 }
@@ -277,6 +283,9 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                 window_size: Viewport::default(),
                 can_exit: false,
                 phantom: PhantomData,
+
+                //theme: theme::Light.into(),
+                theme: theme::Dark.into(),
             },
             Command::none(),
         )
@@ -399,12 +408,13 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                             .font(ICON_FONT)
                             .size(TOP_ROW_FONT_SIZE),
                     )
+                    .style(self.theme.button_primary())
                     .height(Length::Units(TOP_ROW_HEIGHT))
                     .padding(TOP_ROW_PADDING),
                     "Configure your preferences",
                     tooltip::Position::FollowCursor,
                 )
-                .style(crate::utils::TooltipStyle),
+                .style(self.theme.tooltip()),
             )
             //.push(icon_button(&mut self.open_new_tab_state, Icon::PlusSquare, "Open", "Open new tab", true, None)) // TODO
             .push(
@@ -415,13 +425,14 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                             .font(ICON_FONT)
                             .size(TOP_ROW_FONT_SIZE),
                     )
+                    .style(self.theme.button_primary())
                     .height(Length::Units(TOP_ROW_HEIGHT))
                     .padding(TOP_ROW_PADDING)
                     .on_press(Message::TabCreate),
                     "Open new tab",
                     tooltip::Position::FollowCursor,
                 )
-                .style(crate::utils::TooltipStyle),
+                .style(self.theme.tooltip()),
             )
             .push(
                 TabBar::width_tab_labels(
@@ -432,6 +443,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                         .collect(),
                     Message::TabSelected,
                 )
+                .style(self.theme.tab_bar())
                 .text_size(TOP_ROW_FONT_SIZE)
                 .icon_size(TOP_ROW_FONT_SIZE)
                 .padding(TOP_ROW_PADDING)
@@ -440,14 +452,20 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
             );
 
         let tab = self.tabs[selected_tab]
-            .view::<P>(&self.window_size)
+            .view::<P>(self.theme.as_ref(), &self.window_size)
             .map(move |msg| Message::VaultTab(selected_tab, msg));
 
         let content: Element<_> = Column::new().push(top_row).push(tab).into();
 
+        let theme = self.theme.as_ref();
+        let modal_style = match self.modal_state.inner() {
+            ModalState::Password(_) => self.theme.modal(),
+            _ => self.theme.modal_warning(),
+        };
         Modal::new(&mut self.modal_state, content, move |state| {
-            state.view(selected_tab)
+            state.view(selected_tab, theme)
         })
+        .style(modal_style)
         .into()
     }
 
@@ -485,6 +503,7 @@ trait Component {
     /// Create the view of this [`Component`](Component).
     fn view<P: Platform + 'static>(
         &mut self,
+        theme: &dyn Theme,
         viewport: &Viewport,
     ) -> iced::Element<'_, Self::Message>;
 }
@@ -534,14 +553,14 @@ impl Default for ModalState {
 
 impl ModalState {
     /// Create the view of the modal.
-    fn view(&mut self, index: usize) -> Element<'_, Message> {
+    fn view(&mut self, index: usize, theme: &dyn Theme) -> Element<'_, Message> {
         match self {
-            ModalState::Error(error_modal_state) => error_modal_state.view(),
+            ModalState::Error(error_modal_state) => error_modal_state.view(theme),
             ModalState::Password(password_generator_state) => password_generator_state
-                .view()
+                .view(theme)
                 .map(Message::PasswordGenerator),
             ModalState::ModifyGroup(modify_group_modal) => {
-                modify_group_modal.view().map(move |msg| {
+                modify_group_modal.view(theme).map(move |msg| {
                     Message::VaultTab(
                         index,
                         VaultTabMessage::Container(VaultContainerMessage::ModifyGroup(
@@ -551,7 +570,7 @@ impl ModalState {
                 })
             }
             ModalState::ModifyEntry(modify_entry_modal) => {
-                modify_entry_modal.view().map(move |msg| {
+                modify_entry_modal.view(theme).map(move |msg| {
                     Message::VaultTab(
                         index,
                         VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(

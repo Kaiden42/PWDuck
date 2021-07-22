@@ -4,7 +4,8 @@ use iced::{button, Element, Length, Row};
 
 use crate::{
     icons::Icon,
-    utils::{icon_button, SomeIf},
+    theme::Theme,
+    utils::{icon_button, ButtonData, ButtonKind, SomeIf},
     DEFAULT_ROW_SPACING,
 };
 
@@ -43,64 +44,86 @@ impl SomeIf for ToolBarMessage {}
 
 impl ToolBar {
     /// Create the view of the [`ToolBar`](ToolBar).
-    pub fn view(&mut self, flags: Flags) -> Element<ToolBarMessage> {
+    pub fn view(&mut self, flags: Flags, theme: &dyn Theme) -> Element<ToolBarMessage> {
         let save = icon_button(
-            &mut self.save_state,
-            Icon::Save,
-            "Save Vault",
-            "Save Vault",
-            flags.contains(Flags::HIDE_TOOLBAR_LABELS),
-            ToolBarMessage::Save
-                //.some_if(vault_contains_unsaved_changes && !modify_entry_view_is_some), // TODO
-                .some_if(
+            ButtonData {
+                state: &mut self.save_state,
+                icon: Icon::Save,
+                text: "Save vault",
+                kind: if flags.contains(Flags::VAULT_CONTAINS_UNSAVED_CHANGES) {
+                    ButtonKind::Primary
+                } else {
+                    ButtonKind::Normal
+                },
+                on_press: ToolBarMessage::Save.some_if(
                     flags.contains(Flags::VAULT_CONTAINS_UNSAVED_CHANGES)
                         && !flags.contains(Flags::MODIFY_ENTRY_VIEW_IS_SOME),
                 ),
+            },
+            "Save vault",
+            flags.contains(Flags::HIDE_TOOLBAR_LABELS),
+            theme,
         );
 
-        let new_group =
-            icon_button(
-                &mut self.new_group_state,
-                Icon::FolderPlus,
-                "New Group",
-                "Create a new Group",
-                flags.contains(Flags::HIDE_TOOLBAR_LABELS),
-                ToolBarMessage::NewGroup.some_if_not(flags.intersects(
+        let new_group = icon_button(
+            ButtonData {
+                state: &mut self.new_group_state,
+                icon: Icon::FolderPlus,
+                text: "New group",
+                kind: ButtonKind::Normal,
+                on_press: ToolBarMessage::NewGroup.some_if_not(flags.intersects(
                     Flags::MODIFY_GROUP_VIEW_IS_SOME | Flags::MODIFY_ENTRY_VIEW_IS_SOME,
                 )),
-            );
-        let new_entry =
-            icon_button(
-                &mut self.new_entry_state,
-                Icon::PersonPlus,
-                "New Entry",
-                "Create a new Entry",
-                flags.contains(Flags::HIDE_TOOLBAR_LABELS),
-                ToolBarMessage::NewEntry.some_if_not(flags.intersects(
+            },
+            "Create a new group",
+            flags.contains(Flags::HIDE_TOOLBAR_LABELS),
+            theme,
+        );
+
+        let new_entry = icon_button(
+            ButtonData {
+                state: &mut self.new_entry_state,
+                icon: Icon::PersonPlus,
+                text: "New entry",
+                kind: ButtonKind::Normal,
+                on_press: ToolBarMessage::NewEntry.some_if_not(flags.intersects(
                     Flags::MODIFY_GROUP_VIEW_IS_SOME | Flags::MODIFY_ENTRY_VIEW_IS_SOME,
                 )),
-            );
+            },
+            "Create a new entry",
+            flags.contains(Flags::HIDE_TOOLBAR_LABELS),
+            theme,
+        );
 
         let autofill = icon_button(
-            &mut self.auto_fill,
-            Icon::Keyboard,
-            "AutoType",
+            ButtonData {
+                state: &mut self.auto_fill,
+                icon: Icon::Keyboard,
+                text: "AutoType",
+                kind: ButtonKind::Normal,
+                on_press: ToolBarMessage::AutoFill
+                    .some_if(flags.contains(Flags::MODIFY_ENTRY_VIEW_IS_SOME)),
+            },
             "Autofill the credentials into the target window",
             flags.contains(Flags::HIDE_TOOLBAR_LABELS),
-            ToolBarMessage::AutoFill.some_if(flags.contains(Flags::MODIFY_ENTRY_VIEW_IS_SOME)),
+            theme,
         );
 
         let lock_vault = icon_button(
-            &mut self.lock_vault_state,
-            Icon::Lock,
-            "Lock Vault",
-            "Lock Vault",
+            ButtonData {
+                state: &mut self.lock_vault_state,
+                icon: Icon::Lock,
+                text: "Lock vault",
+                kind: ButtonKind::Normal,
+                on_press: ToolBarMessage::LockVault.some_if_not(flags.intersects(
+                    Flags::VAULT_CONTAINS_UNSAVED_CHANGES
+                        | Flags::MODIFY_ENTRY_VIEW_IS_SOME
+                        | Flags::MODIFY_GROUP_VIEW_IS_SOME,
+                )),
+            },
+            "Lock vault",
             flags.contains(Flags::HIDE_TOOLBAR_LABELS),
-            ToolBarMessage::LockVault.some_if_not(flags.intersects(
-                Flags::VAULT_CONTAINS_UNSAVED_CHANGES
-                    | Flags::MODIFY_ENTRY_VIEW_IS_SOME
-                    | Flags::MODIFY_GROUP_VIEW_IS_SOME,
-            )),
+            theme,
         );
 
         Row::with_children(vec![save, new_group, new_entry, autofill, lock_vault])

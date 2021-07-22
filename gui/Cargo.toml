@@ -18,7 +18,7 @@ bitflags = "1.2.1"
 
 [dependencies.iced_aw]
 git = "https://github.com/iced-rs/iced_aw"
-#rev = "bb2a7562224b804ab2fa5e55d3a7e3677f9a26d1"
-rev = "c92a393d1bfedc4e3dd8c99cc58920a81ce1eb35"
+#rev = "c92a393d1bfedc4e3dd8c99cc58920a81ce1eb35"
+rev = "c1d18aedcca94e989281e728576a40a583db97f6"
 default-features = false
 features = ["card", "modal", "tab_bar", "number_input", "split"]

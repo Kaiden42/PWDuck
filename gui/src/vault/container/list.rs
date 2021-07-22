@@ -11,9 +11,10 @@ use pwduck_core::{EntryHead, Group, Uuid, Vault};
 use crate::{
     error::PWDuckGuiError,
     icons::{Icon, ICON_FONT},
+    theme::Theme,
     utils::{
         default_vertical_space, icon_button, icon_button_with_width, icon_text, vertical_space,
-        SomeIf,
+        ButtonData, ButtonKind, SomeIf,
     },
     Viewport, DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING, DEFAULT_TEXT_INPUT_PADDING,
 };
@@ -133,6 +134,7 @@ impl ListView {
     pub fn view<'a>(
         &'a mut self,
         vault: &'a Vault,
+        theme: &dyn Theme,
         viewport: &Viewport,
     ) -> Element<'a, ListMessage> {
         let search_bar = TextInput::new(
@@ -141,6 +143,7 @@ impl ListView {
             &self.search,
             ListMessage::SearchInput,
         )
+        .style(theme.text_input())
         .padding(DEFAULT_TEXT_INPUT_PADDING);
 
         let hide_group_tree = viewport.width < 600;
@@ -154,6 +157,7 @@ impl ListView {
             &mut self.item_scroll_state,
             &mut self.group_items,
             &mut self.entry_items,
+            theme,
             &crate::Viewport {
                 width: if hide_group_tree {
                     viewport.width
@@ -170,7 +174,12 @@ impl ListView {
         let content: Element<_> = if hide_group_tree {
             group_view
         } else {
-            let tree_view = tree_view(vault, &mut self.tree_scroll_state, &mut self.group_tree);
+            let tree_view = tree_view(
+                vault,
+                &mut self.tree_scroll_state,
+                &mut self.group_tree,
+                theme,
+            );
 
             Split::new(
                 &mut self.split_state,
@@ -178,7 +187,8 @@ impl ListView {
                 group_view,
                 ListMessage::SplitResize,
             )
-            .padding(5.0)
+            .style(theme.split())
+            .padding(0.0)
             .into()
         };
 
@@ -188,6 +198,7 @@ impl ListView {
                 .push(vertical_space(2))
                 .push(content),
         )
+        .style(theme.container())
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
@@ -199,12 +210,22 @@ fn tree_view<'a>(
     vault: &'a Vault,
     scroll_state: &'a mut scrollable::State,
     group_tree: &'a mut GroupTree,
+    theme: &dyn Theme,
 ) -> Element<'a, ListMessage> {
-    Scrollable::new(scroll_state)
-        .push(group_tree.view(0, vault).map(ListMessage::GroupTreeMessage))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+    Container::new(
+        Scrollable::new(scroll_state)
+            .push(
+                group_tree
+                    .view(0, vault, theme)
+                    .map(ListMessage::GroupTreeMessage),
+            )
+            .width(Length::Fill)
+            .height(Length::Fill),
+    )
+    .style(theme.container_accent())
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
 }
 
 /// Create the view of the group entries.
@@ -218,6 +239,7 @@ fn group_view<'a>(
     scroll_state: &'a mut scrollable::State,
     group_items: &'a mut [ListGroupItem],
     entry_items: &'a mut [ListEntryItem],
+    theme: &dyn Theme,
     viewport: &Viewport,
 ) -> Element<'a, ListMessage> {
     let selected_group = vault.groups().get(selected_group_uuid).unwrap();
@@ -236,21 +258,29 @@ fn group_view<'a>(
     );
 
     let back = icon_button_with_width(
-        back_state,
-        Icon::Backspace,
-        "Back",
-        "Go to parent group",
-        ListMessage::Back.some_if_not(selected_group.is_root()),
+        ButtonData {
+            state: back_state,
+            icon: Icon::Backspace,
+            text: "Back",
+            kind: ButtonKind::Normal,
+            on_press: ListMessage::Back.some_if_not(selected_group.is_root()),
+        },
+        "Go back to parent group",
         Length::Shrink,
+        theme,
     );
 
     let edit_group = icon_button_with_width(
-        edit_group_state,
-        Icon::Pencil,
-        "Edit",
+        ButtonData {
+            state: edit_group_state,
+            icon: Icon::Pencil,
+            text: "Edit",
+            kind: ButtonKind::Normal,
+            on_press: ListMessage::EditGroup.some_if_not(selected_group.is_root()),
+        },
         "Edit this group",
-        ListMessage::EditGroup.some_if_not(selected_group.is_root()),
         Length::Shrink,
+        theme,
     );
 
     let group_controls = Row::new()
@@ -286,7 +316,7 @@ fn group_view<'a>(
             .iter_mut()
             .zip(current_item_list.groups().iter())
             .fold(list, |list, (item, group)| {
-                list.push(item.view(group).map(ListMessage::ListItemMessage))
+                list.push(item.view(group, theme).map(ListMessage::ListItemMessage))
             });
 
         list = entry_items
@@ -294,7 +324,7 @@ fn group_view<'a>(
             .zip(current_item_list.entries().iter())
             .fold(list, |list, (item, entry)| {
                 list.push(
-                    item.view(entry, icon_only, no_buttons)
+                    item.view(entry, icon_only, no_buttons, theme)
                         .map(ListMessage::ListItemMessage),
                 )
             });
@@ -302,11 +332,17 @@ fn group_view<'a>(
         list.into()
     };
 
-    Column::new()
-        .push(group_controls)
-        .push(default_vertical_space())
-        .push(list)
-        .into()
+    Container::new(
+        Column::new()
+            .push(group_controls)
+            .push(default_vertical_space())
+            .push(list),
+    )
+    //.style(theme.container_accent())
+    .padding(5)
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
 }
 
 /// The state of a sub-group list item.
@@ -318,7 +354,7 @@ struct ListGroupItem {
 
 impl ListGroupItem {
     /// Create the view of the [`ListGroupItem`](ListGroupItem).
-    fn view<'a>(&'a mut self, group: &'a Group) -> Element<'a, ListItemMessage> {
+    fn view<'a>(&'a mut self, group: &'a Group, theme: &dyn Theme) -> Element<'a, ListItemMessage> {
         Button::new(
             &mut self.state,
             Row::new()
@@ -329,7 +365,7 @@ impl ListGroupItem {
         .padding(20)
         .width(Length::Fill)
         .on_press(ListItemMessage::GroupSelected(group.uuid().clone()))
-        .style(ListGroupStyle)
+        .style(theme.list_item_group())
         .into()
     }
 }
@@ -354,6 +390,7 @@ impl ListEntryItem {
         entry: &'a EntryHead,
         icon_only: bool,
         no_buttons: bool,
+        theme: &dyn Theme,
     ) -> Element<'a, ListItemMessage> {
         Button::new(
             &mut self.state,
@@ -369,35 +406,47 @@ impl ListEntryItem {
                         .width(Length::Shrink)
                         .spacing(DEFAULT_ROW_SPACING)
                         .push(icon_button(
-                            &mut self.copy_username_state,
-                            Icon::FileEarmarkPerson,
-                            "Username",
-                            "Copy username",
+                            ButtonData {
+                                state: &mut self.copy_username_state,
+                                icon: Icon::FileEarmarkPerson,
+                                text: "Username",
+                                kind: ButtonKind::Normal,
+                                on_press: Some(ListItemMessage::CopyUsername(entry.body().clone())),
+                            },
+                            "Copy username to clipboard",
                             icon_only,
-                            Some(ListItemMessage::CopyUsername(entry.body().clone())),
+                            theme,
                         ))
                         .push(icon_button(
-                            &mut self.copy_password_state,
-                            Icon::FileEarmarkLock,
-                            "Password",
-                            "Copy password",
+                            ButtonData {
+                                state: &mut self.copy_password_state,
+                                icon: Icon::FileEarmarkLock,
+                                text: "Password",
+                                kind: ButtonKind::Normal,
+                                on_press: Some(ListItemMessage::CopyPassword(entry.body().clone())),
+                            },
+                            "Copy password to clipboard",
                             icon_only,
-                            Some(ListItemMessage::CopyPassword(entry.body().clone())),
+                            theme,
                         ))
                         .push(icon_button(
-                            &mut self.autofill_state,
-                            Icon::Keyboard,
-                            "AutoType",
+                            ButtonData {
+                                state: &mut self.autofill_state,
+                                icon: Icon::Keyboard,
+                                text: "AutoType",
+                                kind: ButtonKind::Normal,
+                                on_press: Some(ListItemMessage::Autofill(entry.uuid().clone())),
+                            },
                             "Autofill credentials to the target window",
                             icon_only,
-                            Some(ListItemMessage::Autofill(entry.uuid().clone())),
+                            theme,
                         ))
                 }),
         )
         .padding(20)
         .width(Length::Fill)
         .on_press(ListItemMessage::EntrySelected(entry.uuid().clone()))
-        .style(ListEntryStyle)
+        .style(theme.list_item_entry())
         .into()
     }
 }
@@ -415,40 +464,6 @@ pub enum ListItemMessage {
     CopyPassword(Uuid),
     /// Autofill credentials from the entry body identified by it's UUID  to the target.
     Autofill(Uuid),
-}
-
-/// The style of the [`ListGroupItem`](ListGroupItem)s.
-#[derive(Debug, Default)]
-struct ListGroupStyle;
-
-impl button::StyleSheet for ListGroupStyle {
-    fn active(&self) -> button::Style {
-        button::Style {
-            shadow_offset: iced::Vector::default(),
-            background: None,
-            border_radius: 5.0,
-            border_width: 1.0,
-            border_color: iced::Color::from_rgb(0.5, 0.5, 0.5),
-            text_color: iced::Color::BLACK,
-        }
-    }
-}
-
-/// The style of the [`ListEntryItem`](ListEntryItem)s.
-#[derive(Debug, Default)]
-struct ListEntryStyle;
-
-impl button::StyleSheet for ListEntryStyle {
-    fn active(&self) -> button::Style {
-        button::Style {
-            shadow_offset: iced::Vector::default(),
-            background: None,
-            border_radius: 5.0,
-            border_width: 1.0,
-            border_color: iced::Color::from_rgb(0.7, 0.7, 0.7),
-            text_color: iced::Color::BLACK,
-        }
-    }
 }
 
 /// A tree view of the group.
@@ -592,7 +607,12 @@ impl GroupTree {
     }
 
     /// Create the view of the group tree node.
-    pub fn view(&mut self, indentation: u16, vault: &Vault) -> Element<GroupTreeMessage> {
+    pub fn view(
+        &mut self,
+        indentation: u16,
+        vault: &Vault,
+        theme: &dyn Theme,
+    ) -> Element<GroupTreeMessage> {
         let content = Button::new(
             &mut self.group_button,
             Row::new()
@@ -611,13 +631,13 @@ impl GroupTree {
                     )
                     .on_press(GroupTreeMessage::ToggleExpansion(Vec::new()))
                     .padding(0)
-                    .style(GroupTreeToggleStyle),
+                    .style(theme.tree_expand_button()),
                 )
                 .push(Text::new(&self.group_title)),
         )
         .width(Length::Fill)
         .on_press(GroupTreeMessage::GroupSelected(self.group_uuid.clone()))
-        .style(GroupTreeStyle);
+        .style(theme.tree_node());
 
         let mut column = Column::new().width(Length::Fill).push(content);
 
@@ -628,7 +648,7 @@ impl GroupTree {
             .fold(column, |col, (index, child)| {
                 col.push(
                     child
-                        .view(indentation + 1, vault)
+                        .view(indentation + 1, vault, theme)
                         .map(move |msg| match msg {
                             GroupTreeMessage::ToggleExpansion(mut stack) => {
                                 stack.push(index);
@@ -640,39 +660,5 @@ impl GroupTree {
             });
 
         column.into()
-    }
-}
-
-/// The style of the group tree.
-#[derive(Clone, Copy, Debug)]
-struct GroupTreeStyle;
-
-impl button::StyleSheet for GroupTreeStyle {
-    fn active(&self) -> button::Style {
-        button::Style {
-            shadow_offset: iced::Vector::new(0.0, 0.0),
-            background: iced::Color::TRANSPARENT.into(),
-            border_radius: 0.0,
-            border_width: 0.0,
-            border_color: iced::Color::TRANSPARENT,
-            text_color: iced::Color::BLACK,
-        }
-    }
-}
-
-/// The style of the group tree toggle button.
-#[derive(Clone, Copy, Debug)]
-struct GroupTreeToggleStyle;
-
-impl button::StyleSheet for GroupTreeToggleStyle {
-    fn active(&self) -> button::Style {
-        button::Style {
-            shadow_offset: iced::Vector::new(0.0, 0.0),
-            background: iced::Color::TRANSPARENT.into(),
-            border_radius: 0.0,
-            border_width: 0.0,
-            border_color: iced::Color::TRANSPARENT,
-            text_color: iced::Color::BLACK,
-        }
     }
 }

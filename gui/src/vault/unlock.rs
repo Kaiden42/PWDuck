@@ -9,7 +9,8 @@ use zeroize::Zeroize;
 use crate::{
     error::PWDuckGuiError,
     icons::Icon,
-    utils::{default_text_input, icon_button, password_toggle, SomeIf},
+    theme::Theme,
+    utils::{default_text_input, icon_button, password_toggle, ButtonData, ButtonKind, SomeIf},
     Component, Viewport, DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
     DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
 };
@@ -121,6 +122,7 @@ impl Component for VaultUnlocker {
 
     fn view<P: crate::Platform + 'static>(
         &mut self,
+        theme: &dyn Theme,
         _viewport: &Viewport,
     ) -> iced::Element<'_, Self::Message> {
         let path = PathBuf::from(&self.path);
@@ -136,7 +138,8 @@ impl Component for VaultUnlocker {
             "Enter password to unlock",
             &self.password,
             VaultUnlockerMessage::PasswordInput,
-        );
+        )
+        .style(theme.text_input());
         if !self.password_show {
             password = password.password();
         }
@@ -145,24 +148,33 @@ impl Component for VaultUnlocker {
             &mut self.password_show_state,
             self.password_show,
             VaultUnlockerMessage::PasswordShow,
+            theme,
         );
 
         let close_button = icon_button(
-            &mut self.close_state,
-            Icon::XSquare,
-            "Close",
-            "Close Vault",
+            ButtonData {
+                state: &mut self.close_state,
+                icon: Icon::XSquare,
+                text: "Close",
+                kind: ButtonKind::Normal,
+                on_press: Some(VaultUnlockerMessage::Close),
+            },
+            "Close vault",
             false,
-            Some(Self::Message::Close),
+            theme,
         );
 
         let submit_button = icon_button(
-            &mut self.submit_state,
-            Icon::Unlock,
-            "Unlock",
-            "Unlock Vault",
+            ButtonData {
+                state: &mut self.submit_state,
+                icon: Icon::Unlock,
+                text: "Unlock",
+                kind: ButtonKind::Primary,
+                on_press: VaultUnlockerMessage::Submit.some_if_not(self.password.is_empty()),
+            },
+            "Unlock vault",
             false,
-            VaultUnlockerMessage::Submit.some_if_not(self.password.is_empty()),
+            theme,
         );
 
         Container::new(
@@ -187,6 +199,7 @@ impl Component for VaultUnlocker {
                         .push(submit_button),
                 ),
         )
+        .style(theme.container())
         .width(Length::Fill)
         .height(Length::Fill)
         .center_x()
