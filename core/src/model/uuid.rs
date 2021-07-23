@@ -1,11 +1,11 @@
 //! TODO
 
-use std::path::Path;
+use std::{convert::TryFrom, ops::Deref, path::Path};
 
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
-use crate::io::generate_uuid;
+use crate::{io::generate_uuid, PWDuckCoreError, SecVec};
 
 /// The size of an [`Uuid`](Uuid).
 pub const SIZE: usize = 16;
@@ -33,8 +33,32 @@ impl Uuid {
     }
 }
 
+impl Deref for Uuid {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.id
+    }
+}
+
 impl From<[u8; SIZE]> for Uuid {
     fn from(id: [u8; SIZE]) -> Self {
         Self { id }
+    }
+}
+
+impl TryFrom<SecVec<u8>> for Uuid {
+    type Error = PWDuckCoreError;
+
+    fn try_from(value: SecVec<u8>) -> Result<Self, Self::Error> {
+        if value.len() != SIZE {
+            return Err(PWDuckCoreError::Error(
+                "TryFrom SecVec to Uuid failed".into(),
+            ));
+        }
+
+        let mut id = [0_u8; SIZE];
+        id.copy_from_slice(&value);
+        Ok(id.into())
     }
 }

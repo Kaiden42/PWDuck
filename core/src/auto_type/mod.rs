@@ -51,9 +51,9 @@ impl AutoTypeSequenceParser {
                 Rule::literal => parts.push(Part::Literal(pair.as_str().into())),
                 Rule::field => match pair.as_str() {
                     "[title]" => parts.push(Part::Field(entry_head.title().clone().into())),
-                    "[username]" => parts.push(Part::Field(entry_body.username().clone().into())),
-                    "[password]" => parts.push(Part::Field(entry_body.password().clone().into())),
-                    "[email]" => parts.push(Part::Field(entry_body.email().clone().into())),
+                    "[username]" => parts.push(Part::Field(entry_body.username().clone())),
+                    "[password]" => parts.push(Part::Field(entry_body.password().clone())),
+                    "[email]" => parts.push(Part::Field(entry_body.email().clone())),
                     //_ => return Err(PWDuckCoreError::Error("No valid field".into())),
                     _ => return Err(SequenceParseError::InvalidField(pair.as_str().into()).into()),
                 },

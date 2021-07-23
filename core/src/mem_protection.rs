@@ -138,6 +138,12 @@ impl<T: Zeroize> From<Vec<T>> for SecVec<T> {
 pub struct SecString(String);
 
 impl SecString {
+    /// Create a new empty [`SecString`](SecString).
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(String::new())
+    }
+
     /// Create a new [`SecString`](SecString) from a [`SecVec`](SecVec) containing
     /// UTF-8 encoded text.
     pub fn from_utf8(v: SecVec<u8>) -> Result<Self, PWDuckCoreError> {

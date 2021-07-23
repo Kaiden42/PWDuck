@@ -177,7 +177,7 @@ impl ModifyEntryView {
 
     /// Copy the username to clipboard.
     fn copy_username(&self, clipboard: &mut iced::Clipboard) -> Command<ModifyEntryMessage> {
-        clipboard.write(self.entry_body().username().clone());
+        clipboard.write(self.entry_body().username().to_string());
         Command::none()
     }
 
@@ -215,7 +215,7 @@ impl ModifyEntryView {
 
     /// Copy the password to the clipboard.
     fn copy_password(&self, clipboard: &mut iced::Clipboard) -> Command<ModifyEntryMessage> {
-        clipboard.write(self.entry_body().password().clone());
+        clipboard.write(self.entry_body().password().to_string());
         Command::none()
     }
 
@@ -228,7 +228,7 @@ impl ModifyEntryView {
     /// Estimate the strength of the password.
     fn estimate_password_strength(&self) -> Command<ModifyEntryMessage> {
         Command::perform(
-            estimate_password_strength(self.entry_body.password().clone().into()),
+            estimate_password_strength(self.entry_body.password().clone()),
             ModifyEntryMessage::PasswordScore,
         )
     }

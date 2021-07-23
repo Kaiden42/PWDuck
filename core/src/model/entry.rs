@@ -1,8 +1,8 @@
 //! TODO
-use std::{collections::HashMap, ops::Deref, path::Path};
+use std::{collections::HashMap, convert::TryInto, ops::Deref, path::Path};
 
 use crate::{
-    cryptography::{aes_cbc_decrypt, aes_cbc_encrypt, generate_aes_iv},
+    cryptography::{self, aes_cbc_decrypt, aes_cbc_encrypt, generate_aes_iv},
     error::PWDuckCoreError,
     mem_protection::SecString,
 };
@@ -157,7 +157,7 @@ impl EntryHead {
 
 /// The in-memory representation of an entry body.
 #[allow(missing_debug_implementations)]
-#[derive(Clone, Deserialize, Serialize, Zeroize)]
+#[derive(Clone, Zeroize)]
 #[zeroize(drop)]
 #[derive(Getters, Setters)]
 pub struct EntryBody {
@@ -167,31 +167,29 @@ pub struct EntryBody {
 
     /// The username of this entry.
     #[getset(get = "pub")]
-    username: String,
+    username: SecString,
 
     /// The password of this entry.
     #[getset(get = "pub")]
-    password: String,
+    password: SecString,
 
     /// The email of this entry.
     #[getset(get = "pub")]
-    #[serde(default)]
-    email: String,
+    email: SecString,
 
     /// If the body was modified.
-    #[serde(skip)]
     modified: bool,
 }
 
 impl EntryBody {
     /// Create a new [`EntryBody`](EntryBody).
     #[must_use]
-    pub const fn new(uuid: Uuid, username: String, password: String) -> Self {
+    pub fn new(uuid: Uuid, username: String, password: String) -> Self {
         Self {
             uuid,
-            username,
-            password,
-            email: String::new(),
+            username: username.into(),
+            password: password.into(),
+            email: SecString::new(),
             modified: true,
         }
     }
@@ -202,7 +200,10 @@ impl EntryBody {
         master_key: &[u8],
     ) -> Result<crate::dto::entry::EntryBody, PWDuckCoreError> {
         let iv = generate_aes_iv();
-        let mut content = ron::to_string(self)?;
+
+        let encrypted_body = EncryptedBody::from(self, master_key)?;
+
+        let mut content = ron::to_string(&encrypted_body)?;
         let encrypted_content = aes_cbc_encrypt(content.as_bytes(), master_key, &iv)?;
         content.zeroize();
         Ok(crate::dto::entry::EntryBody::new(
@@ -235,31 +236,31 @@ impl EntryBody {
         )?;
 
         let content = SecString::from_utf8(decrypted_content)?;
-        let body = ron::from_str(&content)?;
+
+        let encrypted_body: EncryptedBody = ron::from_str(&content)?;
+
+        let body = encrypted_body.into(masterkey)?;
 
         Ok(body)
     }
 
     /// Set the username of this entry.
     pub fn set_username(&mut self, username: String) -> &mut Self {
-        self.username.zeroize();
-        self.username = username;
+        self.username = username.into();
         self.modified = true;
         self
     }
 
     /// Set the password of this entry.
     pub fn set_password(&mut self, password: String) -> &mut Self {
-        self.password.zeroize();
-        self.password = password;
+        self.password = password.into();
         self.modified = true;
         self
     }
 
     /// Set the email of this entry.
     pub fn set_email(&mut self, email: String) -> &mut Self {
-        self.email.zeroize();
-        self.email = email;
+        self.email = email.into();
         self.modified = true;
         self
     }
@@ -268,6 +269,47 @@ impl EntryBody {
     #[must_use]
     pub const fn is_modified(&self) -> bool {
         self.modified
+    }
+}
+
+/// The encrypted data of an [`EntryBody`](EntryBody).
+#[derive(Deserialize, Serialize)]
+struct EncryptedBody {
+    /// The iv used for the encryption.
+    iv: Vec<u8>,
+    /// The encrypted UUID of this entry.
+    uuid: Vec<u8>,
+    /// The encrypted username of this entry.
+    username: Vec<u8>,
+    /// The encrypted password of this entry.
+    password: Vec<u8>,
+    /// The encrypted email of this entry.
+    #[serde(default)]
+    email: Vec<u8>,
+}
+
+impl EncryptedBody {
+    /// Encrypt the given [`EntryBody`](EntryBody) with the masterkey.
+    fn from(body: &EntryBody, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
+        let iv = cryptography::generate_aes_iv();
+        Ok(Self {
+            iv: iv.clone(),
+            uuid: aes_cbc_encrypt(&body.uuid, masterkey, &iv)?,
+            username: aes_cbc_encrypt(body.username.as_bytes(), masterkey, &iv)?,
+            password: aes_cbc_encrypt(body.password.as_bytes(), masterkey, &iv)?,
+            email: aes_cbc_encrypt(body.email.as_bytes(), masterkey, &iv)?,
+        })
+    }
+
+    /// Decrypt the [`EncryptedBody`](EncryptedBody) with the masterkey.
+    fn into(self, masterkey: &[u8]) -> Result<EntryBody, PWDuckCoreError> {
+        Ok(EntryBody {
+            uuid: aes_cbc_decrypt(&self.uuid, masterkey, &self.iv)?.try_into()?,
+            username: SecString::from_utf8(aes_cbc_decrypt(&self.username, masterkey, &self.iv)?)?,
+            password: SecString::from_utf8(aes_cbc_decrypt(&self.password, masterkey, &self.iv)?)?,
+            email: SecString::from_utf8(aes_cbc_decrypt(&self.email, masterkey, &self.iv)?)?,
+            modified: false,
+        })
     }
 }
 

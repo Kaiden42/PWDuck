@@ -119,7 +119,7 @@ impl VaultContainer {
             |dto| pwduck_core::EntryBody::decrypt(dto, &masterkey),
         )?;
 
-        clipboard.write(entry_body.username().clone());
+        clipboard.write(entry_body.username().to_string());
 
         Ok(Command::none())
     }
@@ -142,7 +142,7 @@ impl VaultContainer {
             |dto| pwduck_core::EntryBody::decrypt(dto, &masterkey),
         )?;
 
-        clipboard.write(entry_body.password().clone());
+        clipboard.write(entry_body.password().to_string());
 
         Ok(Command::none())
     }
