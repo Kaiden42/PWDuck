@@ -601,15 +601,15 @@ impl Theme for Light {
                     background: Some(Background::Color(*BACKGROUND_LIGHT)),
                     border_radius: 2.0,
                     border_width: 1.0,
-                    border_color: *SECONDARY_2,
-                    text_color: *SECONDARY_2,
+                    border_color: *SECONDARY_3,
+                    text_color: *SECONDARY_3,
                 }
             }
 
             fn hovered(&self) -> button::Style {
                 button::Style {
-                    background: Some(Background::Color(*SECONDARY_2)),
-                    border_color: *SECONDARY_2,
+                    background: Some(Background::Color(*SECONDARY_3)),
+                    border_color: *SECONDARY_3,
                     text_color: *BACKGROUND_LIGHT,
                     ..self.active()
                 }
@@ -1158,15 +1158,15 @@ impl Theme for Dark {
                     background: Some(Background::Color(*BACKGROUND_DARK)),
                     border_radius: 2.0,
                     border_width: 1.0,
-                    border_color: *SECONDARY_5,
-                    text_color: *SECONDARY_5,
+                    border_color: *SECONDARY_4,
+                    text_color: *SECONDARY_4,
                 }
             }
 
             fn hovered(&self) -> button::Style {
                 button::Style {
-                    background: Some(Background::Color(*SECONDARY_5)),
-                    border_color: *SECONDARY_5,
+                    background: Some(Background::Color(*SECONDARY_4)),
+                    border_color: *SECONDARY_4,
                     text_color: *BACKGROUND_DARK,
                     ..self.active()
                 }
