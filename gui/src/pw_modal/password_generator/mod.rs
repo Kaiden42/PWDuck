@@ -192,7 +192,7 @@ impl PasswordGeneratorState {
     /// Reroll the password.
     fn reroll_password(&mut self) -> Command<PasswordGeneratorMessage> {
         self.generate_and_update_password();
-        Command::none()
+        self.estimate_password_strength()
     }
 
     /// Set the estimated score of the password.
