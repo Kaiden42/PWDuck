@@ -107,6 +107,7 @@ impl Component for VaultUnlocker {
     fn update<P: crate::Platform + 'static>(
         &mut self,
         message: Self::Message,
+        _application_settings: &mut pwduck_core::ApplicationSettings,
         _modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         _clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Self::Message>, PWDuckGuiError> {
@@ -122,6 +123,7 @@ impl Component for VaultUnlocker {
 
     fn view<P: crate::Platform + 'static>(
         &mut self,
+        _application_settings: &pwduck_core::ApplicationSettings,
         theme: &dyn Theme,
         _viewport: &Viewport,
     ) -> iced::Element<'_, Self::Message> {

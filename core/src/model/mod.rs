@@ -9,3 +9,5 @@ pub mod master_key;
 pub mod uuid;
 
 pub mod vault;
+
+pub mod settings;

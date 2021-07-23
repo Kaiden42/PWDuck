@@ -140,6 +140,7 @@ impl Component for VaultLoader {
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,
+        _application_settings: &mut pwduck_core::ApplicationSettings,
         _modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         _clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Self::Message>, PWDuckGuiError> {
@@ -169,6 +170,7 @@ impl Component for VaultLoader {
 
     fn view<P: Platform + 'static>(
         &mut self,
+        _application_settings: &pwduck_core::ApplicationSettings,
         theme: &dyn Theme,
         _viewport: &Viewport,
         //platform: &dyn Platform

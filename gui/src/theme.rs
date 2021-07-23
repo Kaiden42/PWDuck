@@ -20,7 +20,8 @@ lazy_static! {
     /// The primary color with a shade of 50%.
     static ref PRIMARY_6: Color = shade(*PRIMARY_1, 0.5);
     /// The secondary color (#797979).
-    static ref SECONDARY_1: Color = Color::from_rgb(0.475, 0.475, 0.475);
+    //static ref SECONDARY_1: Color = Color::from_rgb(0.475, 0.475, 0.475);
+    static ref SECONDARY_1: Color = Color::from_rgb(0.835, 0.835, 0.835); // D5
     /// The secondary color with a shade of 10%.
     static ref SECONDARY_2: Color = shade(*SECONDARY_1, 0.9);
     /// The secondary color with a shade of 20%.
@@ -44,9 +45,11 @@ lazy_static! {
     /// The warning color with a shade of 50%.
     static ref WARNING_6: Color = shade(*WARNING_1, 0.5);
     /// The text color of the light theme (#000000).
-    static ref TEXT_LIGHT: Color = Color::from_rgb(0.0, 0.0, 0.0);
+    //static ref TEXT_LIGHT: Color = Color::from_rgb(0.0, 0.0, 0.0);
+    static ref TEXT_LIGHT: Color = Color::from_rgb(0.173, 0.173, 0.173);
     /// The text color of the dark theme (#ffffff).
-    static ref TEXT_DARK: Color = Color::from_rgb(1.0, 1.0, 1.0);
+    //static ref TEXT_DARK: Color = Color::from_rgb(1.0, 1.0, 1.0);
+    static ref TEXT_DARK: Color = Color::from_rgb(0.98, 0.98, 0.98);
     /// The background color of the light theme (#fafafa).
     static ref BACKGROUND_LIGHT: Color = Color::from_rgb(0.98, 0.98, 0.98);
     /// The background color of the dark theme (#2c2c2c).
@@ -264,7 +267,7 @@ impl Theme for Light {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::default(),
-                    background: Some(Background::Color(*PRIMARY_1)),
+                    background: Some(Background::Color(*SECONDARY_1)),
                     border_radius: 5.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
@@ -318,8 +321,8 @@ impl Theme for Light {
             fn active(&self) -> modal::Style {
                 modal::Style {
                     background: Color {
-                        a: 0.3,
-                        ..*SECONDARY_1
+                        a: 0.5,
+                        ..*BACKGROUND_LIGHT
                     }
                     .into(),
                 }
@@ -580,7 +583,7 @@ impl Theme for Light {
 
             fn hovered(&self) -> button::Style {
                 button::Style {
-                    background: Some(Background::Color(*PRIMARY_1)),
+                    background: Some(Background::Color(*SECONDARY_1)),
                     ..self.active()
                 }
             }
@@ -598,15 +601,15 @@ impl Theme for Light {
                     background: Some(Background::Color(*BACKGROUND_LIGHT)),
                     border_radius: 2.0,
                     border_width: 1.0,
-                    border_color: *PRIMARY_2,
-                    text_color: *PRIMARY_2,
+                    border_color: *SECONDARY_2,
+                    text_color: *SECONDARY_2,
                 }
             }
 
             fn hovered(&self) -> button::Style {
                 button::Style {
-                    background: Some(Background::Color(*PRIMARY_2)),
-                    border_color: *PRIMARY_2,
+                    background: Some(Background::Color(*SECONDARY_2)),
+                    border_color: *SECONDARY_2,
                     text_color: *BACKGROUND_LIGHT,
                     ..self.active()
                 }
@@ -821,7 +824,7 @@ impl Theme for Dark {
             fn active(&self) -> button::Style {
                 button::Style {
                     shadow_offset: Vector::default(),
-                    background: Some(Background::Color(*PRIMARY_6)),
+                    background: Some(Background::Color(*SECONDARY_6)),
                     border_radius: 5.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
@@ -875,8 +878,8 @@ impl Theme for Dark {
             fn active(&self) -> modal::Style {
                 modal::Style {
                     background: Color {
-                        a: 0.3,
-                        ..*SECONDARY_6
+                        a: 0.5,
+                        ..*BACKGROUND_DARK
                     }
                     .into(),
                 }
@@ -1137,7 +1140,7 @@ impl Theme for Dark {
 
             fn hovered(&self) -> button::Style {
                 button::Style {
-                    background: Some(Background::Color(*PRIMARY_6)),
+                    background: Some(Background::Color(*SECONDARY_6)),
                     ..self.active()
                 }
             }
@@ -1155,15 +1158,15 @@ impl Theme for Dark {
                     background: Some(Background::Color(*BACKGROUND_DARK)),
                     border_radius: 2.0,
                     border_width: 1.0,
-                    border_color: *PRIMARY_5,
-                    text_color: *PRIMARY_5,
+                    border_color: *SECONDARY_5,
+                    text_color: *SECONDARY_5,
                 }
             }
 
             fn hovered(&self) -> button::Style {
                 button::Style {
-                    background: Some(Background::Color(*PRIMARY_5)),
-                    border_color: *PRIMARY_5,
+                    background: Some(Background::Color(*SECONDARY_5)),
+                    border_color: *SECONDARY_5,
                     text_color: *BACKGROUND_DARK,
                     ..self.active()
                 }

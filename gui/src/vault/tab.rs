@@ -15,6 +15,7 @@ use super::{
     container::VaultContainer,
     creator::{VaultCreator, VaultCreatorMessage},
     loader::{VaultLoader, VaultLoaderMessage},
+    settings::{Settings, SettingsMessage},
     unlock::{VaultUnlocker, VaultUnlockerMessage},
 };
 
@@ -77,26 +78,36 @@ impl VaultTab {
         Command::none()
     }
 
+    /// Change the content of the tab to the [`Settings`](Settings).
+    pub fn change_to_settings_state(&mut self) -> Command<VaultTabMessage> {
+        self.state = VaultTabState::Settings(Settings::new(()));
+        Command::none()
+    }
+
     /// Update the tab state.
     fn update_state<P: Platform + 'static>(
         &mut self,
         message: VaultTabMessage,
+        application_settings: &mut pwduck_core::ApplicationSettings,
         modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultTabMessage>, PWDuckGuiError> {
         match (message, &mut self.state) {
             (VaultTabMessage::Loader(msg), VaultTabState::Empty(loader)) => Ok(loader
-                .update::<P>(msg, modal_state, clipboard)?
+                .update::<P>(msg, application_settings, modal_state, clipboard)?
                 .map(VaultTabMessage::Loader)),
             (VaultTabMessage::Creator(msg), VaultTabState::Create(creator)) => Ok(creator
-                .update::<P>(msg, modal_state, clipboard)?
+                .update::<P>(msg, application_settings, modal_state, clipboard)?
                 .map(VaultTabMessage::Creator)),
             (VaultTabMessage::Unlocker(msg), VaultTabState::Unlock(unlocker)) => Ok(unlocker
-                .update::<P>(msg, modal_state, clipboard)?
+                .update::<P>(msg, application_settings, modal_state, clipboard)?
                 .map(VaultTabMessage::Unlocker)),
             (VaultTabMessage::Container(msg), VaultTabState::Open(container)) => Ok(container
-                .update::<P>(msg, modal_state, clipboard)?
+                .update::<P>(msg, application_settings, modal_state, clipboard)?
                 .map(VaultTabMessage::Container)),
+            (VaultTabMessage::Settings(msg), VaultTabState::Settings(settings)) => Ok(settings
+                .update::<P>(msg, application_settings, modal_state, clipboard)?
+                .map(VaultTabMessage::Settings)),
             _ => PWDuckGuiError::Unreachable("VaultTabMessage".into()).into(),
         }
     }
@@ -113,6 +124,8 @@ pub enum VaultTabMessage {
     Container(VaultContainerMessage),
     /// The message produced by the [`VaultUnlocker`](VaultUnlocker).
     Unlocker(VaultUnlockerMessage),
+    /// The message produced by the [`Settings`](Settings).
+    Settings(SettingsMessage),
 }
 
 /// The states of the tab content.
@@ -126,6 +139,8 @@ pub enum VaultTabState {
     Open(VaultContainer),
     /// The state of the [`VaultUnlocker`](VaultUnlocker).
     Unlock(VaultUnlocker),
+    /// The state of the [`Settings`](Settings).
+    Settings(Settings),
 }
 
 impl Component for VaultTab {
@@ -145,12 +160,14 @@ impl Component for VaultTab {
             VaultTabState::Create(creator) => creator.title(),
             VaultTabState::Open(container) => container.title(),
             VaultTabState::Unlock(unlocker) => unlocker.title(),
+            VaultTabState::Settings(settings) => settings.title(),
         }
     }
 
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,
+        application_settings: &mut pwduck_core::ApplicationSettings,
         modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Self::Message>, PWDuckGuiError> {
@@ -187,29 +204,33 @@ impl Component for VaultTab {
             }
 
             // Passing every other message to sub elements
-            _ => self.update_state::<P>(message, modal_state, clipboard),
+            _ => self.update_state::<P>(message, application_settings, modal_state, clipboard),
         }
     }
 
     fn view<P: Platform + 'static>(
         &mut self,
+        application_settings: &pwduck_core::ApplicationSettings,
         theme: &dyn Theme,
         viewport: &Viewport,
         //platform: &dyn Platform
     ) -> iced::Element<'_, Self::Message> {
         match &mut self.state {
             VaultTabState::Empty(loader) => loader
-                .view::<P>(theme, viewport)
+                .view::<P>(application_settings, theme, viewport)
                 .map(VaultTabMessage::Loader),
             VaultTabState::Create(creator) => creator
-                .view::<P>(theme, viewport)
+                .view::<P>(application_settings, theme, viewport)
                 .map(VaultTabMessage::Creator),
             VaultTabState::Open(container) => container
-                .view::<P>(theme, viewport)
+                .view::<P>(application_settings, theme, viewport)
                 .map(VaultTabMessage::Container),
             VaultTabState::Unlock(unlocker) => unlocker
-                .view::<P>(theme, viewport)
+                .view::<P>(application_settings, theme, viewport)
                 .map(VaultTabMessage::Unlocker),
+            VaultTabState::Settings(settings) => settings
+                .view::<P>(application_settings, theme, viewport)
+                .map(VaultTabMessage::Settings),
         }
     }
 }

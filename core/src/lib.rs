@@ -57,6 +57,7 @@ mod error;
 pub use error::PWDuckCoreError;
 
 mod io;
+pub use {io::load_application_settings, io::save_application_settings};
 
 mod mem_protection;
 pub use mem_protection::{try_to_prevent_core_dump, MemKey, SecString, SecVec};
@@ -66,6 +67,7 @@ pub use model::{
     entry::{EntryBody, EntryHead},
     group::Group,
     master_key::MasterKey,
+    settings::{theme, ApplicationSettings},
     uuid::Uuid,
     vault::{ItemList, Vault},
 };

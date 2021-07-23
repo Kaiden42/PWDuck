@@ -481,6 +481,7 @@ impl Component for VaultContainer {
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,
+        _application_settings: &mut pwduck_core::ApplicationSettings,
         modal_state: &mut iced_aw::modal::State<crate::ModalState>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<Self::Message>, PWDuckGuiError> {
@@ -508,6 +509,7 @@ impl Component for VaultContainer {
 
     fn view<P: Platform + 'static>(
         &mut self,
+        _application_settings: &pwduck_core::ApplicationSettings,
         theme: &dyn Theme,
         viewport: &Viewport,
     ) -> iced::Element<'_, Self::Message> {

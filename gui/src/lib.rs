@@ -133,8 +133,8 @@ pub struct PWDuckGui<P: Platform + 'static> {
     /// PhantomData for the [`Platform`](Platform) information.
     phantom: PhantomData<P>,
 
-    /// TODO
-    theme: Box<dyn Theme>,
+    /// The settings of this application.
+    application_settings: pwduck_core::ApplicationSettings,
 }
 
 /// The state of the error dialog.
@@ -177,9 +177,11 @@ impl<P: Platform + 'static> PWDuckGui<P> {
     pub fn start() -> Result<(), PWDuckGuiError> {
         pwduck_core::try_to_prevent_core_dump()?;
 
-        //Self::run(Settings::default())?;
+        let application_settings = pwduck_core::load_application_settings().unwrap_or_default();
+
         Self::run(Settings {
             exit_on_close_request: false,
+            flags: application_settings,
             ..Settings::default()
         })?;
         Ok(())
@@ -241,7 +243,12 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Message>, PWDuckGuiError> {
         self.tabs[index]
-            .update::<P>(message, &mut self.modal_state, clipboard)
+            .update::<P>(
+                message,
+                &mut self.application_settings,
+                &mut self.modal_state,
+                clipboard,
+            )
             .map(move |cmd| cmd.map(move |msg| Message::VaultTab(index, msg)))
     }
 }
@@ -263,14 +270,16 @@ pub enum Message {
     TabCreate,
     /// Close the tab identified by it's index.
     TabClose(usize),
+    /// Open the settings tab.
+    OpenSettings,
 }
 
 impl<P: Platform + 'static> Application for PWDuckGui<P> {
     type Executor = executor::Default;
     type Message = Message;
-    type Flags = ();
+    type Flags = pwduck_core::ApplicationSettings;
 
-    fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
+    fn new(flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
         (
             Self {
                 modal_state: modal::State::new(ModalState::None),
@@ -284,8 +293,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                 can_exit: false,
                 phantom: PhantomData,
 
-                theme: theme::Light.into(),
-                //theme: theme::Dark.into(),
+                application_settings: flags,
             },
             Command::none(),
         )
@@ -374,6 +382,14 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                     Ok(Command::none())
                 }
             }
+
+            Message::OpenSettings => {
+                let mut settings_tab = VaultTab::new(());
+                settings_tab.change_to_settings_state();
+                self.tabs.push(settings_tab);
+                self.selected_tab = self.tabs.len() - 1;
+                Ok(Command::none())
+            }
         };
 
         match cmd {
@@ -392,6 +408,11 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
     }
 
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
+        let theme: &dyn Theme = match self.application_settings.theme() {
+            pwduck_core::theme::Theme::Light => &theme::Light,
+            pwduck_core::theme::Theme::Dark => &theme::Dark,
+        };
+
         if self.tabs.is_empty() {
             // Workaround to prevent rendering after the application should exit.
             return Column::new().into();
@@ -408,13 +429,14 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                             .font(ICON_FONT)
                             .size(TOP_ROW_FONT_SIZE),
                     )
-                    .style(self.theme.button_primary())
+                    .style(theme.button_primary())
                     .height(Length::Units(TOP_ROW_HEIGHT))
-                    .padding(TOP_ROW_PADDING),
+                    .padding(TOP_ROW_PADDING)
+                    .on_press(Message::OpenSettings),
                     "Configure your preferences",
                     tooltip::Position::FollowCursor,
                 )
-                .style(self.theme.tooltip()),
+                .style(theme.tooltip()),
             )
             //.push(icon_button(&mut self.open_new_tab_state, Icon::PlusSquare, "Open", "Open new tab", true, None)) // TODO
             .push(
@@ -425,14 +447,14 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                             .font(ICON_FONT)
                             .size(TOP_ROW_FONT_SIZE),
                     )
-                    .style(self.theme.button_primary())
+                    .style(theme.button_primary())
                     .height(Length::Units(TOP_ROW_HEIGHT))
                     .padding(TOP_ROW_PADDING)
                     .on_press(Message::TabCreate),
                     "Open new tab",
                     tooltip::Position::FollowCursor,
                 )
-                .style(self.theme.tooltip()),
+                .style(theme.tooltip()),
             )
             .push(
                 TabBar::width_tab_labels(
@@ -443,7 +465,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                         .collect(),
                     Message::TabSelected,
                 )
-                .style(self.theme.tab_bar())
+                .style(theme.tab_bar())
                 .text_size(TOP_ROW_FONT_SIZE)
                 .icon_size(TOP_ROW_FONT_SIZE)
                 .padding(TOP_ROW_PADDING)
@@ -452,15 +474,14 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
             );
 
         let tab = self.tabs[selected_tab]
-            .view::<P>(self.theme.as_ref(), &self.window_size)
+            .view::<P>(&self.application_settings, theme, &self.window_size)
             .map(move |msg| Message::VaultTab(selected_tab, msg));
 
         let content: Element<_> = Column::new().push(top_row).push(tab).into();
 
-        let theme = self.theme.as_ref();
         let modal_style = match self.modal_state.inner() {
-            ModalState::Password(_) => self.theme.modal(),
-            _ => self.theme.modal_warning(),
+            ModalState::Password(_) => theme.modal(),
+            _ => theme.modal_warning(),
         };
         Container::new(
             Modal::new(&mut self.modal_state, content, move |state| {
@@ -470,7 +491,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         )
         .width(Length::Fill)
         .height(Length::Fill)
-        .style(self.theme.container())
+        .style(theme.container())
         .into()
     }
 
@@ -501,6 +522,7 @@ trait Component {
     fn update<P: Platform + 'static>(
         &mut self,
         message: Self::Message,
+        application_settings: &mut pwduck_core::ApplicationSettings,
         modal_state: &mut modal::State<ModalState>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<iced::Command<Self::Message>, PWDuckGuiError>;
@@ -508,6 +530,7 @@ trait Component {
     /// Create the view of this [`Component`](Component).
     fn view<P: Platform + 'static>(
         &mut self,
+        application_settings: &pwduck_core::ApplicationSettings,
         theme: &dyn Theme,
         viewport: &Viewport,
     ) -> iced::Element<'_, Self::Message>;
