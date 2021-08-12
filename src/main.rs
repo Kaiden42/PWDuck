@@ -96,10 +96,8 @@ impl Platform for Desktop {
 
     async fn auto_type(sequence: Sequence) -> Result<(), pwduck_gui::error::PWDuckGuiError> {
         let mut enigo = enigo::Enigo::new();
-        #[cfg(target_os = "linux")]
-        enigo.set_delay(25);
-        
-        if cfg!(target_os = "linux") {
+        #[cfg(target_os = "linux")] {
+            enigo.set_delay(25);
 
             // Check if xdotools is available
             // TODO: maybe replace this by `get_program` in the future.
