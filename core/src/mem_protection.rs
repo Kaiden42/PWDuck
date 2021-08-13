@@ -29,7 +29,7 @@ impl Zeroize for MemKey {
 
 impl Drop for MemKey {
     fn drop(&mut self) {
-        self.zeroize()
+        self.zeroize();
     }
 }
 

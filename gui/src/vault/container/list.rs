@@ -573,12 +573,15 @@ impl GroupTree {
             }
             std::cmp::Ordering::Greater => {
                 let mut children_buffer = Vec::with_capacity(sub_groups.len());
-                let group_uuids: Vec<Uuid> = sub_groups.iter().map(|g| g.uuid().clone()).collect();
 
                 swap(&mut self.children, &mut children_buffer);
 
                 for child in children_buffer {
-                    if group_uuids.contains(&child.group_uuid) {
+                    if sub_groups
+                        .iter()
+                        .map(|g| g.uuid())
+                        .any(|x| *x == child.group_uuid)
+                    {
                         self.children.push(child);
                     }
                 }

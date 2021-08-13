@@ -38,7 +38,7 @@ impl Symbols {
 
     /// Append characters to the pool.
     pub fn append(&mut self, chars: &[char]) {
-        self.0.extend_from_slice(chars)
+        self.0.extend_from_slice(chars);
     }
 }
 

@@ -190,6 +190,7 @@ pub fn aes_cbc_decrypt(
 ///     - The data to encrypt
 ///     - The key for the encryption
 ///     - A nonce (number-used-once)
+#[allow(clippy::unnecessary_wraps)]
 pub fn chacha20_encrypt(data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>, PWDuckCoreError> {
     let mut cipher = ChaCha20::new(Key::from_slice(key), Nonce::from_slice(nonce));
 
@@ -205,6 +206,7 @@ pub fn chacha20_encrypt(data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>
 ///     - The data to decrypt
 ///     - The key for the decryption
 ///     - A nonce (number-used-once)
+#[allow(clippy::unnecessary_wraps)]
 pub fn chacha20_decrypt(
     encrypted_data: &[u8],
     key: &[u8],

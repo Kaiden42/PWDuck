@@ -58,17 +58,17 @@ pub struct VaultContainer {
 
 impl VaultContainer {
     /// TODO
-    fn enable_list_view_focus(&self) -> bool {
+    const fn enable_list_view_focus(&self) -> bool {
         self.modify_group_view.is_none() && self.modify_entry_view.is_none()
     }
 
     /// TODO
-    fn enable_modify_group_view_focus(&self) -> bool {
+    const fn enable_modify_group_view_focus(&self) -> bool {
         self.modify_group_view.is_some()
     }
 
     /// TODO
-    fn enable_modify_entry_view_focus(&self) -> bool {
+    const fn enable_modify_entry_view_focus(&self) -> bool {
         self.modify_entry_view.is_some()
     }
 
@@ -405,7 +405,7 @@ impl VaultContainer {
                 self.list_view.resize(&self.vault);
                 self.list_view.group_tree_mut().refresh(&self.vault);
                 self.current_view = CurrentView::ListView;
-                self.modify_group_view = None
+                self.modify_group_view = None;
             }
             _ => {}
         }

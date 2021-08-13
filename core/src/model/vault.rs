@@ -127,7 +127,7 @@ impl Vault {
             .iter()
             .try_for_each(|(uuid, entry_body)| crate::io::save_entry_body(&path, uuid, entry_body));
         if unsaved_entry_bodies_result.is_ok() {
-            self.unsaved_entry_bodies.clear()
+            self.unsaved_entry_bodies.clear();
         }
 
         let group_result: Result<(), PWDuckCoreError> = self
@@ -215,7 +215,7 @@ impl Vault {
                 .entry(entry.parent().clone())
                 .or_insert_with(Children::default)
                 .entries_mut()
-                .push(uuid.clone())
+                .push(uuid.clone());
         }
 
         let vault = Self {
@@ -454,13 +454,13 @@ mod tests {
         let path: PathBuf = "this_is_a_test_vault".into();
 
         if path.exists() {
-            std::fs::remove_dir_all(&path).unwrap();
+            std::fs::remove_dir_all(&path).expect("Removing directories should not fail");
         }
 
         let vault = Vault::generate("this is a pretty cool password", &mem_key, &path)
             .expect("Vault generation should not fail");
 
         // TODO
-        std::fs::remove_dir_all(&path).unwrap();
+        std::fs::remove_dir_all(&path).expect("Removing directories should not fail");
     }
 }

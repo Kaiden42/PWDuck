@@ -63,7 +63,11 @@ use icons::{Icon, ICON_FONT};
 use lazy_static::lazy_static;
 use pwduck_core::MemKey;
 use theme::Theme;
-use vault::{container::ModifyEntryMessage, tab::{VaultTabMessage, VaultTabVec}, tab::{VaultContainerMessage, VaultTab}};
+use vault::{
+    container::ModifyEntryMessage,
+    tab::{VaultContainerMessage, VaultTab},
+    tab::{VaultTabMessage, VaultTabVec},
+};
 
 mod pw_modal;
 mod theme;
@@ -135,7 +139,6 @@ pub struct PWDuckGui<P: Platform + 'static> {
     /// The settings of this application.
     application_settings: pwduck_core::ApplicationSettings,
 }
-
 
 /// The state of the error dialog.
 #[derive(Debug, Default)]
@@ -641,7 +644,7 @@ impl ModalState {
                     )
                 })
             }
-            ModalState::None => todo!(),
+            ModalState::None => Text::new("This is a bug and should never be visible!").into(),
         }
     }
 }

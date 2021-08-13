@@ -214,13 +214,13 @@ impl PasswordGeneratorState {
     fn update_password_tab(
         &mut self,
         message: &PasswordTabMessage,
-    ) -> Result<Command<PasswordGeneratorMessage>, PWDuckGuiError> {
+    ) -> Command<PasswordGeneratorMessage> {
         self.password_tab_state
             .update(message)
-            .map(|cmd| cmd.map(PasswordGeneratorMessage::PasswordTabMessage))?;
+            .map(PasswordGeneratorMessage::PasswordTabMessage);
         self.generate_and_update_password();
 
-        Ok(self.estimate_password_strength())
+        self.estimate_password_strength()
     }
 
     /// Update the passphrase tab with the given message.
@@ -250,7 +250,7 @@ impl PasswordGeneratorState {
             PasswordGeneratorMessage::PasswordScore(score) => Ok(self.set_password_score(score)),
             PasswordGeneratorMessage::TabSelected(index) => Ok(self.select_tab(index)),
             PasswordGeneratorMessage::PasswordTabMessage(message) => {
-                self.update_password_tab(&message)
+                Ok(self.update_password_tab(&message))
             }
             PasswordGeneratorMessage::PassphraseTabMessage(message) => {
                 self.update_passphrase_tab(&message)
@@ -401,7 +401,7 @@ impl PasswordGeneratorState {
             0 => self.password_tab_state.generate(),
             _ => self.passphrase_tab_state.generate(),
         }
-        .into()
+        .into();
     }
 }
 

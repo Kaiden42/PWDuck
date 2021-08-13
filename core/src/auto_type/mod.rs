@@ -64,7 +64,7 @@ impl AutoTypeSequenceParser {
                     _ => return Err(SequenceParseError::InvalidKey(pair.as_str().into()).into()),
                 },
                 Rule::sequence => {
-                    Self::parse_inner(pair.into_inner(), entry_head, entry_body, parts)?
+                    Self::parse_inner(pair.into_inner(), entry_head, entry_body, parts)?;
                 }
                 Rule::char => return Err(PWDuckCoreError::Error("Parse error".into())),
             }

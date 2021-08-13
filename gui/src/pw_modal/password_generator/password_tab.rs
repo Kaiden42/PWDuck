@@ -7,10 +7,7 @@ use iced::{
 };
 use iced_aw::{number_input, NumberInput};
 
-use crate::{
-    error::PWDuckGuiError, theme::Theme, utils::vertical_space, DEFAULT_COLUMN_SPACING,
-    DEFAULT_ROW_SPACING,
-};
+use crate::{theme::Theme, utils::vertical_space, DEFAULT_COLUMN_SPACING, DEFAULT_ROW_SPACING};
 
 use bitflags::bitflags;
 
@@ -67,11 +64,8 @@ impl PasswordTabState {
     }
 
     /// Update the [`PasswordTabState`](PasswordTabState) with the given message.
-    pub fn update(
-        &mut self,
-        message: &PasswordTabMessage,
-    ) -> Result<Command<PasswordTabMessage>, PWDuckGuiError> {
-        let cmd = match message {
+    pub fn update(&mut self, message: &PasswordTabMessage) -> Command<PasswordTabMessage> {
+        match message {
             PasswordTabMessage::LengthSlider(length) | PasswordTabMessage::LengthInput(length) => {
                 self.length = *length;
                 Command::none()
@@ -92,9 +86,7 @@ impl PasswordTabState {
                 self.flags.toggle(Flags::INCLUDE_SPECIAL);
                 Command::none()
             }
-        };
-
-        Ok(cmd)
+        }
     }
 
     /// Create the view of the [`PasswordTabState`](PasswordTabState).

@@ -121,12 +121,14 @@ pub struct VaultTabVec(usize, Vec<VaultTab>);
 
 impl VaultTabVec {
     /// TODO
+    #[must_use]
     pub fn new(index: usize, tabs: Vec<VaultTab>) -> Self {
-        Self (index, tabs)
+        Self(index, tabs)
     }
 
     /// TODO
-    pub fn selected(&self) -> usize {
+    #[must_use]
+    pub const fn selected(&self) -> usize {
         self.0
     }
 
@@ -152,7 +154,9 @@ impl std::ops::DerefMut for VaultTabVec {
 
 impl Focus for VaultTabVec {
     fn focus(&mut self, direction: iced_focus::Direction) -> iced_focus::State {
-        self.1.get_mut(self.0).map_or(iced_focus::State::Ignored, |t| t.focus(direction))
+        self.1
+            .get_mut(self.0)
+            .map_or(iced_focus::State::Ignored, |t| t.focus(direction))
     }
 
     fn has_focus(&self) -> bool {
@@ -179,30 +183,15 @@ pub enum VaultTabMessage {
 #[derive(Debug, Focus)]
 pub enum VaultTabState {
     /// The state of the [`VaultLoader`](VaultLoader).
-    Empty(
-        #[focus(enable)]
-        VaultLoader
-    ),
+    Empty(#[focus(enable)] VaultLoader),
     /// The state of the [`VaultCreator`](VaultCreator).
-    Create(
-        #[focus(enable)]
-        Box<VaultCreator>
-    ),
+    Create(#[focus(enable)] Box<VaultCreator>),
     /// The state of the [`VaultContainer`](VaultCreator).
-    Open(
-        #[focus(enable)]
-        VaultContainer
-    ),
+    Open(#[focus(enable)] VaultContainer),
     /// The state of the [`VaultUnlocker`](VaultUnlocker).
-    Unlock(
-        #[focus(enable)]
-        VaultUnlocker
-    ),
+    Unlock(#[focus(enable)] VaultUnlocker),
     /// The state of the [`Settings`](Settings).
-    Settings(
-        #[focus(enable)]
-        Settings
-    ),
+    Settings(#[focus(enable)] Settings),
 }
 
 impl Component for VaultTab {

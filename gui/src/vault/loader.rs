@@ -120,7 +120,6 @@ impl Component for VaultLoader {
     type ConstructorParam = ();
 
     fn new(_: Self::ConstructorParam) -> Self {
-        
         Self {
             path: String::new(),
             path_state: text_input::State::focused(),
@@ -204,7 +203,7 @@ impl Component for VaultLoader {
         .style(theme.text_input());
         if P::is_nfd_available() {
             vault_path = vault_path.on_submit(VaultLoaderMessage::OpenFileDialog);
-        }        
+        }
 
         let mut password = default_text_input(
             &mut self.password_state,

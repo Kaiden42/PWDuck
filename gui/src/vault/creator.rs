@@ -125,8 +125,13 @@ impl VaultCreator {
 
     /// Submit the creation of the new vault.
     fn submit(&mut self) -> Command<VaultCreatorMessage> {
-        if self.name.is_empty() || self.path.is_empty() || self.password.is_empty() || self.password_confirm.is_empty() || !self.password_equal {
-            return Command::none()
+        if self.name.is_empty()
+            || self.path.is_empty()
+            || self.password.is_empty()
+            || self.password_confirm.is_empty()
+            || !self.password_equal
+        {
+            return Command::none();
         }
 
         Command::perform(
@@ -429,7 +434,8 @@ fn password_confirm_row<'a>(
         "Confirm your password",
         password_confirm,
         VaultCreatorMessage::PasswordConfirmInput,
-    ).on_submit(VaultCreatorMessage::Submit);
+    )
+    .on_submit(VaultCreatorMessage::Submit);
     if !password_confirm_show {
         password_confirm = password_confirm.password();
     }

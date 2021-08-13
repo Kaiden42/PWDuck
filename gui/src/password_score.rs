@@ -96,7 +96,7 @@ where
             Container::new(default_vertical_space())
                 .style(style)
                 .width(Length::Fill),
-        )
+        );
     }
 
     for _ in 0..uncolored {
@@ -104,7 +104,7 @@ where
             Container::new(default_vertical_space())
                 .style(ClearStyle)
                 .width(Length::Fill),
-        )
+        );
     }
 
     strength_bar

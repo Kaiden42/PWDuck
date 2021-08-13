@@ -236,6 +236,7 @@ pub fn vertical_space(factor: u16) -> Space {
 }
 
 /// Calculate the strength of the given password.
+#[allow(clippy::unused_async)]
 pub async fn estimate_password_strength(
     password: pwduck_core::SecString,
 ) -> Result<pwduck_core::PasswordInfo, pwduck_core::PWDuckCoreError> {
