@@ -1,6 +1,7 @@
 //! TODO
 
 use iced::{Column, Command, Radio, Text};
+use iced_focus::Focus;
 
 use crate::Component;
 use crate::{
@@ -9,7 +10,7 @@ use crate::{
 };
 
 /// The state of the settings view.
-#[derive(Debug)]
+#[derive(Debug, Focus)]
 pub struct Settings {}
 
 /// The message produced by the settings view.

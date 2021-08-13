@@ -58,15 +58,12 @@ use error::{NfdError, PWDuckGuiError};
 
 pub mod vault;
 use iced_aw::{modal, Card, Modal, TabBar, TabLabel};
+use iced_focus::Focus;
 use icons::{Icon, ICON_FONT};
 use lazy_static::lazy_static;
 use pwduck_core::MemKey;
 use theme::Theme;
-use vault::{
-    container::ModifyEntryMessage,
-    tab::VaultTabMessage,
-    tab::{VaultContainerMessage, VaultTab},
-};
+use vault::{container::ModifyEntryMessage, tab::{VaultTabMessage, VaultTabVec}, tab::{VaultContainerMessage, VaultTab}};
 
 mod pw_modal;
 mod theme;
@@ -111,14 +108,16 @@ lazy_static! {
 }
 
 /// The state of the GUI.
-#[derive(Debug)]
+#[derive(Debug, Focus)]
 pub struct PWDuckGui<P: Platform + 'static> {
     /// The state of the modal
     modal_state: modal::State<ModalState>,
     /// The tabs of open vaults.
-    tabs: Vec<VaultTab>,
+    #[focus(enable)]
+    //tabs: Vec<VaultTab>,
+    tabs: VaultTabVec,
     /// The index of the currently selected tab.
-    selected_tab: usize,
+    //selected_tab: usize,
 
     /// The state of the settings [`Button`](iced::Button).
     settings_state: button::State,
@@ -136,6 +135,7 @@ pub struct PWDuckGui<P: Platform + 'static> {
     /// The settings of this application.
     application_settings: pwduck_core::ApplicationSettings,
 }
+
 
 /// The state of the error dialog.
 #[derive(Debug, Default)]
@@ -272,6 +272,8 @@ pub enum Message {
     TabClose(usize),
     /// Open the settings tab.
     OpenSettings,
+    /// Request focus in the given direction.
+    Focus(iced_focus::Direction),
 }
 
 impl<P: Platform + 'static> Application for PWDuckGui<P> {
@@ -283,8 +285,9 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         (
             Self {
                 modal_state: modal::State::new(ModalState::None),
-                tabs: vec![VaultTab::new(())],
-                selected_tab: 0,
+                //tabs: vec![VaultTab::new(())],
+                //selected_tab: 0,
+                tabs: VaultTabVec::new(0, vec![VaultTab::new(())]),
 
                 settings_state: button::State::new(),
                 open_new_tab_state: button::State::new(),
@@ -334,7 +337,8 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                 let cmd = if let ModalState::Password(password_generator_state) =
                     self.modal_state.inner_mut()
                 {
-                    password_generator_state.submit(self.selected_tab)
+                    //password_generator_state.submit(self.selected_tab)
+                    password_generator_state.submit(self.tabs.selected())
                 } else {
                     Ok(Command::none())
                 };
@@ -355,13 +359,15 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
             Message::VaultTab(index, message) => self.update_vault_tab(index, message, clipboard),
 
             Message::TabSelected(index) => {
-                self.selected_tab = index;
+                //self.selected_tab = index;
+                self.tabs.select(index);
                 Ok(Command::none())
             }
 
             Message::TabCreate => {
                 self.tabs.push(VaultTab::new(()));
-                self.selected_tab = self.tabs.len() - 1;
+                //self.selected_tab = self.tabs.len() - 1;
+                self.tabs.select(self.tabs.len() - 1);
                 Ok(Command::none())
             }
 
@@ -370,11 +376,16 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                     Err(PWDuckGuiError::VaultContainsUnsavedChanges)
                 } else {
                     self.tabs.remove(index);
-                    self.selected_tab = if self.tabs.is_empty() {
+                    //self.selected_tab = if self.tabs.is_empty() {
+                    //    0
+                    //} else {
+                    //    self.selected_tab.min(self.tabs.len() - 1)
+                    //};
+                    self.tabs.select(if self.tabs.is_empty() {
                         0
                     } else {
-                        self.selected_tab.min(self.tabs.len() - 1)
-                    };
+                        self.tabs.selected().min(self.tabs.len() - 1)
+                    });
 
                     if self.tabs.is_empty() {
                         self.can_exit = true;
@@ -387,7 +398,13 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
                 let mut settings_tab = VaultTab::new(());
                 settings_tab.change_to_settings_state();
                 self.tabs.push(settings_tab);
-                self.selected_tab = self.tabs.len() - 1;
+                //self.selected_tab = self.tabs.len() - 1;
+                self.tabs.select(self.tabs.len() - 1);
+                Ok(Command::none())
+            }
+
+            Message::Focus(direction) => {
+                let _ = self.focus(direction);
                 Ok(Command::none())
             }
         };
@@ -417,7 +434,8 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
             // Workaround to prevent rendering after the application should exit.
             return Column::new().into();
         }
-        let selected_tab = self.selected_tab;
+        //let selected_tab = self.selected_tab;
+        let selected_tab = self.tabs.selected();
 
         let top_row = Row::new()
             //.push(icon_button(&mut self.settings_state, Icon::Gear, "Settings", "Configure your preferences", true, None))
@@ -458,7 +476,8 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
             )
             .push(
                 TabBar::width_tab_labels(
-                    self.selected_tab,
+                    //self.selected_tab,
+                    self.tabs.selected(),
                     self.tabs
                         .iter()
                         .map(|tab| TabLabel::Text(tab.title()))
@@ -496,7 +515,22 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
-        iced_native::subscription::events().map(Message::IcedEvent)
+        //iced_native::subscription::events().map(Message::IcedEvent)
+        iced_native::subscription::events_with(|event, _status| {
+            if let iced_native::Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                key_code: iced_native::keyboard::KeyCode::Tab,
+                modifiers,
+            }) = event
+            {
+                Some(Message::Focus(if modifiers.shift {
+                    iced_focus::Direction::Backwards
+                } else {
+                    iced_focus::Direction::Forwards
+                }))
+            } else {
+                Some(Message::IcedEvent(event))
+            }
+        })
     }
 
     fn should_exit(&self) -> bool {
@@ -506,7 +540,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
 }
 
 /// Component trait to define components of this gui.
-trait Component {
+trait Component: iced_focus::Focus {
     /// Message produced by this [`Component`](Component).
     type Message: 'static;
     /// Parameters expected by the constructor of this [`Component`](Component).

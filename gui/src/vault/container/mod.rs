@@ -1,6 +1,7 @@
 //! TODO
 
 use iced::{Column, Command, Container, Length};
+use iced_focus::Focus;
 use pwduck_core::{AutoTypeSequenceParser, EntryBody, EntryHead, Group, Uuid, Vault};
 
 mod list;
@@ -28,7 +29,7 @@ use crate::{
 use self::list::ListItemMessage;
 
 /// The state of the vault container.
-#[derive(Debug, Getters)]
+#[derive(Debug, Getters, Focus)]
 pub struct VaultContainer {
     /// The unlocked vault.
     #[getset(get = "pub")]
@@ -41,18 +42,36 @@ pub struct VaultContainer {
     current_view: CurrentView,
 
     /// The state of the list view.
+    #[focus(enable = "self.enable_list_view_focus")]
     list_view: ListView,
 
     /// The state of the group modification view.
     #[getset(get = "pub")]
+    #[focus(enable = "self.enable_modify_group_view_focus")]
     modify_group_view: Option<Box<ModifyGroupView>>,
 
     /// The state of the entry modification view.
     #[getset(get = "pub")]
+    #[focus(enable = "self.enable_modify_entry_view_focus")]
     modify_entry_view: Option<Box<ModifyEntryView>>,
 }
 
 impl VaultContainer {
+    /// TODO
+    fn enable_list_view_focus(&self) -> bool {
+        self.modify_group_view.is_none() && self.modify_entry_view.is_none()
+    }
+
+    /// TODO
+    fn enable_modify_group_view_focus(&self) -> bool {
+        self.modify_group_view.is_some()
+    }
+
+    /// TODO
+    fn enable_modify_entry_view_focus(&self) -> bool {
+        self.modify_entry_view.is_some()
+    }
+
     /// Save the vault to disk.
     fn save(&mut self) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         // TODO: find a way to do this async

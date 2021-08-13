@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use iced::{button, text_input, Column, Command, Container, Length, Row, Space, Text};
+use iced_focus::Focus;
 use pwduck_core::{PWDuckCoreError, SecString, Vault};
 use zeroize::Zeroize;
 
@@ -16,13 +17,14 @@ use crate::{
 };
 
 /// The state of the vault unlocker.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Focus)]
 pub struct VaultUnlocker {
     /// The location of the vault to unlock.
     path: PathBuf,
     /// The password to unlock the vault.
     password: SecString,
     /// The state of the [`TextInput`](iced::TextInput) for the password.
+    #[focus(enable)]
     password_state: text_input::State,
     /// The visibility of the password.
     password_show: bool,
@@ -49,6 +51,10 @@ impl VaultUnlocker {
 
     /// Submit the unlocking of the vault.
     fn submit(&mut self) -> Command<VaultUnlockerMessage> {
+        if self.password.is_empty() {
+            return Command::none();
+        }
+
         Command::perform(
             {
                 let password = self.password.clone();
@@ -90,6 +96,7 @@ impl Component for VaultUnlocker {
         //Self { ..Self::default() }
         Self {
             path,
+            password_state: text_input::State::focused(),
             ..Self::default()
         }
     }
@@ -141,6 +148,7 @@ impl Component for VaultUnlocker {
             &self.password,
             VaultUnlockerMessage::PasswordInput,
         )
+        .on_submit(VaultUnlockerMessage::Submit)
         .style(theme.text_input());
         if !self.password_show {
             password = password.password();

@@ -6,6 +6,7 @@ use iced::{
     Scrollable, Space, Text, TextInput, VerticalAlignment,
 };
 use iced_aw::{split, Split};
+use iced_focus::Focus;
 use pwduck_core::{EntryHead, Group, Uuid, Vault};
 
 use crate::{
@@ -23,22 +24,25 @@ use getset::{Getters, MutGetters, Setters};
 /// The state of the list view inside the vault container.
 ///
 /// See: [`VaultContainer`](crate::vault::container::VaultContainer)
-#[derive(Debug, Getters, MutGetters, Setters)]
+#[derive(Debug, Getters, MutGetters, Setters, Focus)]
 pub struct ListView {
     /// The UUID of the selected group.
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     selected_group_uuid: Uuid,
     /// The sub-groups of the selected group.
     #[getset(get)]
+    #[focus(enable)]
     group_items: Vec<ListGroupItem>,
     /// The entries of the selected group.
     #[getset(get)]
+    #[focus(enable)]
     entry_items: Vec<ListEntryItem>,
 
     /// The search string to search for groups / entries.
     #[getset(get = "pub", get_mut = "pub", set = "pub")]
     search: String,
     /// The state of teh [`TextInput`](TextInput) of the search.
+    #[focus(enable)]
     search_state: text_input::State,
 
     /// The state of the back [`Button`](Button).
@@ -101,7 +105,7 @@ impl ListView {
             entry_items: vec![ListEntryItem::default(); entry_count],
 
             search: String::new(),
-            search_state: text_input::State::new(),
+            search_state: text_input::State::focused(),
 
             back_state: button::State::new(),
             edit_group_state: button::State::new(),
@@ -346,7 +350,7 @@ fn group_view<'a>(
 }
 
 /// The state of a sub-group list item.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Focus)]
 struct ListGroupItem {
     /// The state of the [`Button`](Button) of the list item.
     state: button::State,
@@ -371,7 +375,7 @@ impl ListGroupItem {
 }
 
 /// The state of an entry list item.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Focus)]
 struct ListEntryItem {
     /// The state of the [`Button`](Button) of the list item.
     state: button::State,

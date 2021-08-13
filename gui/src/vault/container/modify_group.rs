@@ -1,11 +1,12 @@
 //! TODO
-use getset::{Getters, MutGetters, Setters};
+use getset::{CopyGetters, Getters, MutGetters, Setters};
 
 use iced::{
     button, scrollable, text_input, Button, Column, Command, Element, Length, Row, Scrollable,
     Space, Text,
 };
 use iced_aw::{modal, Card};
+use iced_focus::Focus;
 use pwduck_core::{Group, Uuid, Vault};
 
 use crate::{
@@ -20,7 +21,7 @@ use crate::{
 };
 
 /// The state of the modify group view.
-#[derive(Debug, Getters, MutGetters, Setters)]
+#[derive(Debug, CopyGetters, Getters, MutGetters, Setters, Focus)]
 pub struct ModifyGroupView {
     /// The group was newly created or an existing group will be modified.
     state: State,
@@ -30,6 +31,7 @@ pub struct ModifyGroupView {
     group: Group,
 
     /// The state of the [`TextInput`](iced::TextInput) of the title.
+    #[focus(enable)]
     title_state: text_input::State,
 
     /// The state of the cancel [`Button`](iced::Button).
@@ -38,10 +40,12 @@ pub struct ModifyGroupView {
     submit_state: button::State,
 
     /// TODO
+    #[getset(get_copy)]
     show_advanced: bool,
     /// TODO
     advanced_button_state: button::State,
     /// TODO
+    #[focus(enable = "self.show_advanced")]
     advanced_state: AdvancedState,
 
     /// The state of the [`Scrollable`](iced::Scrollable).
@@ -79,7 +83,11 @@ impl ModifyGroupView {
 
             group,
 
-            title_state: text_input::State::new(),
+            title_state: if state == State::Create {
+                text_input::State::focused()
+            } else {
+                text_input::State::new()
+            },
 
             cancel_state: button::State::new(),
             submit_state: button::State::new(),
@@ -309,7 +317,7 @@ fn advanced_area<'a>(
 }
 
 /// The state of the group.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {
     /// The group was created.
     Create,
@@ -318,7 +326,7 @@ pub enum State {
 }
 
 /// The state of the advanced view.
-#[derive(Debug)]
+#[derive(Debug, Focus)]
 pub struct AdvancedState {
     /// The state of the [`Button`](iced::Button) to delete the group.
     delete: button::State,

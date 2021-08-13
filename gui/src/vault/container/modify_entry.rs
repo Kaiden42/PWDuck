@@ -1,11 +1,12 @@
 //! TODO
 
-use getset::{Getters, MutGetters, Setters};
+use getset::{CopyGetters, Getters, MutGetters, Setters};
 use iced::{
     button, scrollable, text_input, Button, Column, Command, Element, Length, Row, Scrollable,
     Space, Text,
 };
 use iced_aw::{modal, Card};
+use iced_focus::Focus;
 use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo, Uuid, Vault};
 
 use crate::{
@@ -22,7 +23,7 @@ use crate::{
 };
 
 /// The state of the modify entry view.
-#[derive(Getters, MutGetters, Setters)]
+#[derive(CopyGetters, Getters, MutGetters, Setters, Focus)]
 pub struct ModifyEntryView {
     /// The entry was newly created or an existing entry will be modified.
     state: State,
@@ -35,12 +36,15 @@ pub struct ModifyEntryView {
     entry_body: EntryBody,
 
     /// The state of the [`TextInput`](iced::TextInput) of the title.
+    #[focus(enable)]
     title_state: text_input::State,
     /// The state of the [`TextInput`](iced::TextInput) of the usermane.
+    #[focus(enable)]
     username_state: text_input::State,
     /// The state of the [`Button`](iced::Button) to copy the username.
     username_copy_state: button::State,
     /// The state of the [`TextInput`](iced::TextInput) of the password.
+    #[focus(enable)]
     password_state: text_input::State,
     /// The visibility of the password.
     #[getset(get = "pub", set = "pub")]
@@ -53,10 +57,12 @@ pub struct ModifyEntryView {
     password_copy_state: button::State,
 
     /// The state of the [`TextInput`](iced::TextInput) of the web address.
+    #[focus(enable)]
     web_address_state: text_input::State,
     /// The state of the [`Button`](iced::Button) to open the web address in a browser.
     open_in_browser_state: button::State,
     /// The state of the [`TextInput`](iced::TextInput) of the email.
+    #[focus(enable)]
     email_state: text_input::State,
 
     /// The estimated password score.
@@ -68,10 +74,12 @@ pub struct ModifyEntryView {
     submit_state: button::State,
 
     /// TODO
+    #[getset(get_copy)]
     show_advanced: bool,
     /// TODO
     advanced_button_state: button::State,
     /// TODO
+    #[focus(enable = "self.show_advanced")]
     advanced_state: AdvancedState,
 
     /// The state of the [`Scrollable`](iced::Scrollable).
@@ -137,7 +145,11 @@ impl ModifyEntryView {
             entry_head,
             entry_body,
 
-            title_state: text_input::State::new(),
+            title_state: if state == State::Create {
+                text_input::State::focused()
+            } else {
+                text_input::State::new()
+            },
             username_state: text_input::State::new(),
             username_copy_state: button::State::new(),
             password_state: text_input::State::new(),
@@ -692,7 +704,7 @@ impl std::fmt::Debug for ModifyEntryView {
 }
 
 /// The state of the entry
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {
     /// The entry was created.
     Create,
@@ -701,10 +713,12 @@ pub enum State {
 }
 
 /// The state of the advanced view.
+#[derive(Debug, Focus)]
 pub struct AdvancedState {
     /// The state of the [`Button`](iced::Button) to delete the entry.
     delete: button::State,
     /// The state of the [`TextInput`](iced::TextInput) of the entry's auto type value.
+    #[focus(enable)]
     auto_type: text_input::State,
 }
 

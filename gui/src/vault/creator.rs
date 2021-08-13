@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use iced::{button, text_input, Command, Container, Element, Row, Text};
+use iced_focus::Focus;
 use pwduck_core::{PWDuckCoreError, PasswordInfo, SecString};
 use zeroize::Zeroize;
 
@@ -19,21 +20,24 @@ use crate::{
 };
 
 /// The state of the vault creator.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Focus)]
 pub struct VaultCreator {
     /// The name of the new vault.
     name: String,
     /// The state of the [`TextInput`](iced::TextInput) for the name.
+    #[focus(enable)]
     name_state: text_input::State,
     /// The location of the new vault.
     path: String,
     /// The state of the [`TextInput`](iced::TextInput) for the location.
+    #[focus(enable)]
     path_state: text_input::State,
     /// The state of the [`Button`](iced::Button) to open the native file dialog.
     path_open_fd_state: button::State,
     /// The password of the new vault.
     password: SecString,
     /// The state of the [`TextInput`](iced::TextInput) for the password.
+    #[focus(enable)]
     password_state: text_input::State,
     /// The visibility of the password.
     password_show: bool,
@@ -42,6 +46,7 @@ pub struct VaultCreator {
     /// The confirmation of the password.
     password_confirm: SecString,
     /// The state of the [`TextInput`](iced::TextInput) for the password confirmation.
+    #[focus(enable)]
     password_confirm_state: text_input::State,
     /// The visibility of the password confirmation.
     password_confirm_show: bool,
@@ -120,6 +125,10 @@ impl VaultCreator {
 
     /// Submit the creation of the new vault.
     fn submit(&mut self) -> Command<VaultCreatorMessage> {
+        if self.name.is_empty() || self.path.is_empty() || self.password.is_empty() || self.password_confirm.is_empty() || !self.password_equal {
+            return Command::none()
+        }
+
         Command::perform(
             {
                 let password = self.password.clone();
@@ -184,7 +193,10 @@ impl Component for VaultCreator {
     type ConstructorParam = ();
 
     fn new(_: Self::ConstructorParam) -> Self {
-        Self::default()
+        Self {
+            name_state: text_input::State::focused(),
+            ..Self::default()
+        }
     }
 
     fn title(&self) -> String {
@@ -206,7 +218,10 @@ impl Component for VaultCreator {
             VaultCreatorMessage::PathOpenFD => Self::open_file_dialog::<P>(),
 
             VaultCreatorMessage::PathSelected(Ok(path)) => {
-                self.update_path(path.to_str().ok_or(PWDuckGuiError::Option)?.to_owned())
+                let cmd = self.update_path(path.to_str().ok_or(PWDuckGuiError::Option)?.to_owned());
+                self.path_state.unfocus();
+                self.password_state.focus();
+                cmd
             }
 
             VaultCreatorMessage::PathSelected(Err(_err)) => Command::none(),
@@ -244,6 +259,7 @@ impl Component for VaultCreator {
             &self.name,
             VaultCreatorMessage::NameInput,
         )
+        .on_submit(VaultCreatorMessage::Submit)
         .style(theme.text_input());
 
         let path_row = path_row::<P>(
@@ -319,13 +335,16 @@ fn path_row<'a, P: Platform + 'static>(
     path_open_fd_state: &'a mut button::State,
     theme: &dyn Theme,
 ) -> Element<'a, VaultCreatorMessage> {
-    let path = default_text_input(
+    let mut path = default_text_input(
         path_state,
         "Choose the location for your new vault",
         path,
         VaultCreatorMessage::PathInput,
     )
     .style(theme.text_input());
+    if P::is_nfd_available() {
+        path = path.on_submit(VaultCreatorMessage::PathOpenFD);
+    }
 
     let path_fd_button = icon_button(
         ButtonData {
@@ -367,6 +386,7 @@ fn password_row<'a>(
         password,
         VaultCreatorMessage::PasswordInput,
     )
+    .on_submit(VaultCreatorMessage::Submit)
     .style(theme.text_input());
     if !password_show {
         password = password.password();
@@ -409,7 +429,7 @@ fn password_confirm_row<'a>(
         "Confirm your password",
         password_confirm,
         VaultCreatorMessage::PasswordConfirmInput,
-    );
+    ).on_submit(VaultCreatorMessage::Submit);
     if !password_confirm_show {
         password_confirm = password_confirm.password();
     }

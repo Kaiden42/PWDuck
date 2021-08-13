@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use iced::Command;
+use iced_focus::Focus;
 use pwduck_core::Vault;
 
 use crate::{
@@ -20,9 +21,10 @@ use super::{
 };
 
 /// The state of a vault tab.
-#[derive(Debug)]
+#[derive(Debug, Focus)]
 pub struct VaultTab {
     /// The state of the tab content.
+    #[focus(enable)]
     state: VaultTabState,
 }
 
@@ -113,6 +115,51 @@ impl VaultTab {
     }
 }
 
+/// TODO
+#[derive(Debug)]
+pub struct VaultTabVec(usize, Vec<VaultTab>);
+
+impl VaultTabVec {
+    /// TODO
+    pub fn new(index: usize, tabs: Vec<VaultTab>) -> Self {
+        Self (index, tabs)
+    }
+
+    /// TODO
+    pub fn selected(&self) -> usize {
+        self.0
+    }
+
+    /// TODO
+    pub fn select(&mut self, index: usize) {
+        self.0 = index;
+    }
+}
+
+impl std::ops::Deref for VaultTabVec {
+    type Target = Vec<VaultTab>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.1
+    }
+}
+
+impl std::ops::DerefMut for VaultTabVec {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.1
+    }
+}
+
+impl Focus for VaultTabVec {
+    fn focus(&mut self, direction: iced_focus::Direction) -> iced_focus::State {
+        self.1.get_mut(self.0).map_or(iced_focus::State::Ignored, |t| t.focus(direction))
+    }
+
+    fn has_focus(&self) -> bool {
+        self.1[self.0].has_focus()
+    }
+}
+
 /// The message produced by the [`VaultTab`](VaultTab).
 #[derive(Clone, Debug)]
 pub enum VaultTabMessage {
@@ -129,18 +176,33 @@ pub enum VaultTabMessage {
 }
 
 /// The states of the tab content.
-#[derive(Debug)]
+#[derive(Debug, Focus)]
 pub enum VaultTabState {
     /// The state of the [`VaultLoader`](VaultLoader).
-    Empty(VaultLoader),
+    Empty(
+        #[focus(enable)]
+        VaultLoader
+    ),
     /// The state of the [`VaultCreator`](VaultCreator).
-    Create(Box<VaultCreator>),
+    Create(
+        #[focus(enable)]
+        Box<VaultCreator>
+    ),
     /// The state of the [`VaultContainer`](VaultCreator).
-    Open(VaultContainer),
+    Open(
+        #[focus(enable)]
+        VaultContainer
+    ),
     /// The state of the [`VaultUnlocker`](VaultUnlocker).
-    Unlock(VaultUnlocker),
+    Unlock(
+        #[focus(enable)]
+        VaultUnlocker
+    ),
     /// The state of the [`Settings`](Settings).
-    Settings(Settings),
+    Settings(
+        #[focus(enable)]
+        Settings
+    ),
 }
 
 impl Component for VaultTab {

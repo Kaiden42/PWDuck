@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use iced::{button, text_input, Command, Row, Text};
+use iced_focus::Focus;
 use pwduck_core::{PWDuckCoreError, SecString, Vault};
 use zeroize::Zeroize;
 
@@ -18,16 +19,18 @@ use crate::{
 };
 
 /// The state of the vault loader.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Focus)]
 pub struct VaultLoader {
     /// The path of the vault to load.
     path: String,
     /// The state of the [`TextInput`](iced::TextInput) of the path.
+    #[focus(enable)]
     path_state: text_input::State,
 
     /// The password of the vault.
     password: SecString,
     /// The state of the [`TextInput`](iced::TextInput) of the password.
+    #[focus(enable)]
     password_state: text_input::State,
     /// The visibility of the password.
     show_password: bool,
@@ -117,9 +120,10 @@ impl Component for VaultLoader {
     type ConstructorParam = ();
 
     fn new(_: Self::ConstructorParam) -> Self {
+        
         Self {
             path: String::new(),
-            path_state: text_input::State::new(),
+            path_state: text_input::State::focused(),
 
             password: SecString::default(),
             password_state: text_input::State::new(),
@@ -156,7 +160,10 @@ impl Component for VaultLoader {
             VaultLoaderMessage::OpenFileDialog => Self::open_file_dialog::<P>(),
 
             VaultLoaderMessage::PathSelected(Ok(path)) => {
-                self.update_path(path.to_str().ok_or(PWDuckGuiError::Option)?.to_owned())
+                let cmd = self.update_path(path.to_str().ok_or(PWDuckGuiError::Option)?.to_owned());
+                self.path_state.unfocus();
+                self.password_state.focus();
+                cmd
             }
 
             VaultLoaderMessage::PathSelected(Err(_err)) => Command::none(),
@@ -188,13 +195,16 @@ impl Component for VaultLoader {
             theme,
         );
 
-        let vault_path = default_text_input(
+        let mut vault_path = default_text_input(
             &mut self.path_state,
             "Choose a Vault",
             &self.path,
             VaultLoaderMessage::PathInput,
         )
         .style(theme.text_input());
+        if P::is_nfd_available() {
+            vault_path = vault_path.on_submit(VaultLoaderMessage::OpenFileDialog);
+        }        
 
         let mut password = default_text_input(
             &mut self.password_state,
@@ -202,6 +212,7 @@ impl Component for VaultLoader {
             &self.password,
             VaultLoaderMessage::PasswordInput,
         )
+        .on_submit(VaultLoaderMessage::Confirm)
         .style(theme.text_input());
         if !self.show_password {
             password = password.password();
