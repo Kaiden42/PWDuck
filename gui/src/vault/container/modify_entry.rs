@@ -68,6 +68,9 @@ pub struct ModifyEntryView {
     /// The estimated password score.
     password_score: Option<PasswordScore>,
 
+    /// Whether the entry was modified or not.
+    is_modified: bool,
+
     /// The state of the cancel [`Button`](iced::Button).
     cancel_state: button::State,
     /// The state of the submit [`Button`](iced::Button).
@@ -164,6 +167,8 @@ impl ModifyEntryView {
 
             password_score: Option::None,
 
+            is_modified: false,
+
             cancel_state: button::State::new(),
             submit_state: button::State::new(),
 
@@ -178,12 +183,14 @@ impl ModifyEntryView {
     /// Update the title and replace it with the given value.
     fn update_title(&mut self, title: String) -> Command<ModifyEntryMessage> {
         self.entry_head_mut().set_title(title);
+        self.is_modified = true;
         Command::none()
     }
 
     /// Update the username and replace it with the given value.
     fn update_username(&mut self, username: String) -> Command<ModifyEntryMessage> {
         self.entry_body_mut().set_username(username);
+        self.is_modified = true;
         Command::none()
     }
 
@@ -196,12 +203,14 @@ impl ModifyEntryView {
     /// Update the password and replace it with the given value.
     fn update_password(&mut self, password: String) -> Command<ModifyEntryMessage> {
         self.entry_body_mut().set_password(password);
+        self.is_modified = true;
         self.estimate_password_strength()
     }
 
     /// Update the web address and replace it with the given value.
     fn update_web_address(&mut self, web_address: String) -> Command<ModifyEntryMessage> {
         self.entry_head_mut().set_web_address(web_address);
+        self.is_modified = true;
         Command::none()
     }
 
@@ -216,6 +225,7 @@ impl ModifyEntryView {
     /// Update the email and replace it with the given value.
     fn update_email(&mut self, email: String) -> Command<ModifyEntryMessage> {
         self.entry_body_mut().set_email(email);
+        self.is_modified = true;
         Command::none()
     }
 
@@ -284,6 +294,7 @@ impl ModifyEntryView {
             AdvancedStateMessage::AutoTypeInput(auto_type_sequence) => {
                 self.entry_head
                     .set_auto_type_sequence(auto_type_sequence.into());
+                self.is_modified = true;
                 Command::none()
             }
         }
@@ -395,7 +406,7 @@ impl ModifyEntryView {
         let control_row = control_button_row(
             &mut self.cancel_state,
             &mut self.submit_state,
-            (self.entry_head.is_modified() || self.entry_body.is_modified())
+            self.is_modified
                 && !self.entry_head.title().is_empty(),
             theme,
         );

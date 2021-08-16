@@ -39,6 +39,9 @@ pub struct ModifyGroupView {
     /// The state of the submit [`Button`](iced::Button).
     submit_state: button::State,
 
+    /// Whether the group was modified or not.
+    is_modified: bool,
+
     /// TODO
     #[getset(get_copy)]
     show_advanced: bool,
@@ -89,6 +92,8 @@ impl ModifyGroupView {
                 text_input::State::new()
             },
 
+            is_modified: false,
+
             cancel_state: button::State::new(),
             submit_state: button::State::new(),
 
@@ -109,6 +114,7 @@ impl ModifyGroupView {
     /// Update the title and replace it with the given value.
     fn update_title(&mut self, title: String) -> Command<ModifyGroupMessage> {
         self.group.set_title(title);
+        self.is_modified = true;
         Command::none()
     }
 
@@ -233,7 +239,7 @@ impl ModifyGroupView {
                 icon: Icon::Save,
                 text: "Submit",
                 kind: ButtonKind::Primary,
-                on_press: ModifyGroupMessage::Submit.some_if(self.group.is_modified()),
+                on_press: ModifyGroupMessage::Submit.some_if(self.is_modified),
             },
             "Submit changes",
             false,
