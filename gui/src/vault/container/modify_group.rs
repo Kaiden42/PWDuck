@@ -250,6 +250,7 @@ impl ModifyGroupView {
             &mut self.advanced_button_state,
             self.show_advanced,
             &mut self.advanced_state,
+            self.state,
             &self.group,
             theme,
         );
@@ -281,9 +282,14 @@ fn advanced_area<'a>(
     button_state: &'a mut button::State,
     show_advanced: bool,
     advanced_state: &'a mut AdvancedState,
+    state: State,
     group: &Group,
     theme: &dyn Theme,
 ) -> Element<'a, ModifyGroupMessage> {
+    if state == State::Create {
+        return default_vertical_space().into();
+    }
+
     let advanced_button = Button::new(
         button_state,
         Row::new()

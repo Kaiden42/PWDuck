@@ -404,6 +404,7 @@ impl ModifyEntryView {
             &mut self.advanced_button_state,
             self.show_advanced,
             &mut self.advanced_state,
+            self.state,
             &self.entry_head,
             &self.entry_body,
             theme,
@@ -661,6 +662,7 @@ fn advanced_area<'a, P: Platform + 'static>(
     button_state: &'a mut button::State,
     show_advanced: bool,
     advanced_state: &'a mut AdvancedState,
+    state: State,
     entry_head: &'a EntryHead,
     entry_body: &'a EntryBody,
     theme: &dyn Theme,
@@ -684,7 +686,7 @@ fn advanced_area<'a, P: Platform + 'static>(
 
     let advanced: Element<_> = if show_advanced {
         advanced_state
-            .view::<P>(entry_head, entry_body, theme)
+            .view::<P>(state, entry_head, entry_body, theme)
             .map(ModifyEntryMessage::Advanced)
     } else {
         Space::new(Length::Fill, Length::Shrink).into()
@@ -743,22 +745,27 @@ impl AdvancedState {
     /// Create the advanced view.
     pub fn view<P: Platform + 'static>(
         &mut self,
+        state: State,
         entry_head: &EntryHead,
         _entry_body: &EntryBody,
         theme: &dyn Theme,
     ) -> Element<AdvancedStateMessage> {
-        let delete = icon_button(
-            ButtonData {
-                state: &mut self.delete,
-                icon: Icon::Trash,
-                text: "Delete",
-                kind: ButtonKind::Warning,
-                on_press: Some(AdvancedStateMessage::DeleteEntryRequest),
-            },
-            "Delete this entry",
-            false,
-            theme,
-        );
+        let delete: Element<_> = if state == State::Modify {
+            icon_button(
+                ButtonData {
+                    state: &mut self.delete,
+                    icon: Icon::Trash,
+                    text: "Delete",
+                    kind: ButtonKind::Warning,
+                    on_press: Some(AdvancedStateMessage::DeleteEntryRequest),
+                },
+                "Delete this entry",
+                false,
+                theme,
+            )
+        } else {
+            default_vertical_space().into()
+        };
 
         let auto_type_label = Text::new("AutoType sequence:");
 
