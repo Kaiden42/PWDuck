@@ -11,6 +11,9 @@ use seckey::SecBytes;
 
 use crate::{cryptography::fill_random_bytes, error::PWDuckCoreError};
 
+#[cfg(test)]
+use mocktopus::macros::*;
+
 /// The size of a 1 MiB block.
 const MIB_1: usize = 0x0010_0000;
 
@@ -33,6 +36,7 @@ impl Drop for MemKey {
     }
 }
 
+#[cfg_attr(test, mockable)]
 impl MemKey {
     /// Create a new random memory key with the default size.
     #[must_use]
@@ -54,6 +58,12 @@ impl MemKey {
                 //buf.iter_mut().for_each(|x| *x = 0xff);
             }),
         }
+    }
+}
+
+impl From<SecBytes> for MemKey {
+    fn from(bytes: SecBytes) -> Self {
+        Self { key: bytes }
     }
 }
 

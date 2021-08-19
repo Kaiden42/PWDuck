@@ -53,6 +53,14 @@ impl MasterKey {
     }
 }
 
+impl std::ops::Deref for MasterKey {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.key
+    }
+}
+
 impl From<Vec<u8>> for MasterKey {
     fn from(key: Vec<u8>) -> Self {
         Self { key }
