@@ -2,7 +2,8 @@
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 #![deny(unused_results)]
-#![forbid(unsafe_code)]
+//#![forbid(unsafe_code)]
+#![cfg_attr(not(test), forbid(unsafe_code))]
 #![warn(
     clippy::pedantic,
     clippy::nursery,
