@@ -94,11 +94,12 @@ impl DerefMut for MemKey {
 #[cfg_attr(test, derive(Debug))]
 pub struct SecVec<T: Zeroize>(Vec<T>);
 
+#[cfg_attr(test, mockable)]
 impl<T: Zeroize> SecVec<T> {
     /// Create a new empty [`SecVec`](SecVec).
     #[must_use]
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self::with_capacity(0)
     }
 
     /// Create a new [`SecVec`](SecVec) with the given capacity.
@@ -228,18 +229,67 @@ pub fn try_to_prevent_core_dump() -> Result<(), PWDuckCoreError> {
 
 #[cfg(test)]
 mod tests {
+    use mocktopus::mocking::*;
+
+    use crate::{SecString, SecVec};
+
     use super::{MemKey, MIB_1};
 
     #[test]
     fn new_key() {
+        MemKey::with_length.mock_safe(|len| {
+            assert_eq!(len, MIB_1);
+            MockResult::Continue((len,))
+        });
+
         // New key with default size
         let mem_key = MemKey::new();
         let guard = mem_key.key.read();
         assert_eq!(guard.len(), MIB_1);
 
+        MemKey::with_length.clear_mock();
+
         // New key with size of 1
-        let mem_key = MemKey::with_length(1);
+        let mem_key = MemKey::with_length(42);
         let guard = mem_key.key.read();
-        assert_eq!(guard.len(), 1)
+        assert_eq!(guard.len(), 42)
+    }
+
+    #[test]
+    fn new_secvec() {
+        SecVec::<u8>::with_capacity.mock_safe(|cap| {
+            assert_eq!(cap, 0);
+            MockResult::Continue((cap,))
+        });
+
+        let sec_vec: SecVec<u8> = SecVec::new();
+        assert_eq!(sec_vec.len(), 0);
+        assert_eq!(sec_vec.capacity(), 0);
+        assert!(sec_vec.is_empty());
+
+        SecVec::<u8>::with_capacity.clear_mock();
+
+        let sec_vec: SecVec<u8> = SecVec::with_capacity(42);
+        assert_eq!(sec_vec.len(), 0);
+        assert_eq!(sec_vec.capacity(), 42);
+        assert!(sec_vec.is_empty());
+    }
+
+    #[test]
+    fn new_sec_string() {
+        let sec_string = SecString::new();
+        assert_eq!(sec_string.len(), 0);
+        assert!(sec_string.is_empty());
+
+        let bytes: SecVec<u8> = vec![0x41, 0x42, 0x43, 0x44, 0x45].into();
+
+        let string = SecString::from_utf8(bytes).expect("Should be a valid utf8 encoded string");
+
+        assert_eq!(string, "ABCDE".into());
+
+        let bytes: SecVec<u8> = vec![0x41, 0x42, 0xFF, 0x43, 0x44].into();
+
+        let string =
+            SecString::from_utf8(bytes).expect_err("Should not be a valid utf8 encoded string");
     }
 }
