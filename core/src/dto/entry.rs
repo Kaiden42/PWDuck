@@ -52,6 +52,7 @@ mod tests {
         assert_eq!(head.content(), "HEAD");
     }
 
+    #[test]
     fn new_body() {
         let body = EntryBody::new("IV".into(), "BODY".into());
         assert_eq!(body.iv(), "IV");
