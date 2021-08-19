@@ -28,3 +28,16 @@ impl MasterKey {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::MasterKey;
+
+    #[test]
+    fn new_master_key() {
+        let master_key = MasterKey::new("SALT".into(), "IV".into(), "ENCRYPTED_KEY".into());
+        assert_eq!(master_key.salt(), "SALT");
+        assert_eq!(master_key.iv(), "IV");
+        assert_eq!(master_key.encrypted_key(), "ENCRYPTED_KEY");
+    }
+}

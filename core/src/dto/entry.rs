@@ -39,3 +39,22 @@ impl EntryBody {
         Self { iv, content: body }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::{EntryBody, EntryHead};
+
+    #[test]
+    fn new_head() {
+        let head = EntryHead::new("IV".into(), "HEAD".into());
+        assert_eq!(head.iv(), "IV");
+        assert_eq!(head.content(), "HEAD");
+    }
+
+    fn new_body() {
+        let body = EntryBody::new("IV".into(), "BODY".into());
+        assert_eq!(body.iv(), "IV");
+        assert_eq!(body.content(), "BODY");
+    }
+}

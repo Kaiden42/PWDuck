@@ -19,3 +19,15 @@ impl Group {
         Self { iv, content }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Group;
+
+    #[test]
+    fn new_group() {
+        let group = Group::new("IV".into(), "CONTENT".into());
+        assert_eq!(group.iv(), "IV");
+        assert_eq!(group.content(), "CONTENT");
+    }
+}
