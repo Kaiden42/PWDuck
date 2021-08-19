@@ -42,6 +42,14 @@ impl Symbols {
     }
 }
 
+impl std::ops::Deref for Symbols {
+    type Target = Vec<char>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl Distribution<char> for Symbols {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> char {
         self.0.choose(rng).copied().unwrap_or('?') as char
@@ -51,7 +59,7 @@ impl Distribution<char> for Symbols {
 /// Generate a new password based on the given character pool of symbols with the specified length.
 pub fn generate_password(length: u8, symbols: &Symbols) -> Result<String, PWDuckCoreError> {
     use rand::{thread_rng, Rng};
-
+    // TODO: Better random!
     let mut rng = thread_rng();
     let password: String = std::iter::repeat(())
         .map(|_| rng.sample(&symbols))
@@ -65,4 +73,87 @@ pub fn generate_password(length: u8, symbols: &Symbols) -> Result<String, PWDuck
 /// Calculate the entropy of the given password.
 pub fn password_entropy(password: &str) -> Result<pw_entropy::PasswordInfo, PWDuckCoreError> {
     Ok(pw_entropy::PasswordInfo::for_password(password))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{generate_password, Symbols};
+
+    #[test]
+    fn new_symbols() {
+        let symbols = Symbols::new();
+        assert_eq!(symbols.len(), 0);
+    }
+
+    #[test]
+    fn append_symbols() {
+        let mut symbols = Symbols::new();
+
+        symbols.append(&Symbols::LOWER_ALPHA);
+
+        assert!(contains_sub_slice(&symbols, &Symbols::LOWER_ALPHA));
+        assert!(!contains_sub_slice(&symbols, &Symbols::UPPER_ALPHA));
+        assert!(!contains_sub_slice(&symbols, &Symbols::NUMBERS));
+        assert!(!contains_sub_slice(&symbols, &Symbols::SPECIAL));
+
+        symbols.append(&Symbols::SPECIAL);
+
+        assert!(contains_sub_slice(&symbols, &Symbols::LOWER_ALPHA));
+        assert!(!contains_sub_slice(&symbols, &Symbols::UPPER_ALPHA));
+        assert!(!contains_sub_slice(&symbols, &Symbols::NUMBERS));
+        assert!(contains_sub_slice(&symbols, &Symbols::SPECIAL));
+    }
+
+    fn contains_sub_slice<T: std::cmp::PartialEq>(vec: &Vec<T>, slice: &[T]) -> bool {
+        let mut found = false;
+        for window in vec.windows(slice.len()) {
+            if window == slice {
+                found = true;
+            }
+        }
+        found
+    }
+
+    #[test]
+    fn password_generation() {
+        let mut symbols = Symbols::new();
+
+        symbols.append(&Symbols::LOWER_ALPHA);
+
+        let password =
+            generate_password(32, &symbols).expect("Password generation should not fail.");
+        assert_eq!(password.len(), 32);
+
+        assert!(password.chars().into_iter().all(|c| symbols.contains(&c)));
+        assert!(!password
+            .chars()
+            .into_iter()
+            .any(|c| Symbols::UPPER_ALPHA.contains(&c)));
+        assert!(!password
+            .chars()
+            .into_iter()
+            .any(|c| Symbols::NUMBERS.contains(&c)));
+        assert!(!password
+            .chars()
+            .into_iter()
+            .any(|c| Symbols::SPECIAL.contains(&c)));
+
+        let mut symbols = Symbols::new();
+        symbols.append(&Symbols::NUMBERS);
+        symbols.append(&Symbols::SPECIAL);
+
+        let password =
+            generate_password(64, &symbols).expect("Password generation should not fail.");
+        assert_eq!(password.len(), 64);
+
+        assert!(password.chars().into_iter().all(|c| symbols.contains(&c)));
+        assert!(!password
+            .chars()
+            .into_iter()
+            .any(|c| Symbols::LOWER_ALPHA.contains(&c)));
+        assert!(!password
+            .chars()
+            .into_iter()
+            .any(|c| Symbols::UPPER_ALPHA.contains(&c)));
+    }
 }
