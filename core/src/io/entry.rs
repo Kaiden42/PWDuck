@@ -160,7 +160,7 @@ mod tests {
     fn save_and_load_all_entry_heads() {
         let dir = tempdir().unwrap();
         let path = dir.path();
-        create_new_vault_dir(&path);
+        create_new_vault_dir(&path).unwrap();
 
         let mut heads: Vec<(EntryHead, Uuid)> = std::iter::successors(Some(0_u8), |n| Some(n + 1))
             .take(10)
@@ -207,7 +207,7 @@ mod tests {
     fn delete_entry() {
         let dir = tempdir().unwrap();
         let path = dir.path();
-        create_new_vault_dir(&path);
+        create_new_vault_dir(&path).unwrap();
 
         let head = EntryHead::new("IV".into(), "HEAD".into());
         let body = EntryBody::new("IV".into(), "BODY".into());
