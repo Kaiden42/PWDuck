@@ -122,3 +122,118 @@ pub fn delete_entry(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+
+    use tempfile::tempdir;
+
+    use crate::{
+        dto::entry::{EntryBody, EntryHead},
+        io::{create_new_vault_dir, BODY, ENTRIES_DIR, HEAD},
+        model::uuid,
+        Uuid,
+    };
+
+    use super::{
+        load_all_entry_heads, load_entry_body, load_entry_head, save_entry_body, save_entry_head,
+    };
+
+    #[test]
+    fn save_and_load_entry_head() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        create_new_vault_dir(&path).unwrap();
+
+        let head = EntryHead::new("IV".into(), "HEAD".into());
+        let uuid: Uuid = [21_u8; uuid::SIZE].into();
+
+        save_entry_head(&path, &uuid, &head).expect("Saving entry head should not fail.");
+
+        let loaded = load_entry_head(&path, &uuid).expect("Loading entry head should not fail.");
+
+        assert_eq!(head.iv(), loaded.iv());
+        assert_eq!(head.content(), loaded.content());
+    }
+
+    #[test]
+    fn save_and_load_all_entry_heads() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        create_new_vault_dir(&path);
+
+        let mut heads: Vec<(EntryHead, Uuid)> = std::iter::successors(Some(0_u8), |n| Some(n + 1))
+            .take(10)
+            .map(|n| {
+                let head = EntryHead::new(format!("IV: {}", n), format!("Head: {}", n));
+                let uuid: Uuid = [n; uuid::SIZE].into();
+
+                save_entry_head(&path, &uuid, &head).unwrap();
+
+                (head, uuid)
+            })
+            .collect();
+
+        let mut loaded =
+            load_all_entry_heads(&path).expect("Loading all entry heads should not fail");
+
+        heads.sort_by(|a, b| a.0.iv().cmp(&b.0.iv()));
+        loaded.sort_by(|a, b| a.iv().cmp(&b.iv()));
+
+        heads.iter().zip(loaded.iter()).for_each(|((a, _), b)| {
+            assert_eq!(a.iv(), b.iv());
+            assert_eq!(a.content(), b.content());
+        })
+    }
+
+    #[test]
+    fn save_and_load_entry_body() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        create_new_vault_dir(&path).unwrap();
+
+        let body = EntryBody::new("IV".into(), "BODY".into());
+        let uuid: Uuid = [21_u8; uuid::SIZE].into();
+
+        save_entry_body(&path, &uuid, &body).expect("Saving entry body should not fail.");
+
+        let loaded = load_entry_body(&path, &uuid).expect("Loading entry body should not fail.");
+
+        assert_eq!(body.iv(), loaded.iv());
+        assert_eq!(body.content(), loaded.content());
+    }
+
+    #[test]
+    fn delete_entry() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        create_new_vault_dir(&path);
+
+        let head = EntryHead::new("IV".into(), "HEAD".into());
+        let body = EntryBody::new("IV".into(), "BODY".into());
+
+        let head_uuid: Uuid = [42_u8; uuid::SIZE].into();
+        let body_uuid: Uuid = [21_u8; uuid::SIZE].into();
+
+        save_entry_head(&path, &head_uuid, &head).unwrap();
+        save_entry_body(&path, &body_uuid, &body).unwrap();
+
+        let head_path = path
+            .join(ENTRIES_DIR)
+            .join(HEAD)
+            .join(head_uuid.base64hash());
+        let body_path = path
+            .join(ENTRIES_DIR)
+            .join(BODY)
+            .join(body_uuid.base64hash());
+
+        assert!(head_path.exists());
+        assert!(body_path.exists());
+
+        super::delete_entry(&path, &head_uuid, &body_uuid)
+            .expect("Deletion of entry should not fail");
+
+        assert!(!head_path.exists());
+        assert!(!body_path.exists());
+    }
+}
