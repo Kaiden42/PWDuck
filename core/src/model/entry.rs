@@ -320,10 +320,12 @@ pub struct AutoTypeSequence {
     sequence: String,
 }
 
+/// The default auto type sequence.
+const DEFAULT_SEQUENCE: &str = "[username]<tab>[password]<enter>";
 impl Default for AutoTypeSequence {
     fn default() -> Self {
         Self {
-            sequence: "[username]<tab>[password]<enter>".into(),
+            sequence: DEFAULT_SEQUENCE.to_owned(),
         }
     }
 }
@@ -339,5 +341,311 @@ impl Deref for AutoTypeSequence {
 impl From<String> for AutoTypeSequence {
     fn from(string: String) -> Self {
         Self { sequence: string }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use mocktopus::mocking::*;
+    use tempfile::tempdir;
+
+    use crate::{cryptography, io::create_new_vault_dir, model::uuid, SecString, Uuid};
+
+    use super::{AutoTypeSequence, EncryptedBody, EntryBody, EntryHead, DEFAULT_SEQUENCE};
+
+    use lazy_static::lazy_static;
+    lazy_static! {
+        static ref DEFAULT_HEAD_UUID: Uuid = [42_u8; uuid::SIZE].into();
+        static ref DEFAULT_PARENT_UUID: Uuid = [21_u8; uuid::SIZE].into();
+        static ref DEFAULT_BODY_UUID: Uuid = [84_u8; uuid::SIZE].into();
+        static ref DEFAULT_HEAD: EntryHead = EntryHead::new(
+            DEFAULT_HEAD_UUID.to_owned(),
+            DEFAULT_PARENT_UUID.to_owned(),
+            "Default title".into(),
+            DEFAULT_BODY_UUID.to_owned(),
+        );
+        static ref DEFAULT_BODY: EntryBody = EntryBody::new(
+            DEFAULT_BODY_UUID.to_owned(),
+            "Default username".into(),
+            "Default password".into(),
+        );
+    }
+
+    #[test]
+    fn new_entry_head() {
+        let uuid: Uuid = [42_u8; uuid::SIZE].into();
+        let parent: Uuid = [21_u8; uuid::SIZE].into();
+        let body: Uuid = [84_u8; uuid::SIZE].into();
+
+        let head = EntryHead::new(uuid.clone(), parent.clone(), "Title".into(), body.clone());
+
+        assert_eq!(head.uuid, uuid);
+        assert_eq!(head.parent, parent);
+        assert_eq!(head.title, String::from("Title"));
+        assert_eq!(head.web_address, String::from(""));
+        assert_eq!(
+            head.auto_type_sequence.sequence,
+            AutoTypeSequence::default().sequence
+        );
+        assert_eq!(head.body, body);
+        assert!(head.modified);
+    }
+
+    #[test]
+    fn encrypt_and_decrypt_head() {
+        let master_key = [21_u8; cryptography::MASTER_KEY_SIZE];
+
+        let head = DEFAULT_HEAD.to_owned();
+
+        let encrypted: crate::dto::entry::EntryHead = head
+            .encrypt(&master_key)
+            .expect("Encrypting entry head should not fail");
+
+        let decrypted = EntryHead::decrypt(&encrypted, &master_key)
+            .expect("Decrypting entry head should not fail");
+
+        assert!(equal_heads(&head, &decrypted));
+    }
+
+    #[test]
+    fn save_and_load_head() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        create_new_vault_dir(&path).unwrap();
+
+        let master_key = [21_u8; cryptography::MASTER_KEY_SIZE];
+
+        let mut head = DEFAULT_HEAD.to_owned();
+        assert!(head.modified);
+
+        head.save(&path, &master_key)
+            .expect("Saving entry head should not fail.");
+        assert!(!head.modified);
+
+        let loaded = EntryHead::load(&path, head.uuid(), &master_key)
+            .expect("Loading entry head should not fail.");
+
+        assert!(equal_heads(&head, &loaded));
+    }
+
+    #[test]
+    fn load_all_heads() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        create_new_vault_dir(&path).unwrap();
+
+        let master_key = [21_u8; cryptography::MASTER_KEY_SIZE];
+
+        let heads: HashMap<Uuid, EntryHead> = std::iter::successors(Some(0_u8), |n| Some(n + 1))
+            .take(10)
+            .fold(HashMap::new(), |mut m, next| {
+                let uuid: Uuid = [next; uuid::SIZE].into();
+                let mut head = EntryHead::new(
+                    uuid.clone(),
+                    [255_u8; uuid::SIZE].into(),
+                    format!("Head: {}", next),
+                    [254_u8; uuid::SIZE].into(),
+                );
+
+                head.save(&path, &master_key).unwrap();
+
+                drop(m.insert(uuid, head));
+                m
+            });
+
+        let loaded = EntryHead::load_all(&path, &master_key)
+            .expect("Loading all entry heads should not fail.");
+
+        assert_eq!(heads.len(), loaded.len());
+        for (uuid, head) in heads {
+            let load = loaded.get(&uuid).expect("Loaded should contain this head.");
+            assert!(equal_heads(&head, &load));
+        }
+    }
+
+    #[test]
+    fn set_title() {
+        let mut head = DEFAULT_HEAD.to_owned();
+        head.modified = false;
+
+        assert_eq!(head.title, String::from("Default title"));
+
+        let _ = head.set_title("Custom title".into());
+
+        assert!(head.modified);
+        assert_eq!(head.title, String::from("Custom title"));
+    }
+
+    #[test]
+    fn set_web_address() {
+        let mut head = DEFAULT_HEAD.to_owned();
+        head.modified = false;
+
+        assert_eq!(head.web_address, String::new());
+
+        let _ = head.set_web_address("https://example.web".into());
+
+        assert!(head.modified);
+        assert_eq!(head.web_address, String::from("https://example.web"));
+    }
+
+    #[test]
+    fn is_modified_head() {
+        let mut head = DEFAULT_HEAD.to_owned();
+
+        assert!(head.is_modified());
+        head.modified = false;
+        assert!(!head.is_modified());
+    }
+
+    fn equal_heads(a: &EntryHead, b: &EntryHead) -> bool {
+        a.uuid == b.uuid
+            && a.parent == b.parent
+            && a.title == b.title
+            && a.web_address == b.web_address
+            && a.auto_type_sequence.sequence == b.auto_type_sequence.sequence
+            && a.body == b.body
+    }
+
+    #[test]
+    fn new_entry_body() {
+        let uuid: Uuid = [84_u8; uuid::SIZE].into();
+        let username = String::from("Username");
+        let password = String::from("Password");
+
+        let body = EntryBody::new(uuid.clone(), username.clone(), password.clone());
+
+        assert_eq!(body.uuid, uuid);
+        assert_eq!(body.username, SecString::from(username));
+        assert_eq!(body.password, SecString::from(password));
+        assert_eq!(body.email, SecString::new());
+        assert!(body.modified);
+    }
+
+    #[test]
+    fn encrypt_and_decrypt_body() {
+        let master_key = [21_u8; cryptography::MASTER_KEY_SIZE];
+
+        let body = DEFAULT_BODY.to_owned();
+
+        let encrypted: crate::dto::entry::EntryBody = body
+            .encrypt(&master_key)
+            .expect("Encrypting entry body should not fail.");
+
+        let decrypted = EntryBody::decrypt(&encrypted, &master_key)
+            .expect("Decrypting entry body should not fail.");
+
+        assert!(equal_bodies(&body, &decrypted));
+    }
+
+    #[test]
+    fn save_and_load_body() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        create_new_vault_dir(&path).unwrap();
+
+        let master_key = [21_u8; cryptography::MASTER_KEY_SIZE];
+
+        let body = DEFAULT_BODY.to_owned();
+
+        let encrypted = body.encrypt(&master_key).unwrap();
+        crate::io::save_entry_body(&path, body.uuid(), &encrypted).unwrap();
+
+        let loaded = EntryBody::load(&path, body.uuid(), &master_key)
+            .expect("Loading entry body should not fail.");
+
+        assert!(equal_bodies(&body, &loaded));
+    }
+
+    #[test]
+    fn set_username() {
+        let mut body = DEFAULT_BODY.to_owned();
+        body.modified = false;
+
+        assert_eq!(body.username, SecString::from("Default username"));
+
+        let _ = body.set_username("Custom username".into());
+
+        assert!(body.modified);
+        assert_eq!(body.username, SecString::from("Custom username"));
+    }
+
+    #[test]
+    fn set_password() {
+        let mut body = DEFAULT_BODY.to_owned();
+        body.modified = false;
+
+        assert_eq!(body.password, SecString::from("Default password"));
+
+        let _ = body.set_password("Custom password".into());
+
+        assert!(body.modified);
+        assert_eq!(body.password, SecString::from("Custom password"));
+    }
+
+    #[test]
+    fn set_email() {
+        let mut body = DEFAULT_BODY.to_owned();
+        body.modified = false;
+
+        assert_eq!(body.email, SecString::from(""));
+
+        let _ = body.set_email("custom@example.web".into());
+
+        assert!(body.modified);
+        assert_eq!(body.email, SecString::from("custom@example.web"));
+    }
+
+    #[test]
+    fn is_modified_body() {
+        let mut body = DEFAULT_BODY.to_owned();
+
+        assert!(body.is_modified());
+        body.modified = false;
+        assert!(!body.is_modified());
+    }
+
+    fn equal_bodies(a: &EntryBody, b: &EntryBody) -> bool {
+        a.uuid == b.uuid
+            && a.username == b.username
+            && a.password == b.password
+            && a.email == b.email
+    }
+
+    #[test]
+    fn encrypted_body_from_and_into() {
+        let body = DEFAULT_BODY.to_owned();
+
+        let master_key = [21_u8; cryptography::MASTER_KEY_SIZE];
+
+        cryptography::generate_iv.mock_safe(|len| MockResult::Return(vec![42_u8; len]));
+        unsafe {
+            cryptography::aes_cbc_encrypt.mock_raw(|data, key, iv| {
+                assert_eq!(key, master_key);
+                assert_eq!(iv, vec![42_u8; cryptography::AES_IV_LENGTH]);
+                MockResult::Continue((data, key, iv))
+            });
+        }
+
+        let encrypted = EncryptedBody::from(&body, &master_key)
+            .expect("Turning EntryBody into EncryptedBody should not fail.");
+
+        let decrypted = encrypted
+            .into(&master_key)
+            .expect("Turning EncryptedBody into EntryBody should not fail.");
+
+        assert!(equal_bodies(&body, &decrypted));
+    }
+
+    #[test]
+    fn auto_type_sequence() {
+        let default_sequence = AutoTypeSequence::default();
+
+        assert_eq!(default_sequence.as_str(), DEFAULT_SEQUENCE);
+
+        let sequence = AutoTypeSequence::from(String::from("Test Sequence"));
+        assert_eq!(sequence.as_str(), "Test Sequence");
     }
 }
