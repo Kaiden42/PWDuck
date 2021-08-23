@@ -144,3 +144,164 @@ impl Group {
         self.modified
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashMap, ops::Not};
+
+    use mocktopus::mocking::*;
+    use tempfile::tempdir;
+
+    use crate::{cryptography, io::create_new_vault_dir, model::uuid, Uuid};
+
+    use super::Group;
+
+    use lazy_static::lazy_static;
+    lazy_static! {
+        static ref DEFAULT_GROUP_UUID: Uuid = [42_u8; uuid::SIZE].into();
+        static ref DEFAULT_PARENT_UUID: Uuid = [21_u8; uuid::SIZE].into();
+        static ref DEFAULT_GROUP: Group = Group::new(
+            DEFAULT_GROUP_UUID.to_owned(),
+            DEFAULT_PARENT_UUID.to_owned(),
+            "Default title".into(),
+        );
+    }
+
+    #[test]
+    fn new_group() {
+        let uuid: Uuid = [42_u8; uuid::SIZE].into();
+        let parent: Uuid = [21_u8; uuid::SIZE].into();
+        let title = "Title";
+
+        let group = Group::new(uuid.clone(), parent.clone(), title.to_owned());
+
+        assert_eq!(group.uuid, uuid);
+        assert_eq!(group.parent, Some(parent));
+        assert_eq!(group.title.as_str(), title);
+        assert!(group.modified)
+    }
+
+    #[test]
+    fn encrypt_and_decrypt_head() {
+        let master_key = [21_u8; cryptography::MASTER_KEY_SIZE];
+
+        let group = DEFAULT_GROUP.to_owned();
+
+        let encrypted: crate::dto::group::Group = group
+            .encrypt(&master_key)
+            .expect("Encrypting group should not fail.");
+
+        let decrypted =
+            Group::decrypt(&encrypted, &master_key).expect("Decrypting group should not fail.");
+
+        assert!(equal_groups(&group, &decrypted));
+    }
+
+    #[test]
+    fn save_and_load_group() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        create_new_vault_dir(&path).unwrap();
+
+        let master_key = [21_u8; cryptography::MASTER_KEY_SIZE];
+
+        let mut group = DEFAULT_GROUP.to_owned();
+        assert!(group.modified);
+
+        group
+            .save(&path, &master_key)
+            .expect("Saving group should not fail.");
+        assert!(!group.modified);
+
+        let loaded =
+            Group::load(&path, group.uuid(), &master_key).expect("Loading group should not fail.");
+
+        assert!(equal_groups(&group, &loaded));
+    }
+
+    #[test]
+    fn load_all_groups() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        create_new_vault_dir(&path).unwrap();
+
+        let master_key = [21_u8; cryptography::MASTER_KEY_SIZE];
+
+        let groups: HashMap<Uuid, Group> = std::iter::successors(Some(0_u8), |n| Some(n + 1))
+            .take(10)
+            .fold(HashMap::new(), |mut m, next| {
+                let uuid: Uuid = [next; uuid::SIZE].into();
+                let mut group = Group::new(
+                    uuid.clone(),
+                    [255_u8; uuid::SIZE].into(),
+                    format!("Group: {}", next),
+                );
+
+                group.save(&path, &master_key).unwrap();
+
+                drop(m.insert(uuid, group));
+                m
+            });
+
+        let loaded =
+            Group::load_all(&path, &master_key).expect("Loading all groups should not fail.");
+
+        assert_eq!(groups.len(), loaded.len());
+        for (uuid, group) in groups {
+            let load = loaded
+                .get(&uuid)
+                .expect("Loaded should contain this group.");
+            assert!(equal_groups(&group, &load));
+        }
+    }
+
+    #[test]
+    fn create_root() {
+        crate::cryptography::fill_random_bytes.mock_safe(|buf| {
+            buf.fill(42_u8);
+            MockResult::Return(())
+        });
+
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        create_new_vault_dir(&path).unwrap();
+
+        let root = Group::create_root_for(&path);
+
+        assert_eq!(root.uuid, [42_u8; uuid::SIZE].into());
+        assert_eq!(root.parent, None);
+        assert_eq!(root.title.as_str(), "");
+        assert!(root.modified);
+
+        assert!(root.is_root());
+        assert!(!DEFAULT_GROUP.is_root());
+    }
+
+    #[test]
+    fn set_title() {
+        let title = "Custom title";
+
+        let mut group = DEFAULT_GROUP.to_owned();
+        group.modified = false;
+
+        assert_eq!(group.title, String::from("Default title"));
+
+        let _ = group.set_title(title.to_owned());
+
+        assert!(group.modified);
+        assert_eq!(group.title.as_str(), title);
+    }
+
+    #[test]
+    fn is_modified() {
+        let mut group = DEFAULT_GROUP.to_owned();
+
+        assert!(group.is_modified());
+        group.modified = false;
+        assert!(!group.is_modified());
+    }
+
+    fn equal_groups(a: &Group, b: &Group) -> bool {
+        a.uuid == b.uuid && a.parent == b.parent && a.title == b.title
+    }
+}
