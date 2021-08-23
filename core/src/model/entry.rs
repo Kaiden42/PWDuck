@@ -378,12 +378,13 @@ mod tests {
         let uuid: Uuid = [42_u8; uuid::SIZE].into();
         let parent: Uuid = [21_u8; uuid::SIZE].into();
         let body: Uuid = [84_u8; uuid::SIZE].into();
+        let title = "Title";
 
-        let head = EntryHead::new(uuid.clone(), parent.clone(), "Title".into(), body.clone());
+        let head = EntryHead::new(uuid.clone(), parent.clone(), title.to_owned(), body.clone());
 
         assert_eq!(head.uuid, uuid);
         assert_eq!(head.parent, parent);
-        assert_eq!(head.title, String::from("Title"));
+        assert_eq!(head.title.as_str(), title);
         assert_eq!(head.web_address, String::from(""));
         assert_eq!(
             head.auto_type_sequence.sequence,
@@ -401,10 +402,10 @@ mod tests {
 
         let encrypted: crate::dto::entry::EntryHead = head
             .encrypt(&master_key)
-            .expect("Encrypting entry head should not fail");
+            .expect("Encrypting entry head should not fail.");
 
         let decrypted = EntryHead::decrypt(&encrypted, &master_key)
-            .expect("Decrypting entry head should not fail");
+            .expect("Decrypting entry head should not fail.");
 
         assert!(equal_heads(&head, &decrypted));
     }
@@ -467,28 +468,32 @@ mod tests {
 
     #[test]
     fn set_title() {
+        let title = "Custom title";
+
         let mut head = DEFAULT_HEAD.to_owned();
         head.modified = false;
 
         assert_eq!(head.title, String::from("Default title"));
 
-        let _ = head.set_title("Custom title".into());
+        let _ = head.set_title(title.to_owned());
 
         assert!(head.modified);
-        assert_eq!(head.title, String::from("Custom title"));
+        assert_eq!(head.title.as_str(), title);
     }
 
     #[test]
     fn set_web_address() {
+        let web_address = "https://example.web";
+
         let mut head = DEFAULT_HEAD.to_owned();
         head.modified = false;
 
         assert_eq!(head.web_address, String::new());
 
-        let _ = head.set_web_address("https://example.web".into());
+        let _ = head.set_web_address(web_address.to_owned());
 
         assert!(head.modified);
-        assert_eq!(head.web_address, String::from("https://example.web"));
+        assert_eq!(head.web_address.as_str(), web_address);
     }
 
     #[test]
@@ -561,41 +566,47 @@ mod tests {
 
     #[test]
     fn set_username() {
+        let username = "Custom username";
+
         let mut body = DEFAULT_BODY.to_owned();
         body.modified = false;
 
         assert_eq!(body.username, SecString::from("Default username"));
 
-        let _ = body.set_username("Custom username".into());
+        let _ = body.set_username(username.to_owned());
 
         assert!(body.modified);
-        assert_eq!(body.username, SecString::from("Custom username"));
+        assert_eq!(body.username, SecString::from(username));
     }
 
     #[test]
     fn set_password() {
+        let password = "Custom password";
+
         let mut body = DEFAULT_BODY.to_owned();
         body.modified = false;
 
         assert_eq!(body.password, SecString::from("Default password"));
 
-        let _ = body.set_password("Custom password".into());
+        let _ = body.set_password(password.to_owned());
 
         assert!(body.modified);
-        assert_eq!(body.password, SecString::from("Custom password"));
+        assert_eq!(body.password, SecString::from(password));
     }
 
     #[test]
     fn set_email() {
+        let email = "custom@example.web";
+
         let mut body = DEFAULT_BODY.to_owned();
         body.modified = false;
 
         assert_eq!(body.email, SecString::from(""));
 
-        let _ = body.set_email("custom@example.web".into());
+        let _ = body.set_email(email.to_owned());
 
         assert!(body.modified);
-        assert_eq!(body.email, SecString::from("custom@example.web"));
+        assert_eq!(body.email, SecString::from(email));
     }
 
     #[test]

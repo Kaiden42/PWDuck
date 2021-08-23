@@ -22,11 +22,11 @@ use crate::{
 use mocktopus::macros::*;
 
 /// The length of the initialization vector for the AES encryption.
-const AES_IV_LENGTH: usize = 16;
+pub const AES_IV_LENGTH: usize = 16;
 /// The length of the nonce for the `ChaCha20` encryption.
-const CHACHA20_NONCE_LENGTH: usize = 12;
+pub const CHACHA20_NONCE_LENGTH: usize = 12;
 /// The default size of a master key.
-const MASTER_KEY_SIZE: usize = 32;
+pub const MASTER_KEY_SIZE: usize = 32;
 
 /// Generate a new random initialization vector for the AES encryption.
 pub fn generate_aes_iv() -> Vec<u8> {
@@ -47,7 +47,7 @@ pub fn generate_argon2_salt() -> String {
 
 /// Generate a new random iv with the given length.
 #[cfg_attr(test, mockable)]
-fn generate_iv(length: usize) -> Vec<u8> {
+pub fn generate_iv(length: usize) -> Vec<u8> {
     let mut iv: Vec<u8> = vec![0_u8; length];
     //OsRng.fill_bytes(&mut iv);
     fill_random_bytes(&mut iv);
@@ -261,8 +261,8 @@ mod tests {
     use super::hash_password;
     use super::{
         aes_cbc_decrypt, aes_cbc_encrypt, chacha20_decrypt, chacha20_encrypt, decrypt_masterkey,
-        derive_key_protection, fill_random_bytes, generate_aes_iv,
-        generate_chacha20_nonce, generate_iv, generate_salt,
+        derive_key_protection, fill_random_bytes, generate_aes_iv, generate_chacha20_nonce,
+        generate_iv, generate_salt,
     };
     use super::{AES_IV_LENGTH, CHACHA20_NONCE_LENGTH};
 

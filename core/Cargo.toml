@@ -40,3 +40,5 @@ rlimit = "0.5.4"
 
 [dev-dependencies]
 mocktopus = "0.7.11"
+tempfile = "3.2.0"
+lazy_static = "1.4.0"

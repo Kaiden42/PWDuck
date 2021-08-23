@@ -180,6 +180,7 @@ mod tests {
         heads.sort_by(|a, b| a.0.iv().cmp(&b.0.iv()));
         loaded.sort_by(|a, b| a.iv().cmp(&b.iv()));
 
+        assert_eq!(heads.len(), loaded.len());
         heads.iter().zip(loaded.iter()).for_each(|((a, _), b)| {
             assert_eq!(a.iv(), b.iv());
             assert_eq!(a.content(), b.content());
