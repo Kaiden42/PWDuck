@@ -66,3 +66,55 @@ impl From<Vec<u8>> for MasterKey {
         Self { key }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use mocktopus::mocking::*;
+    use seckey::SecBytes;
+    use tempfile::tempdir;
+
+    use crate::{
+        cryptography::{self, generate_masterkey},
+        io::create_new_vault_dir,
+        MemKey,
+    };
+
+    use super::MasterKey;
+
+    #[test]
+    fn load_and_unprotect_master_key() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        create_new_vault_dir(&path).unwrap();
+
+        cryptography::fill_random_bytes.mock_safe(|buf| {
+            buf.fill(0_u8);
+            MockResult::Return(())
+        });
+
+        let password = "This is a totally secret password";
+        let master_key = generate_masterkey(&password).unwrap();
+        crate::io::save_masterkey(&path, master_key.clone()).unwrap();
+
+        MemKey::with_length.mock_safe(|len| {
+            MockResult::Return(SecBytes::with(len, |buf| buf.fill(255_u8)).into())
+        });
+        let mem_key = MemKey::new();
+        let nonce = [42_u8; cryptography::CHACHA20_NONCE_LENGTH];
+        let salt = cryptography::generate_argon2_salt();
+
+        let key_protection = cryptography::derive_key_protection(&mem_key, &salt).unwrap();
+
+        let loaded = MasterKey::load(&path, &password, &key_protection, &nonce)
+            .expect("Loading master key should not fail.");
+
+        let unprotected = loaded
+            .as_unprotected(&mem_key, &salt, &nonce)
+            .expect("Unprotect master key should not fail.");
+
+        assert_eq!(
+            unprotected.as_slice(),
+            &[0_u8; cryptography::MASTER_KEY_SIZE]
+        );
+    }
+}
