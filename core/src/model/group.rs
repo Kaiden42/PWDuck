@@ -227,9 +227,8 @@ mod tests {
 
         let master_key = [21_u8; cryptography::MASTER_KEY_SIZE];
 
-        let groups: HashMap<Uuid, Group> = std::iter::successors(Some(0_u8), |n| Some(n + 1))
-            .take(10)
-            .fold(HashMap::new(), |mut m, next| {
+        let groups: HashMap<Uuid, Group> =
+            (0..=10).into_iter().fold(HashMap::new(), |mut m, next| {
                 let uuid: Uuid = [next; uuid::SIZE].into();
                 let mut group = Group::new(
                     uuid.clone(),

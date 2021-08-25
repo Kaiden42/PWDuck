@@ -95,8 +95,8 @@ mod tests {
         let path = dir.path();
         create_new_vault_dir(&path).unwrap();
 
-        let mut groups: Vec<(Group, Uuid)> = std::iter::successors(Some(0_u8), |n| Some(n + 1))
-            .take(10)
+        let mut groups: Vec<(Group, Uuid)> = (0..=10)
+            .into_iter()
             .map(|n| {
                 let group = Group::new(format!("IV: {}", n), format!("Group: {}", n));
                 let uuid: Uuid = [n; uuid::SIZE].into();

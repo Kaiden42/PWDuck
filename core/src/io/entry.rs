@@ -162,8 +162,8 @@ mod tests {
         let path = dir.path();
         create_new_vault_dir(&path).unwrap();
 
-        let mut heads: Vec<(EntryHead, Uuid)> = std::iter::successors(Some(0_u8), |n| Some(n + 1))
-            .take(10)
+        let mut heads: Vec<(EntryHead, Uuid)> = (0..=10)
+            .into_iter()
             .map(|n| {
                 let head = EntryHead::new(format!("IV: {}", n), format!("Head: {}", n));
                 let uuid: Uuid = [n; uuid::SIZE].into();
