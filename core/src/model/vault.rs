@@ -321,6 +321,9 @@ impl Vault {
                 .get_mut(entry_head.parent())
                 .map(|parent| parent.entries_mut().retain(|e| e != uuid));
             let entry_body = entry_head.body();
+
+            drop(self.unsaved_entry_bodies.remove(entry_body));
+
             self.deleted_entries
                 .push((uuid.clone(), entry_body.clone()));
         }
@@ -442,25 +445,584 @@ impl<'a> ItemList<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::path::Path;
 
-    use crate::mem_protection;
+    use mocktopus::mocking::*;
+    use seckey::SecBytes;
+    use tempfile::tempdir;
 
-    use super::Vault;
+    use crate::{cryptography, model::uuid, EntryBody, EntryHead, Group, MemKey, Uuid};
+
+    use super::{ItemList, Vault};
+
+    const PASSWORD: &str = "This is a totally secure password";
+    const VAULT_NAME: &str = "Default Vault";
+
+    fn default_mem_key() -> MemKey {
+        MemKey::with_length.mock_safe(|len| {
+            MockResult::Return(SecBytes::with(len, |buf| buf.fill(255_u8)).into())
+        });
+        MemKey::new()
+    }
+
+    fn default_vault(path: &Path, mem_key: &MemKey) -> Vault {
+        let path = path.join(VAULT_NAME);
+        Vault::generate(PASSWORD, &mem_key, path).unwrap()
+    }
 
     #[test]
-    fn test_generate_new_vault() {
-        let mem_key = mem_protection::MemKey::new();
-        let path: PathBuf = "this_is_a_test_vault".into();
+    fn generate_new_vault() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
 
-        if path.exists() {
-            std::fs::remove_dir_all(&path).expect("Removing directories should not fail");
+        cryptography::fill_random_bytes.mock_safe(|buf| {
+            buf.fill(42_u8);
+            MockResult::Return(())
+        });
+        let mem_key = default_mem_key();
+
+        let vault = Vault::generate(PASSWORD, &mem_key, &path)
+            .expect("Creating new vault should not fail.");
+
+        assert!(path.exists());
+        assert!(path.join(crate::io::MASTERKEY_NAME).exists());
+        assert_eq!(vault.groups.len(), 1);
+        for (uuid, group) in &vault.groups {
+            assert!(group.is_root());
+
+            let children = vault
+                .children
+                .get(uuid)
+                .expect("There should be an empty children value for root group.");
+            assert!(children.entries.is_empty());
+            assert!(children.groups.is_empty());
         }
+        assert!(vault.entries.is_empty());
+        assert!(vault.unsaved_entry_bodies.is_empty());
+        assert!(vault.deleted_groups.is_empty());
+        assert!(vault.deleted_entries.is_empty());
+    }
 
-        let vault = Vault::generate("this is a pretty cool password", &mem_key, &path)
-            .expect("Vault generation should not fail");
-
+    #[test]
+    fn save_and_load_vault() {
         // TODO
-        std::fs::remove_dir_all(&path).expect("Removing directories should not fail");
+    }
+
+    #[test]
+    fn get_name() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        let mem_key = default_mem_key();
+
+        let vault = default_vault(&path, &mem_key);
+
+        assert_eq!(vault.get_name(), VAULT_NAME);
+    }
+
+    #[test]
+    fn get_root_uuid() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        let mem_key = default_mem_key();
+
+        cryptography::fill_random_bytes.mock_safe(|buf| {
+            buf.fill(42_u8);
+            MockResult::Return(())
+        });
+
+        let vault = default_vault(&path, &mem_key);
+
+        assert_eq!(
+            vault
+                .get_root_uuid()
+                .expect("There should always be a root uuid"),
+            Uuid::from([42_u8; uuid::SIZE]),
+        );
+    }
+
+    #[test]
+    fn insert_group() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        let mem_key = default_mem_key();
+
+        let mut vault = default_vault(&path, &mem_key);
+
+        let root = vault.get_root_uuid().unwrap();
+        let uuid: Uuid = [21_u8; uuid::SIZE].into();
+        let title = "Added group";
+
+        let group = Group::new(uuid.clone(), root.clone(), title.to_string());
+
+        vault.insert_group(group);
+
+        assert!(vault.groups.contains_key(&uuid));
+        let tmp = vault
+            .groups
+            .get(&uuid)
+            .expect("The newly added group should exist.");
+
+        assert_eq!(tmp.uuid(), &uuid);
+        assert_eq!(
+            tmp.parent().as_ref().expect("Group should have a parent"),
+            &root
+        );
+        assert_eq!(tmp.title().as_str(), title);
+
+        let root_children = vault.children.get(&root).unwrap();
+        assert_eq!(root_children.groups.len(), 1);
+        assert!(root_children.groups.contains(&uuid));
+
+        let group_children = vault
+            .children
+            .get(&uuid)
+            .expect("There should be an empty children entry for the group.");
+        assert!(group_children.groups.is_empty());
+        assert!(group_children.entries.is_empty());
+    }
+
+    #[test]
+    fn delete_group() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        let mem_key = default_mem_key();
+
+        let mut vault = default_vault(&path, &mem_key);
+
+        let root = vault.get_root_uuid().unwrap();
+        let uuid: Uuid = [21_u8; uuid::SIZE].into();
+
+        let group = Group::new(uuid.clone(), root.clone(), "Title".into());
+        vault.insert_group(group);
+
+        assert!(vault.groups().contains_key(&uuid));
+
+        vault.delete_group(&uuid);
+
+        assert!(!vault.groups.contains_key(&uuid));
+        assert!(vault.deleted_groups.contains(&uuid));
+
+        let root_children = vault.children.get(&root).unwrap();
+        assert!(!root_children.groups.contains(&uuid));
+
+        assert!(vault.children.get(&uuid).is_none());
+    }
+
+    #[test]
+    fn insert_entry() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        let mem_key = default_mem_key();
+
+        let mut vault = default_vault(&path, &mem_key);
+
+        let root = vault.get_root_uuid().unwrap();
+        let master_key = vault
+            .masterkey
+            .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
+            .unwrap();
+
+        let head_uuid: Uuid = [42_u8; uuid::SIZE].into();
+        let body_uuid: Uuid = [21_u8; uuid::SIZE].into();
+        let title = "Added entry";
+        let username = "Username";
+        let password = "Password";
+
+        let head = EntryHead::new(
+            head_uuid.clone(),
+            root.clone(),
+            title.to_string(),
+            body_uuid.clone(),
+        );
+        let body = EntryBody::new(
+            body_uuid.clone(),
+            username.to_string(),
+            password.to_string(),
+        );
+
+        vault
+            .insert_entry(head, body, &master_key)
+            .expect("Inserting new entry should not fail.");
+
+        assert!(vault.entries.contains_key(&head_uuid));
+
+        let tmp = vault
+            .entries
+            .get(&head_uuid)
+            .expect("The newly added entry should exist.");
+        assert_eq!(tmp.uuid(), &head_uuid);
+        assert_eq!(tmp.parent(), &root);
+        assert_eq!(tmp.title().as_str(), title);
+
+        let root_children = vault.children.get(&root).unwrap();
+
+        assert!(root_children.entries.contains(&head_uuid));
+
+        assert!(vault.unsaved_entry_bodies.contains_key(&body_uuid));
+    }
+
+    #[test]
+    fn delete_entry() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        let mem_key = default_mem_key();
+
+        let mut vault = default_vault(&path, &mem_key);
+
+        let root = vault.get_root_uuid().unwrap();
+        let master_key = vault
+            .masterkey
+            .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
+            .unwrap();
+
+        let head_uuid: Uuid = [42_u8; uuid::SIZE].into();
+        let body_uuid: Uuid = [21_u8; uuid::SIZE].into();
+
+        let head = EntryHead::new(
+            head_uuid.clone(),
+            root.clone(),
+            "Title".to_string(),
+            body_uuid.clone(),
+        );
+        let body = EntryBody::new(
+            body_uuid.clone(),
+            "Username".to_string(),
+            "Password".to_string(),
+        );
+
+        vault.insert_entry(head, body, &master_key).unwrap();
+
+        assert!(vault.entries.contains_key(&head_uuid));
+        assert!(vault
+            .children
+            .get(&root)
+            .unwrap()
+            .entries
+            .contains(&head_uuid));
+        assert!(vault.unsaved_entry_bodies.contains_key(&body_uuid));
+        assert!(!vault
+            .deleted_entries
+            .contains(&(head_uuid.clone(), body_uuid.clone())));
+
+        vault.delete_entry(&head_uuid);
+
+        assert!(!vault.entries.contains_key(&head_uuid));
+        assert!(!vault
+            .children
+            .get(&root)
+            .unwrap()
+            .entries
+            .contains(&head_uuid));
+        assert!(!vault.unsaved_entry_bodies.contains_key(&body_uuid));
+        assert!(vault.deleted_entries.contains(&(head_uuid, body_uuid)));
+    }
+
+    #[test]
+    fn get_groups_of() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        let mem_key = default_mem_key();
+
+        let mut vault = default_vault(&path, &mem_key);
+
+        let root = vault.get_root_uuid().unwrap();
+        let mut expected: Vec<Group> = (0..=10)
+            .into_iter()
+            .map(|next| {
+                let uuid: Uuid = [next; uuid::SIZE].into();
+                let group = Group::new(uuid, root.clone(), format!("Group: {}", next));
+                vault.insert_group(group.clone());
+                group
+            })
+            .collect();
+
+        let mut groups = vault.get_groups_of(&root);
+
+        expected.sort_by(|a, b| a.title().cmp(b.title()));
+        groups.sort_by(|a, b| a.title().cmp(b.title()));
+
+        assert_eq!(expected.len(), groups.len());
+        expected
+            .iter()
+            .zip(groups.iter())
+            .for_each(|(expected, group)| {
+                assert_eq!(expected.title(), group.title());
+            });
+    }
+
+    #[test]
+    fn get_entries_of() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        let mem_key = default_mem_key();
+
+        let mut vault = default_vault(&path, &mem_key);
+
+        let root = vault.get_root_uuid().unwrap();
+        let master_key = vault
+            .masterkey
+            .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
+            .unwrap();
+
+        let body_uuid: Uuid = [255_u8; uuid::SIZE].into();
+        let body = EntryBody::new(body_uuid.clone(), "username".into(), "password".into());
+
+        let mut expected: Vec<EntryHead> = (0..=10)
+            .into_iter()
+            .map(|next| {
+                let uuid: Uuid = [next; uuid::SIZE].into();
+                let head = EntryHead::new(
+                    uuid,
+                    root.clone(),
+                    format!("Entry: {}", next),
+                    body_uuid.clone(),
+                );
+                vault
+                    .insert_entry(head.clone(), body.clone(), &master_key)
+                    .unwrap();
+                head
+            })
+            .collect();
+
+        let mut entries = vault.get_entries_of(&root);
+
+        expected.sort_by(|a, b| a.title().cmp(b.title()));
+        entries.sort_by(|a, b| a.title().cmp(b.title()));
+
+        assert_eq!(expected.len(), entries.len());
+        expected
+            .iter()
+            .zip(entries.iter())
+            .for_each(|(expected, entry)| {
+                assert_eq!(expected.title(), entry.title());
+            });
+    }
+
+    #[test]
+    fn contains_unsaved_changes() {
+        let mem_key = default_mem_key();
+
+        let clear_vault = || {
+            let dir = tempdir().unwrap();
+            let path = dir.path();
+
+            let vault = default_vault(&path, &mem_key);
+
+            assert!(!vault.contains_unsaved_changes());
+            (dir, vault)
+        };
+
+        // Contains unsaved group.
+        let (_dir, mut vault) = clear_vault();
+        let root = vault.get_root_uuid().unwrap();
+        vault.insert_group(Group::new(
+            [42_u8; uuid::SIZE].into(),
+            root.clone(),
+            "Group".into(),
+        ));
+        assert!(vault.contains_unsaved_changes());
+
+        // Contains unsaved entry.
+        let (_dir, mut vault) = clear_vault();
+        let root = vault.get_root_uuid().unwrap();
+        let master_key = vault
+            .masterkey
+            .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
+            .unwrap();
+        vault
+            .insert_entry(
+                EntryHead::new(
+                    [42_u8; uuid::SIZE].into(),
+                    root.clone(),
+                    "Title".into(),
+                    [21_u8; uuid::SIZE].into(),
+                ),
+                EntryBody::new(
+                    [21_u8; uuid::SIZE].into(),
+                    "username".into(),
+                    "password".into(),
+                ),
+                &master_key,
+            )
+            .unwrap();
+        assert!(vault.contains_unsaved_changes());
+
+        // Contains unsaved group deletion.
+        let (_dir, mut vault) = clear_vault();
+        let root = vault.get_root_uuid().unwrap();
+        let uuid: Uuid = [42_u8; uuid::SIZE].into();
+        vault.insert_group(Group::new(uuid.clone(), root.clone(), "Group".into()));
+        vault.save(&mem_key).unwrap();
+        assert!(!vault.contains_unsaved_changes());
+        vault.delete_group(&uuid);
+        assert!(vault.contains_unsaved_changes());
+
+        // Contains unsaved entry deletion.
+        let (_dir, mut vault) = clear_vault();
+        let root = vault.get_root_uuid().unwrap();
+        let master_key = vault
+            .masterkey
+            .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
+            .unwrap();
+        let head_uuid: Uuid = [42_u8; uuid::SIZE].into();
+        let body_uuid: Uuid = [21_u8; uuid::SIZE].into();
+        vault
+            .insert_entry(
+                EntryHead::new(
+                    head_uuid.clone(),
+                    root.clone(),
+                    "Title".into(),
+                    body_uuid.clone(),
+                ),
+                EntryBody::new(body_uuid, "username".into(), "password".into()),
+                &master_key,
+            )
+            .unwrap();
+        vault.save(&mem_key).unwrap();
+        assert!(!vault.contains_unsaved_changes());
+        vault.delete_entry(&head_uuid);
+        assert!(vault.contains_unsaved_changes());
+    }
+
+    #[test]
+    fn get_item_list_for() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        let mem_key = default_mem_key();
+
+        let mut vault = default_vault(&path, &mem_key);
+
+        let root = vault.get_root_uuid().unwrap();
+        let master_key = vault
+            .masterkey
+            .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
+            .unwrap();
+
+        let mut groups: Vec<Group> = (0..=20)
+            .into_iter()
+            .map(|next| {
+                let uuid: Uuid = [next; uuid::SIZE].into();
+                let group = Group::new(uuid, root.clone(), format!("Group: {}", next));
+                vault.insert_group(group.clone());
+                group
+            })
+            .collect();
+
+        let mut entries: Vec<EntryHead> = (0..=20)
+            .into_iter()
+            .map(|next| {
+                let uuid: Uuid = [next; uuid::SIZE].into();
+                let head = EntryHead::new(
+                    uuid,
+                    root.clone(),
+                    format!("Entry: {}", next),
+                    [255_u8; uuid::SIZE].into(),
+                );
+                let body = EntryBody::new(
+                    [255_u8; uuid::SIZE].into(),
+                    "username".into(),
+                    "password".into(),
+                );
+                vault.insert_entry(head.clone(), body, &master_key).unwrap();
+                head
+            })
+            .collect();
+
+        groups.sort_by(|a, b| a.title().cmp(b.title()));
+        entries.sort_by(|a, b| a.title().cmp(b.title()));
+
+        let item_list_for_root = vault.get_item_list_for(&root, None);
+        assert_eq!(item_list_for_root.groups.len(), groups.len());
+        assert_eq!(item_list_for_root.entries.len(), entries.len());
+        groups
+            .iter()
+            .zip(item_list_for_root.groups.iter())
+            .for_each(|(expected, group)| {
+                assert_eq!(expected.title(), group.title());
+            });
+        entries
+            .iter()
+            .zip(item_list_for_root.entries.iter())
+            .for_each(|(expected, entry)| {
+                assert_eq!(expected.title(), entry.title());
+            });
+
+        let item_list_for_search =
+            vault.get_item_list_for(&[42_u8; uuid::SIZE].into(), Some("Group"));
+        assert_eq!(item_list_for_search.groups.len(), groups.len());
+        assert!(item_list_for_search.entries.is_empty());
+        groups
+            .iter()
+            .zip(item_list_for_search.groups.iter())
+            .for_each(|(expected, group)| {
+                assert_eq!(expected.title(), group.title());
+            });
+
+        let item_list_for_search =
+            vault.get_item_list_for(&[42_u8; uuid::SIZE].into(), Some("Entry"));
+        assert!(item_list_for_search.groups.is_empty());
+        assert_eq!(item_list_for_search.entries.len(), entries.len());
+        entries
+            .iter()
+            .zip(item_list_for_search.entries.iter())
+            .for_each(|(expected, entry)| {
+                assert_eq!(expected.title(), entry.title());
+            });
+
+        let item_list_for_search = vault.get_item_list_for(&[42_u8; uuid::SIZE].into(), Some("5"));
+        assert_eq!(item_list_for_search.groups.len(), 2);
+        assert_eq!(item_list_for_search.entries.len(), 2);
+        assert!(item_list_for_search
+            .groups
+            .iter()
+            .all(|group| group.title().contains("5")));
+        assert!(item_list_for_search
+            .entries
+            .iter()
+            .all(|entry| entry.title().contains("5")));
+    }
+
+    #[test]
+    fn item_list_is_empty() {
+        let item_list = ItemList {
+            groups: vec![],
+            entries: vec![],
+        };
+
+        assert!(item_list.is_empty());
+
+        let group = Group::new(
+            [42_u8; uuid::SIZE].into(),
+            [21_u8; uuid::SIZE].into(),
+            "Title".into(),
+        );
+
+        let item_list = ItemList {
+            groups: vec![&group],
+            entries: vec![],
+        };
+
+        assert!(!item_list.is_empty());
+
+        let entry = EntryHead::new(
+            [42_u8; uuid::SIZE].into(),
+            [21_u8; uuid::SIZE].into(),
+            "title".into(),
+            [84_u8; uuid::SIZE].into(),
+        );
+
+        let item_list = ItemList {
+            groups: vec![],
+            entries: vec![&entry],
+        };
+
+        assert!(!item_list.is_empty());
+
+        let item_list = ItemList {
+            groups: vec![&group],
+            entries: vec![&entry],
+        };
+
+        assert!(!item_list.is_empty());
     }
 }
