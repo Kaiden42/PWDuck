@@ -16,6 +16,9 @@ use crate::{
     DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING, DEFAULT_SPACE_HEIGHT,
 };
 
+#[cfg(test)]
+use mocktopus::macros::*;
+
 /// The state of the vault unlocker.
 #[derive(Debug, Default, Focus)]
 pub struct VaultUnlocker {
@@ -36,6 +39,7 @@ pub struct VaultUnlocker {
     submit_state: button::State,
 }
 
+#[cfg_attr(test, mockable)]
 impl VaultUnlocker {
     /// Update the password and replace it with the given value.
     fn update_password(&mut self, password: String) -> Command<VaultUnlockerMessage> {
@@ -215,5 +219,286 @@ impl Component for VaultUnlocker {
         .center_x()
         .center_y()
         .into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::RefCell, collections::HashMap, path::PathBuf, str::FromStr};
+
+    use iced::Command;
+    use mocktopus::mocking::*;
+    use pwduck_core::PWDuckCoreError;
+
+    use crate::{error::PWDuckGuiError, Component, TestPlatform};
+
+    use super::{VaultUnlocker, VaultUnlockerMessage};
+
+    thread_local! {
+        static CALL_MAP: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+    }
+
+    #[test]
+    fn update_password() {
+        let mut vault_unlocker = VaultUnlocker::new(".".into());
+        assert!(vault_unlocker.password.is_empty());
+
+        let _cmd = vault_unlocker.update_password("password".into());
+
+        assert!(!vault_unlocker.password.is_empty());
+        assert_eq!(vault_unlocker.password.as_str(), "password");
+    }
+
+    #[test]
+    fn toggle_password_visibility() {
+        let mut vault_unlocker = VaultUnlocker::new(".".into());
+        assert!(!vault_unlocker.password_show);
+
+        let _cmd = vault_unlocker.toggle_password_visibility();
+
+        assert!(vault_unlocker.password_show);
+
+        let _cmd = vault_unlocker.toggle_password_visibility();
+
+        assert!(!vault_unlocker.password_show);
+    }
+
+    #[test]
+    fn submit() {
+        let mut vault_unlocker = VaultUnlocker::new(".".into());
+        assert!(vault_unlocker.password.is_empty());
+
+        let cmd = vault_unlocker.submit();
+        assert!(cmd.futures().is_empty());
+
+        let _cmd = vault_unlocker.update_password("password".into());
+
+        let cmd = vault_unlocker.submit();
+        assert!(!cmd.futures().is_empty());
+    }
+
+    #[test]
+    fn new() {
+        let vault_unlocker = VaultUnlocker::new("this/is/a/path".into());
+
+        assert_eq!(
+            &vault_unlocker.path,
+            &PathBuf::from_str("this/is/a/path").unwrap()
+        );
+        assert!(vault_unlocker.password.is_empty());
+        assert!(vault_unlocker.password_state.is_focused());
+        assert!(!vault_unlocker.password_show);
+    }
+
+    #[test]
+    fn title() {
+        let vault_unlocker = VaultUnlocker::new("this/is/a/path".into());
+        assert_eq!(vault_unlocker.title().as_str(), "Unlock vault: path");
+    }
+
+    const UPDATE_PASSWORD: &str = "update_password";
+    const TOGGLE_PASSWORD_VISIBILITY: &str = "toggle_password_visibility";
+    const SUBMIT: &str = "submit";
+
+    /*#[test]
+    fn update2() {
+        let mut vault_unlocker = VaultUnlocker::new(".".into());
+        let mut application_settings = pwduck_core::ApplicationSettings::default();
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::default());
+        // WARNING: This is highly unsafe!
+        let mut clipboard: &mut iced::Clipboard = unsafe {
+            &mut *(std::ptr::null_mut())
+        };
+
+        CALL_MAP.with(|map| {
+            map.borrow_mut().insert(UPDATE_PASSWORD.to_owned(), 0);
+            map.borrow_mut().insert(TOGGLE_PASSWORD_VISIBILITY.to_owned(), 0);
+            map.borrow_mut().insert(SUBMIT.to_owned(), 0);
+        });
+
+        VaultUnlocker::update_password.mock_safe(|_self, _password| {
+            CALL_MAP.with(|map| {
+                map.borrow_mut().get_mut(UPDATE_PASSWORD).map(|c| *c += 1);
+            });
+            MockResult::Return(Command::none())
+        });
+        VaultUnlocker::toggle_password_visibility.mock_safe(|_self| {
+            CALL_MAP.with(|map| {
+                map.borrow_mut().get_mut(TOGGLE_PASSWORD_VISIBILITY).map(|c| *c += 1);
+            });
+            MockResult::Return(Command::none())
+        });
+        VaultUnlocker::submit.mock_safe(|_self| {
+            CALL_MAP.with(|map| {
+                map.borrow_mut().get_mut(SUBMIT).map(|c| *c += 1);
+            });
+            MockResult::Return(Command::none())
+        });
+
+        // Update password
+        CALL_MAP.with(|map| {
+            assert_eq!(map.borrow()[UPDATE_PASSWORD], 0);
+        });
+        let _ = vault_unlocker.update::<TestPlatform>(
+            VaultUnlockerMessage::PasswordInput("password".into()),
+            &mut application_settings,
+            &mut modal_state,
+            &mut clipboard,
+        );
+        CALL_MAP.with(|map| {
+            assert_eq!(map.borrow()[UPDATE_PASSWORD], 1);
+        });
+
+        // Toggle password visibility
+        CALL_MAP.with(|map| {
+            assert_eq!(map.borrow()[TOGGLE_PASSWORD_VISIBILITY], 0);
+        });
+        let _ = vault_unlocker.update::<TestPlatform>(
+            VaultUnlockerMessage::PasswordShow,
+            &mut application_settings,
+            &mut modal_state,
+            &mut clipboard,
+        );
+        CALL_MAP.with(|map| {
+            assert_eq!(map.borrow()[TOGGLE_PASSWORD_VISIBILITY], 1);
+        });
+
+        // Submit
+        CALL_MAP.with(|map| {
+            assert_eq!(map.borrow()[SUBMIT], 0);
+        });
+        let _ = vault_unlocker.update::<TestPlatform>(
+            VaultUnlockerMessage::Submit,
+            &mut application_settings,
+            &mut modal_state,
+            &mut clipboard,
+        );
+        CALL_MAP.with(|map| {
+            assert_eq!(map.borrow()[SUBMIT], 1);
+        });
+
+        // Close
+        let res = vault_unlocker.update::<TestPlatform>(
+            VaultUnlockerMessage::Close,
+            &mut application_settings,
+            &mut modal_state,
+            &mut clipboard
+        ).expect_err("Should fail.");
+        match res {
+            PWDuckGuiError::Unreachable(_) => {},
+            _ => panic!("Should contain unreachable warning."),
+        }
+
+        // Unlocked
+        let res = vault_unlocker.update::<TestPlatform>(
+            VaultUnlockerMessage::Unlocked(Err(PWDuckCoreError::Error("".into()))),
+            &mut application_settings,
+            &mut modal_state,
+            &mut clipboard
+        ).expect_err("Should fail.");
+        match res {
+            PWDuckGuiError::Unreachable(_) => {},
+            _ => panic!("Should contain unreachable warning."),
+        }
+
+        CALL_MAP.with(|map| {
+            assert!(map.borrow().values().all(|v| *v == 1));
+        });
+    }*/
+
+    #[test]
+    fn update() {
+        let mut vault_unlocker = VaultUnlocker::new(".".into());
+        let mut application_settings = pwduck_core::ApplicationSettings::default();
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::default());
+        // WARNING: This is highly unsafe!
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert(UPDATE_PASSWORD.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(TOGGLE_PASSWORD_VISIBILITY.to_owned(), 0);
+            call_map.borrow_mut().insert(SUBMIT.into(), 0);
+
+            VaultUnlocker::update_password.mock_raw(|_self, _password| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(UPDATE_PASSWORD)
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultUnlocker::toggle_password_visibility.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(TOGGLE_PASSWORD_VISIBILITY)
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultUnlocker::submit.mock_raw(|_self| {
+                call_map.borrow_mut().get_mut(SUBMIT).map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+
+            // Update password
+            assert_eq!(call_map.borrow()[UPDATE_PASSWORD], 0);
+            let _ = vault_unlocker.update::<TestPlatform>(
+                VaultUnlockerMessage::PasswordInput("password".into()),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[UPDATE_PASSWORD], 1);
+
+            // Toggle password visibility
+            assert_eq!(call_map.borrow()[TOGGLE_PASSWORD_VISIBILITY], 0);
+            let _ = vault_unlocker.update::<TestPlatform>(
+                VaultUnlockerMessage::PasswordShow,
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[TOGGLE_PASSWORD_VISIBILITY], 1);
+
+            // Submit
+            assert_eq!(call_map.borrow()[SUBMIT], 0);
+            let _ = vault_unlocker.update::<TestPlatform>(
+                VaultUnlockerMessage::Submit,
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[SUBMIT], 1);
+
+            // Close
+            let res = vault_unlocker
+                .update::<TestPlatform>(
+                    VaultUnlockerMessage::Close,
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail.");
+            match res {
+                PWDuckGuiError::Unreachable(_) => {}
+                _ => panic!("Should contain unreachable warning."),
+            }
+
+            // Unlocked
+            let res = vault_unlocker
+                .update::<TestPlatform>(
+                    VaultUnlockerMessage::Unlocked(Err(PWDuckCoreError::Error("".into()))),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail.");
+            match res {
+                PWDuckGuiError::Unreachable(_) => {}
+                _ => panic!("Should contain unreachable warning."),
+            }
+
+            assert!(call_map.borrow().values().all(|v| *v == 1));
+        });
     }
 }
