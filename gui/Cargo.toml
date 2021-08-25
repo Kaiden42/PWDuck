@@ -24,3 +24,6 @@ git = "https://github.com/iced-rs/iced_aw"
 rev = "c1d18aedcca94e989281e728576a40a583db97f6"
 default-features = false
 features = ["card", "modal", "tab_bar", "number_input", "split"]
+
+[dev-dependencies]
+mocktopus = "0.7.11"

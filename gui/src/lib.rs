@@ -2,7 +2,7 @@
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 //#![deny(unused_results)]
-#![forbid(unsafe_code)]
+#![cfg_attr(not(test), forbid(unsafe_code))]
 #![warn(
     clippy::pedantic,
     clippy::nursery,
@@ -593,6 +593,38 @@ pub trait Platform {
 
     /// Autotype the given sequence.
     async fn auto_type(sequence: Sequence) -> Result<(), PWDuckGuiError>;
+}
+
+#[cfg(test)]
+#[derive(Debug)]
+pub struct TestPlatform;
+
+#[cfg(test)]
+#[async_trait]
+impl Platform for TestPlatform {
+    fn is_nfd_available() -> bool {
+        true
+    }
+
+    async fn nfd_choose_folder() -> Result<PathBuf, NfdError> {
+        Ok(PathBuf::from("this/is/a/path"))
+    }
+
+    fn is_open_in_browser_available() -> bool {
+        false
+    }
+
+    async fn open_in_browser(_url: String) -> Result<(), PWDuckGuiError> {
+        PWDuckGuiError::String("Not implemented".into()).into()
+    }
+
+    fn is_auto_type_available() -> bool {
+        false
+    }
+
+    async fn auto_type(_sequence: Sequence) -> Result<(), PWDuckGuiError> {
+        PWDuckGuiError::String("Not implemented".into()).into()
+    }
 }
 
 /// The state of the modal.
