@@ -147,7 +147,7 @@ impl Group {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, ops::Not};
+    use std::collections::HashMap;
 
     use mocktopus::mocking::*;
     use tempfile::tempdir;

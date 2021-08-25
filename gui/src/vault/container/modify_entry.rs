@@ -406,8 +406,7 @@ impl ModifyEntryView {
         let control_row = control_button_row(
             &mut self.cancel_state,
             &mut self.submit_state,
-            self.is_modified
-                && !self.entry_head.title().is_empty(),
+            self.is_modified && !self.entry_head.title().is_empty(),
             theme,
         );
 

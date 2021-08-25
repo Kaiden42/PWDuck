@@ -289,7 +289,7 @@ mod tests {
 
         let bytes: SecVec<u8> = vec![0x41, 0x42, 0xFF, 0x43, 0x44].into();
 
-        let string =
+        let _string =
             SecString::from_utf8(bytes).expect_err("Should not be a valid utf8 encoded string");
     }
 }
