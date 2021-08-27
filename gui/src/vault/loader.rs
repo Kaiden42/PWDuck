@@ -18,6 +18,9 @@ use crate::{
     Component, Platform, Viewport, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING,
 };
 
+#[cfg(test)]
+use mocktopus::macros::*;
+
 /// The state of the vault loader.
 #[derive(Debug, Default, Focus)]
 pub struct VaultLoader {
@@ -46,6 +49,7 @@ pub struct VaultLoader {
     path_open_fd_state: button::State,
 }
 
+#[cfg_attr(test, mockable)]
 impl VaultLoader {
     /// Update the path and replace it by the new value.
     fn update_path(&mut self, path: String) -> Command<VaultLoaderMessage> {
@@ -67,6 +71,10 @@ impl VaultLoader {
 
     /// Confirm the loading of the vault.
     fn confirm(&mut self) -> Command<VaultLoaderMessage> {
+        if self.path.is_empty() || self.password.is_empty() {
+            return Command::none();
+        }
+
         Command::perform(
             {
                 let password = self.password.clone();
@@ -275,5 +283,236 @@ impl Component for VaultLoader {
             theme,
         )
         .into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::{cell::RefCell, collections::HashMap};
+
+    use iced::Command;
+    use mocktopus::mocking::*;
+
+    use crate::{Component, TestPlatform, error::{self, PWDuckGuiError}};
+
+    use super::{VaultLoader, VaultLoaderMessage};
+
+    thread_local! {
+        static CALL_MAP: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+    }
+
+    const UPDATE_PATH: &str = "update_path";
+    const UPDATE_PASSWORD: &str = "update_password";
+    const TOGGLE_PASSWORD_VISIBILITY: &str = "toggle_password_visibility";
+    const CONFIRM: &str = "confirm";
+    const OPEN_FILE_DIALOG: &str = "open_file_dialog";
+
+    #[test]
+    fn update_path() {
+        let mut vault_loader = VaultLoader::new(());
+        assert!(vault_loader.path.is_empty());
+
+        let _cmd = vault_loader.update_path("path".into());
+
+        assert!(!vault_loader.path.is_empty());
+        assert_eq!(vault_loader.path.as_str(), "path");
+    }
+
+    #[test]
+    fn update_password() {
+        let mut vault_loader = VaultLoader::new(());
+        assert!(vault_loader.password.is_empty());
+
+        let _cmd = vault_loader.update_password("password".into());
+
+        assert!(!vault_loader.password.is_empty());
+        assert_eq!(vault_loader.password.as_str(), "password");
+    }
+
+    #[test]
+    fn toggle_password_visibility() {
+        let mut vault_loader = VaultLoader::new(());
+        assert!(!vault_loader.show_password);
+
+        let _cmd = vault_loader.toggle_password_visibility();
+
+        assert!(vault_loader.show_password);
+
+        let _cmd = vault_loader.toggle_password_visibility();
+
+        assert!(!vault_loader.show_password);
+    }
+
+    #[test]
+    fn confirm() {
+        let mut vault_loader = VaultLoader::new(());
+        assert!(vault_loader.path.is_empty());
+        assert!(vault_loader.password.is_empty());
+
+        let cmd = vault_loader.confirm();
+        assert!(cmd.futures().is_empty());
+
+        let _cmd = vault_loader.update_password("password".into());
+        let cmd = vault_loader.confirm();
+        assert!(cmd.futures().is_empty());
+
+        let _cmd = vault_loader.update_path("path".into());
+        let cmd = vault_loader.confirm();
+        assert!(!cmd.futures().is_empty());
+
+        // Password should be zeroized.
+        let cmd = vault_loader.confirm();
+        assert!(cmd.futures().is_empty());
+    }
+
+    #[test]
+    fn open_file_dialog() {
+        let cmd = VaultLoader::open_file_dialog::<TestPlatform>();
+        assert!(!cmd.futures().is_empty());
+    }
+
+    #[test]
+    fn new() {
+        let vault_loader = VaultLoader::new(());
+
+        assert!(vault_loader.path.is_empty());
+        assert!(vault_loader.path_state.is_focused());
+        assert!(vault_loader.password.is_empty());
+        assert!(!vault_loader.password_state.is_focused());
+        assert!(!vault_loader.show_password);
+    }
+
+    #[test]
+    fn update() {
+        let mut vault_loader = VaultLoader::new(());
+        let mut application_settings = pwduck_core::ApplicationSettings::default();
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::default());
+        // WARNING: This is highly unsafe!
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert(UPDATE_PATH.to_owned(), 0);
+            call_map.borrow_mut().insert(UPDATE_PASSWORD.to_owned(), 0);
+            call_map.borrow_mut().insert(TOGGLE_PASSWORD_VISIBILITY.to_owned(), 0);
+            call_map.borrow_mut().insert(CONFIRM.to_owned(), 0);
+            call_map.borrow_mut().insert(OPEN_FILE_DIALOG.to_owned(), 0);
+
+            VaultLoader::update_path.mock_raw(|_self, _path| {
+                call_map.borrow_mut().get_mut(UPDATE_PATH).map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultLoader::update_password.mock_raw(|_self, _password| {
+                call_map.borrow_mut().get_mut(UPDATE_PASSWORD).map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultLoader::toggle_password_visibility.mock_raw(|_self| {
+                call_map.borrow_mut().get_mut(TOGGLE_PASSWORD_VISIBILITY).map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultLoader::confirm.mock_raw(|_self| {
+                call_map.borrow_mut().get_mut(CONFIRM).map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultLoader::open_file_dialog::<TestPlatform>.mock_raw(|| {
+                call_map.borrow_mut().get_mut(OPEN_FILE_DIALOG).map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+
+            // Update path
+            assert_eq!(call_map.borrow()[UPDATE_PATH], 0);
+            let _ = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::PathInput("path".into()),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[UPDATE_PATH], 1);
+
+            // Update password
+            assert_eq!(call_map.borrow()[UPDATE_PASSWORD], 0);
+            let _ = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::PasswordInput("password".into()),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[UPDATE_PASSWORD], 1);
+
+            // Toggle password visibility
+            assert_eq!(call_map.borrow()[TOGGLE_PASSWORD_VISIBILITY], 0);
+            let _ = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::ShowPassword,
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[TOGGLE_PASSWORD_VISIBILITY], 1);
+
+            // Confirm
+            assert_eq!(call_map.borrow()[CONFIRM], 0);
+            let _ = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::Confirm,
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[CONFIRM], 1);
+
+            // Open File Dialog
+            assert_eq!(call_map.borrow()[OPEN_FILE_DIALOG], 0);
+            let _ = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::OpenFileDialog,
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[OPEN_FILE_DIALOG], 1);
+
+            // Path selected
+            assert_eq!(call_map.borrow()[UPDATE_PATH], 1);
+            let _ = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::PathSelected(Ok("path".into())),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
+            assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
+            let _ = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::PathSelected(Err(error::NfdError::Null)),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
+
+            // Create
+            let res = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::Create,
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard
+            ).expect_err("Should fail.");
+            match res {
+                PWDuckGuiError::Unreachable(_) => {}
+                _ => panic!("Should contain unreachable warning."),
+            }
+
+            // Loaded
+            let res = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::Loaded(Err(pwduck_core::PWDuckCoreError::Error("".into()))),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard
+            ).expect_err("Should fail.");
+            match res {
+                PWDuckGuiError::Unreachable(_) => {}
+                _ => panic!("Should contain unreachable warning."),
+            }
+
+            assert!(call_map.borrow().iter().filter(|(k, _)| k.as_str() != UPDATE_PATH).all(|(_, v)| *v == 1));
+            assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
+        });
     }
 }
