@@ -655,4 +655,212 @@ mod tests {
             assert_eq!(call_map.borrow()[UPDATE_STATE], 1);
         })
     }
+
+    const UPDATE_LOADER: &str = "update_loader";
+    const UPDATE_CREATOR: &str = "update_creator";
+    const UPDATE_UNLOCKER: &str = "update_unlocker";
+    const UPDATE_CONTAINER: &str = "update_container";
+    const UPDATE_SETTINGS: &str = "update_settings";
+
+    #[test]
+    fn update_state() {
+        let mut vault_tab = VaultTab::new(());
+        let mut application_settings = pwduck_core::ApplicationSettings::default();
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::default());
+        // WARNING: This is highly unsafe!
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert(UPDATE_LOADER.to_owned(), 0);
+            call_map.borrow_mut().insert(UPDATE_CREATOR.to_owned(), 0);
+            call_map.borrow_mut().insert(UPDATE_UNLOCKER.to_owned(), 0);
+            call_map.borrow_mut().insert(UPDATE_CONTAINER.to_owned(), 0);
+            call_map.borrow_mut().insert(UPDATE_SETTINGS.to_owned(), 0);
+
+            crate::vault::loader::VaultLoader::update::<TestPlatform>.mock_raw(
+                |_self, _m, _a, _mod, _c| {
+                    call_map
+                        .borrow_mut()
+                        .get_mut(UPDATE_LOADER)
+                        .map(|c| *c += 1);
+                    MockResult::Return(Ok(Command::none()))
+                },
+            );
+            crate::vault::creator::VaultCreator::update::<TestPlatform>.mock_raw(
+                |_self, _m, _a, _mod, _c| {
+                    call_map
+                        .borrow_mut()
+                        .get_mut(UPDATE_CREATOR)
+                        .map(|c| *c += 1);
+                    MockResult::Return(Ok(Command::none()))
+                },
+            );
+            crate::vault::unlock::VaultUnlocker::update::<TestPlatform>.mock_raw(
+                |_self, _m, _a, _mod, _c| {
+                    call_map
+                        .borrow_mut()
+                        .get_mut(UPDATE_UNLOCKER)
+                        .map(|c| *c += 1);
+                    MockResult::Return(Ok(Command::none()))
+                },
+            );
+            crate::vault::container::VaultContainer::update::<TestPlatform>.mock_raw(
+                |_self, _m, _a, _mod, _c| {
+                    call_map
+                        .borrow_mut()
+                        .get_mut(UPDATE_CONTAINER)
+                        .map(|c| *c += 1);
+                    MockResult::Return(Ok(Command::none()))
+                },
+            );
+            crate::vault::settings::Settings::update::<TestPlatform>.mock_raw(
+                |_self, _m, _a, _mod, _c| {
+                    call_map
+                        .borrow_mut()
+                        .get_mut(UPDATE_SETTINGS)
+                        .map(|c| *c += 1);
+                    MockResult::Return(Ok(Command::none()))
+                },
+            );
+
+            // Update loader
+            assert_eq!(call_map.borrow()[UPDATE_LOADER], 0);
+            let _ = vault_tab
+                .update_state::<TestPlatform>(
+                    VaultTabMessage::Loader(crate::vault::loader::VaultLoaderMessage::Confirm),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail.");
+            assert_eq!(call_map.borrow()[UPDATE_LOADER], 1);
+            // Switch to create state.
+            vault_tab.change_to_create_state();
+            let _ = vault_tab
+                .update_state::<TestPlatform>(
+                    VaultTabMessage::Loader(crate::vault::loader::VaultLoaderMessage::Confirm),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail.");
+            assert_eq!(call_map.borrow()[UPDATE_LOADER], 1);
+
+            // Update creator
+            assert_eq!(call_map.borrow()[UPDATE_CREATOR], 0);
+            let _ = vault_tab
+                .update_state::<TestPlatform>(
+                    VaultTabMessage::Creator(crate::vault::creator::VaultCreatorMessage::Submit),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail.");
+            assert_eq!(call_map.borrow()[UPDATE_CREATOR], 1);
+            // Switch to unlock state
+            vault_tab.change_to_unlock_state("path".into());
+            let _ = vault_tab
+                .update_state::<TestPlatform>(
+                    VaultTabMessage::Creator(crate::vault::creator::VaultCreatorMessage::Submit),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail.");
+            assert_eq!(call_map.borrow()[UPDATE_CREATOR], 1);
+
+            let mem_key = pwduck_core::MemKey::with_length(1);
+            let password = "password";
+            let dir = tempdir().unwrap();
+            let path = dir.path().join("TempVault");
+            let vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+
+            // Update unlocker
+            assert_eq!(call_map.borrow()[UPDATE_UNLOCKER], 0);
+            let _ = vault_tab
+                .update_state::<TestPlatform>(
+                    VaultTabMessage::Unlocker(crate::vault::unlock::VaultUnlockerMessage::Submit),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail.");
+            assert_eq!(call_map.borrow()[UPDATE_UNLOCKER], 1);
+            // Switch to open state
+            vault_tab.change_to_open_state(Box::new(vault));
+            let _ = vault_tab
+                .update_state::<TestPlatform>(
+                    VaultTabMessage::Unlocker(crate::vault::unlock::VaultUnlockerMessage::Submit),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail.");
+            assert_eq!(call_map.borrow()[UPDATE_UNLOCKER], 1);
+
+            // Update container
+            assert_eq!(call_map.borrow()[UPDATE_CONTAINER], 0);
+            let _ = vault_tab
+                .update_state::<TestPlatform>(
+                    VaultTabMessage::Container(
+                        crate::vault::container::VaultContainerMessage::ToolBar(
+                            crate::vault::container::ToolBarMessage::LockVault,
+                        ),
+                    ),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail.");
+            assert_eq!(call_map.borrow()[UPDATE_CONTAINER], 1);
+            // Switch to settings state
+            vault_tab.change_to_settings_state();
+            let _ = vault_tab
+                .update_state::<TestPlatform>(
+                    VaultTabMessage::Container(
+                        crate::vault::container::VaultContainerMessage::ToolBar(
+                            crate::vault::container::ToolBarMessage::LockVault,
+                        ),
+                    ),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail.");
+            assert_eq!(call_map.borrow()[UPDATE_CONTAINER], 1);
+
+            // Update settings
+            assert_eq!(call_map.borrow()[UPDATE_SETTINGS], 0);
+            let _ = vault_tab
+                .update_state::<TestPlatform>(
+                    VaultTabMessage::Settings(
+                        crate::vault::settings::SettingsMessage::ThemeChanged(
+                            pwduck_core::theme::Theme::Dark,
+                        ),
+                    ),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail.");
+            assert_eq!(call_map.borrow()[UPDATE_SETTINGS], 1);
+            // Switch to empty state
+            vault_tab.change_to_empty_state();
+            let _ = vault_tab
+                .update_state::<TestPlatform>(
+                    VaultTabMessage::Settings(
+                        crate::vault::settings::SettingsMessage::ThemeChanged(
+                            pwduck_core::theme::Theme::Dark,
+                        ),
+                    ),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail.");
+            assert_eq!(call_map.borrow()[UPDATE_SETTINGS], 1);
+
+            call_map.borrow().values().all(|v| *v == 1);
+        });
+    }
 }

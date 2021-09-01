@@ -123,6 +123,7 @@ pub enum VaultLoaderMessage {
 }
 impl SomeIf for VaultLoaderMessage {}
 
+#[cfg_attr(test, mockable)]
 impl Component for VaultLoader {
     type Message = VaultLoaderMessage;
     type ConstructorParam = ();
@@ -294,7 +295,10 @@ mod tests {
     use iced::Command;
     use mocktopus::mocking::*;
 
-    use crate::{Component, TestPlatform, error::{self, PWDuckGuiError}};
+    use crate::{
+        error::{self, PWDuckGuiError},
+        Component, TestPlatform,
+    };
 
     use super::{VaultLoader, VaultLoaderMessage};
 
@@ -394,7 +398,9 @@ mod tests {
         CALL_MAP.with(|call_map| unsafe {
             call_map.borrow_mut().insert(UPDATE_PATH.to_owned(), 0);
             call_map.borrow_mut().insert(UPDATE_PASSWORD.to_owned(), 0);
-            call_map.borrow_mut().insert(TOGGLE_PASSWORD_VISIBILITY.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(TOGGLE_PASSWORD_VISIBILITY.to_owned(), 0);
             call_map.borrow_mut().insert(CONFIRM.to_owned(), 0);
             call_map.borrow_mut().insert(OPEN_FILE_DIALOG.to_owned(), 0);
 
@@ -403,11 +409,17 @@ mod tests {
                 MockResult::Return(Command::none())
             });
             VaultLoader::update_password.mock_raw(|_self, _password| {
-                call_map.borrow_mut().get_mut(UPDATE_PASSWORD).map(|c| *c += 1);
+                call_map
+                    .borrow_mut()
+                    .get_mut(UPDATE_PASSWORD)
+                    .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultLoader::toggle_password_visibility.mock_raw(|_self| {
-                call_map.borrow_mut().get_mut(TOGGLE_PASSWORD_VISIBILITY).map(|c| *c += 1);
+                call_map
+                    .borrow_mut()
+                    .get_mut(TOGGLE_PASSWORD_VISIBILITY)
+                    .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultLoader::confirm.mock_raw(|_self| {
@@ -415,7 +427,10 @@ mod tests {
                 MockResult::Return(Command::none())
             });
             VaultLoader::open_file_dialog::<TestPlatform>.mock_raw(|| {
-                call_map.borrow_mut().get_mut(OPEN_FILE_DIALOG).map(|c| *c += 1);
+                call_map
+                    .borrow_mut()
+                    .get_mut(OPEN_FILE_DIALOG)
+                    .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
 
@@ -488,30 +503,38 @@ mod tests {
             assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
 
             // Create
-            let res = vault_loader.update::<TestPlatform>(
-                VaultLoaderMessage::Create,
-                &mut application_settings,
-                &mut modal_state,
-                &mut clipboard
-            ).expect_err("Should fail.");
+            let res = vault_loader
+                .update::<TestPlatform>(
+                    VaultLoaderMessage::Create,
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail.");
             match res {
                 PWDuckGuiError::Unreachable(_) => {}
                 _ => panic!("Should contain unreachable warning."),
             }
 
             // Loaded
-            let res = vault_loader.update::<TestPlatform>(
-                VaultLoaderMessage::Loaded(Err(pwduck_core::PWDuckCoreError::Error("".into()))),
-                &mut application_settings,
-                &mut modal_state,
-                &mut clipboard
-            ).expect_err("Should fail.");
+            let res = vault_loader
+                .update::<TestPlatform>(
+                    VaultLoaderMessage::Loaded(Err(pwduck_core::PWDuckCoreError::Error("".into()))),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail.");
             match res {
                 PWDuckGuiError::Unreachable(_) => {}
                 _ => panic!("Should contain unreachable warning."),
             }
 
-            assert!(call_map.borrow().iter().filter(|(k, _)| k.as_str() != UPDATE_PATH).all(|(_, v)| *v == 1));
+            assert!(call_map
+                .borrow()
+                .iter()
+                .filter(|(k, _)| k.as_str() != UPDATE_PATH)
+                .all(|(_, v)| *v == 1));
             assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
         });
     }

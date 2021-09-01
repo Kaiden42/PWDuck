@@ -488,6 +488,7 @@ pub enum VaultContainerMessage {
     AutoTypeResult(Result<(), PWDuckGuiError>),
 }
 
+#[cfg_attr(test, mockable)]
 impl Component for VaultContainer {
     type Message = VaultContainerMessage;
     type ConstructorParam = Box<Vault>;

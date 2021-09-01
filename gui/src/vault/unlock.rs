@@ -92,6 +92,7 @@ pub enum VaultUnlockerMessage {
 }
 impl SomeIf for VaultUnlockerMessage {}
 
+#[cfg_attr(test, mockable)]
 impl Component for VaultUnlocker {
     type Message = VaultUnlockerMessage;
     type ConstructorParam = PathBuf;
@@ -238,6 +239,10 @@ mod tests {
         static CALL_MAP: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
     }
 
+    const UPDATE_PASSWORD: &str = "update_password";
+    const TOGGLE_PASSWORD_VISIBILITY: &str = "toggle_password_visibility";
+    const SUBMIT: &str = "submit";
+
     #[test]
     fn update_password() {
         let mut vault_unlocker = VaultUnlocker::new(".".into());
@@ -295,10 +300,6 @@ mod tests {
         let vault_unlocker = VaultUnlocker::new("this/is/a/path".into());
         assert_eq!(vault_unlocker.title().as_str(), "Unlock vault: path");
     }
-
-    const UPDATE_PASSWORD: &str = "update_password";
-    const TOGGLE_PASSWORD_VISIBILITY: &str = "toggle_password_visibility";
-    const SUBMIT: &str = "submit";
 
     /*#[test]
     fn update2() {

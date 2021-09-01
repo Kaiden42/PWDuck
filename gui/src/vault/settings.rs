@@ -50,6 +50,7 @@ pub enum SettingsMessage {
     ThemeChanged(pwduck_core::theme::Theme),
 }
 
+#[cfg_attr(test, mockable)]
 impl Component for Settings {
     type Message = SettingsMessage;
     type ConstructorParam = ();

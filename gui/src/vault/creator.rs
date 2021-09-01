@@ -197,6 +197,7 @@ pub enum VaultCreatorMessage {
 }
 impl SomeIf for VaultCreatorMessage {}
 
+#[cfg_attr(test, mockable)]
 impl Component for VaultCreator {
     type Message = VaultCreatorMessage;
     type ConstructorParam = ();
