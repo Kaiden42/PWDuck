@@ -28,6 +28,9 @@ use crate::{
 
 use self::list::ListItemMessage;
 
+#[cfg(test)]
+use mocktopus::macros::*;
+
 /// The state of the vault container.
 #[derive(Debug, Getters, Focus)]
 pub struct VaultContainer {
@@ -56,7 +59,21 @@ pub struct VaultContainer {
     modify_entry_view: Option<Box<ModifyEntryView>>,
 }
 
+#[cfg_attr(test, mockable)]
 impl VaultContainer {
+    /// True, if the container contains unsaved changes.
+    #[must_use]
+    pub fn contains_unsaved_changes(&self) -> bool {
+        self.vault.contains_unsaved_changes()
+            || self
+                .modify_group_view
+                .as_ref()
+                .map_or(false, |view| view.group().is_modified())
+            || self.modify_entry_view.as_ref().map_or(false, |view| {
+                view.entry_head().is_modified() || view.entry_body().is_modified()
+            })
+    }
+
     /// TODO
     const fn enable_list_view_focus(&self) -> bool {
         self.modify_group_view.is_none() && self.modify_entry_view.is_none()

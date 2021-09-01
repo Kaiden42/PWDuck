@@ -20,6 +20,9 @@ use super::{
     unlock::{VaultUnlocker, VaultUnlockerMessage},
 };
 
+#[cfg(test)]
+use mocktopus::macros::*;
+
 /// The state of a vault tab.
 #[derive(Debug, Focus)]
 pub struct VaultTab {
@@ -28,30 +31,13 @@ pub struct VaultTab {
     state: VaultTabState,
 }
 
+#[cfg_attr(test, mockable)]
 impl VaultTab {
     /// True, if the tab contains unsaved changes.
     #[must_use]
     pub fn contains_unsaved_changes(&self) -> bool {
         match &self.state {
-            VaultTabState::Open(container) => {
-                container.vault().contains_unsaved_changes()
-                    || container
-                        .modify_group_view()
-                        .as_ref()
-                        //.map(|view| view.group().is_modified())
-                        //.unwrap_or(false)
-                        .map_or(false, |view| view.group().is_modified())
-                    || container
-                        .modify_entry_view()
-                        .as_ref()
-                        //.map(|view| {
-                        //    view.entry_head().is_modified() || view.entry_body().is_modified()
-                        //})
-                        //.unwrap_or(false)
-                        .map_or(false, |view| {
-                            view.entry_head().is_modified() || view.entry_body().is_modified()
-                        })
-            }
+            VaultTabState::Open(container) => container.contains_unsaved_changes(),
             _ => false,
         }
     }
@@ -283,5 +269,390 @@ impl Component for VaultTab {
                 .view::<P>(application_settings, theme, viewport)
                 .map(VaultTabMessage::Settings),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::{cell::RefCell, collections::HashMap};
+    use tempfile::tempdir;
+
+    use mocktopus::mocking::*;
+
+    use iced::Command;
+
+    use crate::{error::PWDuckGuiError, vault::container::VaultContainer, Component, TestPlatform};
+
+    use super::{VaultTab, VaultTabMessage, VaultTabState};
+
+    thread_local! {
+        static CALL_MAP: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+    }
+
+    const CONTAINS_UNSAVED_CHANGES: &str = "contains_unsaved_changes";
+    const CHANGE_TO_CREATE_STATE: &str = "change_to_create_state";
+    const CHANGE_TO_EMPTY_STATE: &str = "change_to_empty_state";
+    const CHANGE_TO_UNLOCK_STATE: &str = "change_to_unlock_state";
+    const CHANGE_TO_OPEN_STATE: &str = "change_to_open_state";
+    const CHANGE_TO_SETTINGS_STATE: &str = "change_to_settings_state";
+    const UPDATE_STATE: &str = "update_state";
+
+    #[test]
+    fn contains_unsaved_changes() {
+        let mut vault_tab = VaultTab::new(());
+        assert!(!vault_tab.contains_unsaved_changes());
+
+        let _ = vault_tab.change_to_empty_state();
+        assert!(!vault_tab.contains_unsaved_changes());
+
+        let _ = vault_tab.change_to_create_state();
+        assert!(!vault_tab.contains_unsaved_changes());
+
+        let mem_key = pwduck_core::MemKey::with_length(1);
+        let password = "password";
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+        let vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let _ = vault_tab.change_to_open_state(Box::new(vault));
+
+        VaultContainer::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(false));
+        assert!(!vault_tab.contains_unsaved_changes());
+
+        VaultContainer::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(true));
+        assert!(vault_tab.contains_unsaved_changes());
+
+        let _ = vault_tab.change_to_unlock_state(path.into());
+        assert!(!vault_tab.contains_unsaved_changes());
+
+        let _ = vault_tab.change_to_settings_state();
+        assert!(!vault_tab.contains_unsaved_changes());
+    }
+
+    #[test]
+    fn change_to_create_state() {
+        let mut vaul_tab = VaultTab::new(());
+        if let VaultTabState::Create(_) = vaul_tab.state {
+            panic!("VaultTab should be in the empty state");
+        }
+
+        let _ = vaul_tab.change_to_create_state();
+
+        if let VaultTabState::Create(_) = vaul_tab.state {
+        } else {
+            panic!("VaultTab should be in the create state");
+        }
+    }
+
+    #[test]
+    fn change_to_empty_state() {
+        let mut vault_tab = VaultTab::new(());
+        let _ = vault_tab.change_to_create_state();
+        if let VaultTabState::Empty(_) = vault_tab.state {
+            panic!("VaultTab should be in the create state");
+        }
+
+        let _ = vault_tab.change_to_empty_state();
+
+        if let VaultTabState::Empty(_) = vault_tab.state {
+        } else {
+            panic!("VaultTab should be in the empty state");
+        }
+    }
+
+    #[test]
+    fn change_to_unlock_state() {
+        let mut vault_tab = VaultTab::new(());
+        if let VaultTabState::Unlock(_) = vault_tab.state {
+            panic!("VaultTab should be in the empty state");
+        }
+
+        let _ = vault_tab.change_to_unlock_state("path".into());
+
+        if let VaultTabState::Unlock(_) = vault_tab.state {
+        } else {
+            panic!("VaultTab should be in the unlock state");
+        }
+    }
+
+    #[test]
+    fn change_to_open_state() {
+        let mut vault_tab = VaultTab::new(());
+        if let VaultTabState::Open(_) = vault_tab.state {
+            panic!("VaultTab should be in the empty state");
+        }
+
+        let mem_key = pwduck_core::MemKey::with_length(1);
+        let password = "password";
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+        let vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let _ = vault_tab.change_to_open_state(Box::new(vault));
+
+        if let VaultTabState::Open(_) = vault_tab.state {
+        } else {
+            panic!("VaultTab should be in the open state");
+        }
+    }
+
+    #[test]
+    fn change_to_settings_state() {
+        let mut vault_tab = VaultTab::new(());
+        if let VaultTabState::Settings(_) = vault_tab.state {
+            panic!("VaultTab should be in the empty state");
+        }
+
+        let _ = vault_tab.change_to_settings_state();
+
+        if let VaultTabState::Settings(_) = vault_tab.state {
+        } else {
+            panic!("VaultTab should be in the settings state");
+        }
+    }
+
+    #[test]
+    fn new() {
+        let vault_tab = VaultTab::new(());
+
+        if let VaultTabState::Empty(_) = vault_tab.state {
+        } else {
+            panic!("VaultTab should be in the empty state");
+        }
+    }
+
+    #[test]
+    fn update() {
+        let mut vault_tab = VaultTab::new(());
+        let mut application_settings = pwduck_core::ApplicationSettings::default();
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::default());
+        // WARNING: This is highly unsafe!
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(CONTAINS_UNSAVED_CHANGES.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(CHANGE_TO_CREATE_STATE.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(CHANGE_TO_EMPTY_STATE.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(CHANGE_TO_UNLOCK_STATE.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(CHANGE_TO_OPEN_STATE.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(CHANGE_TO_SETTINGS_STATE.to_owned(), 0);
+            call_map.borrow_mut().insert(UPDATE_STATE.to_owned(), 0);
+
+            VaultTab::contains_unsaved_changes.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(CONTAINS_UNSAVED_CHANGES)
+                    .map(|c| *c += 1);
+                MockResult::Return(false)
+            });
+            VaultTab::change_to_create_state.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(CHANGE_TO_CREATE_STATE)
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultTab::change_to_empty_state.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(CHANGE_TO_EMPTY_STATE)
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultTab::change_to_unlock_state.mock_raw(|_self, _path| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(CHANGE_TO_UNLOCK_STATE)
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultTab::change_to_open_state.mock_raw(|_self, _vault| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(CHANGE_TO_OPEN_STATE)
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultTab::change_to_settings_state.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(CHANGE_TO_SETTINGS_STATE)
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultTab::update_state::<TestPlatform>.mock_raw(|_self, _m, _a, _mod, _c| {
+                call_map.borrow_mut().get_mut(UPDATE_STATE).map(|c| *c += 1);
+                MockResult::Continue((_self, _m, _a, _mod, _c))
+            });
+
+            // Change to create state
+            assert_eq!(call_map.borrow()[CHANGE_TO_CREATE_STATE], 0);
+            let _ = vault_tab.update::<TestPlatform>(
+                VaultTabMessage::Loader(crate::vault::loader::VaultLoaderMessage::Create),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[CHANGE_TO_CREATE_STATE], 1);
+
+            // Change to empty state
+            assert_eq!(call_map.borrow()[CHANGE_TO_EMPTY_STATE], 0);
+            let _ = vault_tab.update::<TestPlatform>(
+                VaultTabMessage::Creator(crate::vault::creator::VaultCreatorMessage::Cancel),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[CHANGE_TO_EMPTY_STATE], 1);
+            let _ = vault_tab.update::<TestPlatform>(
+                VaultTabMessage::Unlocker(crate::vault::unlock::VaultUnlockerMessage::Close),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[CHANGE_TO_EMPTY_STATE], 2);
+
+            // Change to unlock state from creator
+            assert_eq!(call_map.borrow()[CHANGE_TO_UNLOCK_STATE], 0);
+            let _ = vault_tab
+                .update::<TestPlatform>(
+                    VaultTabMessage::Creator(
+                        crate::vault::creator::VaultCreatorMessage::VaultCreated(Ok("path".into())),
+                    ),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[CHANGE_TO_UNLOCK_STATE], 1);
+            let _ = vault_tab
+                .update::<TestPlatform>(
+                    VaultTabMessage::Creator(
+                        crate::vault::creator::VaultCreatorMessage::VaultCreated(Err(
+                            pwduck_core::PWDuckCoreError::Error("".into()),
+                        )),
+                    ),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail");
+            assert_eq!(call_map.borrow()[CHANGE_TO_UNLOCK_STATE], 1);
+
+            let mem_key = pwduck_core::MemKey::with_length(1);
+            let password = "password";
+            let dir = tempdir().unwrap();
+            let path = dir.path().join("TempVault");
+            let vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+
+            // Change to open state
+            assert_eq!(call_map.borrow()[CHANGE_TO_OPEN_STATE], 0);
+            let _ = vault_tab
+                .update::<TestPlatform>(
+                    VaultTabMessage::Unlocker(
+                        crate::vault::unlock::VaultUnlockerMessage::Unlocked(Ok(Box::new(
+                            vault.clone(),
+                        ))),
+                    ),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[CHANGE_TO_OPEN_STATE], 1);
+            let _ = vault_tab
+                .update::<TestPlatform>(
+                    VaultTabMessage::Unlocker(
+                        crate::vault::unlock::VaultUnlockerMessage::Unlocked(Err(
+                            pwduck_core::PWDuckCoreError::Error("".into()),
+                        )),
+                    ),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail");
+            assert_eq!(call_map.borrow()[CHANGE_TO_OPEN_STATE], 1);
+            let _ = vault_tab
+                .update::<TestPlatform>(
+                    VaultTabMessage::Loader(crate::vault::loader::VaultLoaderMessage::Loaded(Ok(
+                        Box::new(vault.clone()),
+                    ))),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[CHANGE_TO_OPEN_STATE], 2);
+            let _ = vault_tab
+                .update::<TestPlatform>(
+                    VaultTabMessage::Loader(crate::vault::loader::VaultLoaderMessage::Loaded(Err(
+                        pwduck_core::PWDuckCoreError::Error("".into()),
+                    ))),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail");
+            assert_eq!(call_map.borrow()[CHANGE_TO_OPEN_STATE], 2);
+
+            // Change to unlock state from open state
+            vault_tab.state = VaultTabState::Open(crate::vault::container::VaultContainer::new(
+                Box::new(vault),
+            ));
+            assert_eq!(call_map.borrow()[CHANGE_TO_UNLOCK_STATE], 1);
+            let _ = vault_tab
+                .update::<TestPlatform>(
+                    VaultTabMessage::Container(
+                        crate::vault::container::VaultContainerMessage::ToolBar(
+                            crate::vault::container::ToolBarMessage::LockVault,
+                        ),
+                    ),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[CHANGE_TO_UNLOCK_STATE], 2);
+            vault_tab.state = VaultTabState::Empty(crate::vault::loader::VaultLoader::new(()));
+            assert_eq!(call_map.borrow()[UPDATE_STATE], 0);
+            let res = vault_tab
+                .update::<TestPlatform>(
+                    VaultTabMessage::Container(
+                        crate::vault::container::VaultContainerMessage::ToolBar(
+                            crate::vault::container::ToolBarMessage::LockVault,
+                        ),
+                    ),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail");
+            match res {
+                PWDuckGuiError::Unreachable(_) => {}
+                _ => panic!("Should contain unreachable warning."),
+            }
+            assert_eq!(call_map.borrow()[CHANGE_TO_UNLOCK_STATE], 2);
+            assert_eq!(call_map.borrow()[UPDATE_STATE], 1);
+
+            assert_eq!(call_map.borrow()[CONTAINS_UNSAVED_CHANGES], 0);
+            assert_eq!(call_map.borrow()[CHANGE_TO_CREATE_STATE], 1);
+            assert_eq!(call_map.borrow()[CHANGE_TO_EMPTY_STATE], 2);
+            assert_eq!(call_map.borrow()[CHANGE_TO_UNLOCK_STATE], 2);
+            assert_eq!(call_map.borrow()[CHANGE_TO_OPEN_STATE], 2);
+            assert_eq!(call_map.borrow()[CHANGE_TO_SETTINGS_STATE], 0);
+            assert_eq!(call_map.borrow()[UPDATE_STATE], 1);
+        })
     }
 }
