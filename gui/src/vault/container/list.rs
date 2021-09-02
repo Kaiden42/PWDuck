@@ -21,6 +21,9 @@ use crate::{
 };
 use getset::{Getters, MutGetters, Setters};
 
+#[cfg(test)]
+use mocktopus::macros::*;
+
 /// The state of the list view inside the vault container.
 ///
 /// See: [`VaultContainer`](crate::vault::container::VaultContainer)
@@ -83,6 +86,7 @@ pub enum ListMessage {
 }
 impl SomeIf for ListMessage {}
 
+#[cfg_attr(test, mockable)]
 impl ListView {
     /// Create a new [`ListView`](ListView).
     ///
@@ -495,6 +499,7 @@ pub enum GroupTreeMessage {
     GroupSelected(Uuid),
 }
 
+#[cfg_attr(test, mockable)]
 impl GroupTree {
     /// Create a new [`GroupTree`](GroupTree).
     ///
@@ -602,9 +607,11 @@ impl GroupTree {
                     self.toggle_expansion(vault);
                     Ok(Command::none())
                 } else {
-                    let index = stack.pop().ok_or(PWDuckGuiError::Option)?;
-
-                    self.children[index].update(GroupTreeMessage::ToggleExpansion(stack), vault)
+                    stack
+                        .pop()
+                        .and_then(|index| self.children.get_mut(index))
+                        .ok_or(PWDuckGuiError::Option)?
+                        .update(GroupTreeMessage::ToggleExpansion(stack), vault)
                 }
             }
             GroupTreeMessage::GroupSelected(_) => {
@@ -667,5 +674,363 @@ impl GroupTree {
             });
 
         column.into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use pwduck_core::{uuid, MemKey, Uuid, Vault};
+    use tempfile::{tempdir, TempDir};
+
+    use std::{cell::RefCell, collections::HashMap};
+
+    use mocktopus::mocking::*;
+
+    use crate::error::PWDuckGuiError;
+
+    use super::{GroupTree, GroupTreeMessage, ListView};
+
+    thread_local! {
+        static CALL_MAP: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+    }
+
+    const PASSWORD: &str = "this is a totally secret password";
+    const DEFAULT_GROUP_COUNT: u8 = 15;
+    const DEFAULT_ENTRY_COUNT: u8 = 15;
+
+    const TOGGLE_EXPANSION: &str = "toggle_expansion";
+
+    fn default_vault(mem_key: &MemKey) -> (TempDir, Vault) {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+        let mut vault = pwduck_core::Vault::generate(PASSWORD, mem_key, &path).unwrap();
+        let master_key = vault
+            .masterkey()
+            .as_unprotected(mem_key, vault.salt(), vault.nonce())
+            .unwrap();
+        let root = vault.get_root_uuid().unwrap();
+
+        // Add 10 groups
+        for i in 0..DEFAULT_GROUP_COUNT {
+            let group = pwduck_core::Group::new(
+                [i; uuid::SIZE].into(),
+                root.clone(),
+                format!("Group: {}", i),
+            );
+            vault.insert_group(group);
+        }
+
+        // Add 10 entries
+        for i in 0..DEFAULT_ENTRY_COUNT {
+            let head = pwduck_core::EntryHead::new(
+                [i; uuid::SIZE].into(),
+                root.clone(),
+                format!("Entry: {}", i),
+                [i; uuid::SIZE].into(),
+            );
+            let body = pwduck_core::EntryBody::new(
+                [i; uuid::SIZE].into(),
+                "username".into(),
+                "password".into(),
+            );
+            vault.insert_entry(head, body, &master_key).unwrap();
+        }
+
+        (dir, vault)
+    }
+
+    #[test]
+    fn new() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let list_view = ListView::new(root.clone(), &vault);
+
+        assert_eq!(list_view.selected_group_uuid, root);
+        assert_eq!(
+            list_view.group_items.len(),
+            vault.get_groups_of(&root).len()
+        );
+        assert_eq!(
+            list_view.entry_items.len(),
+            vault.get_entries_of(&root).len()
+        );
+        assert!(list_view.search().is_empty());
+        assert!(list_view.search_state.is_focused());
+    }
+
+    #[test]
+    fn resize() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, mut vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let mut list_view = ListView::new(root.clone(), &vault);
+        assert_eq!(
+            list_view.group_items.len(),
+            vault.get_groups_of(&root).len()
+        );
+        assert_eq!(
+            list_view.entry_items.len(),
+            vault.get_entries_of(&root).len()
+        );
+
+        list_view.resize(&vault);
+        assert_eq!(
+            list_view.group_items.len(),
+            vault.get_groups_of(&root).len()
+        );
+        assert_eq!(
+            list_view.entry_items.len(),
+            vault.get_entries_of(&root).len()
+        );
+
+        list_view.search = "1".into();
+        assert_eq!(
+            list_view.group_items.len(),
+            vault.get_groups_of(&root).len()
+        );
+        assert_eq!(
+            list_view.entry_items.len(),
+            vault.get_entries_of(&root).len()
+        );
+        list_view.resize(&vault);
+        assert_eq!(list_view.group_items.len(), 6);
+        assert_eq!(list_view.entry_items.len(), 6);
+
+        list_view.search = "2".into();
+        list_view.resize(&vault);
+        assert_eq!(list_view.group_items.len(), 2);
+        assert_eq!(list_view.entry_items.len(), 2);
+
+        list_view.search = "Group".into();
+        list_view.resize(&vault);
+        assert_eq!(
+            list_view.group_items.len(),
+            vault.get_groups_of(&root).len()
+        );
+        assert_eq!(list_view.entry_items.len(), 0);
+
+        list_view.search = "Entry".into();
+        list_view.resize(&vault);
+        assert_eq!(list_view.group_items.len(), 0);
+        assert_eq!(
+            list_view.entry_items.len(),
+            vault.get_entries_of(&root).len()
+        );
+
+        list_view.search = "".into();
+        list_view.resize(&vault);
+        assert_eq!(
+            list_view.group_items.len(),
+            vault.get_groups_of(&root).len()
+        );
+        assert_eq!(
+            list_view.entry_items.len(),
+            vault.get_entries_of(&root).len()
+        );
+
+        let some_group_uuid: Uuid = [1; uuid::SIZE].into();
+
+        list_view.selected_group_uuid = some_group_uuid.clone();
+        assert_eq!(
+            list_view.group_items.len(),
+            vault.get_groups_of(&root).len()
+        );
+        assert_eq!(
+            list_view.entry_items.len(),
+            vault.get_entries_of(&root).len()
+        );
+        list_view.resize(&vault);
+        assert_eq!(
+            list_view.group_items.len(),
+            vault.get_groups_of(&some_group_uuid).len()
+        );
+        assert_eq!(
+            list_view.entry_items.len(),
+            vault.get_entries_of(&some_group_uuid).len()
+        );
+
+        // Add groups to some group
+        for i in 0..3 {
+            let i = DEFAULT_GROUP_COUNT + i;
+            let group = pwduck_core::Group::new(
+                [i; uuid::SIZE].into(),
+                some_group_uuid.clone(),
+                format!("Group: {}", i),
+            );
+            vault.insert_group(group);
+        }
+
+        let master_key = vault
+            .masterkey()
+            .as_unprotected(&mem_key, vault.salt(), vault.nonce())
+            .unwrap();
+        // Add entries to some group
+        for i in 0..3 {
+            let i = DEFAULT_ENTRY_COUNT + i;
+            let head = pwduck_core::EntryHead::new(
+                [i; uuid::SIZE].into(),
+                some_group_uuid.clone(),
+                format!("Entry: {}", i),
+                [i; uuid::SIZE].into(),
+            );
+            let body = pwduck_core::EntryBody::new(
+                [i; uuid::SIZE].into(),
+                "username".into(),
+                "password".into(),
+            );
+            vault.insert_entry(head, body, &master_key).unwrap();
+        }
+        assert_eq!(list_view.group_items.len(), 0);
+        assert_eq!(list_view.entry_items.len(), 0);
+
+        list_view.resize(&vault);
+        assert_eq!(
+            list_view.group_items.len(),
+            vault.get_groups_of(&some_group_uuid).len()
+        );
+        assert_eq!(
+            list_view.entry_items.len(),
+            vault.get_entries_of(&some_group_uuid).len()
+        );
+
+        list_view.search = "Group".into();
+        list_view.resize(&vault);
+        assert_eq!(
+            list_view.group_items.len(),
+            DEFAULT_GROUP_COUNT as usize + 3
+        );
+        assert_eq!(list_view.entry_items.len(), 0);
+    }
+
+    #[test]
+    fn new_group_tree() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let group_tree = GroupTree::new(root.clone(), &vault);
+        assert_eq!(group_tree.group_uuid, root);
+        assert_eq!(group_tree.group_title.as_str(), "Root");
+        assert_eq!(group_tree.children.len(), 0);
+    }
+
+    #[test]
+    fn toggle_expansion() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let mut group_tree = GroupTree::new(root.clone(), &vault);
+        assert_eq!(group_tree.children.len(), 0);
+
+        group_tree.toggle_expansion(&vault);
+        assert_eq!(group_tree.children.len(), DEFAULT_GROUP_COUNT as usize);
+
+        group_tree.toggle_expansion(&vault);
+        assert_eq!(group_tree.children.len(), 0);
+    }
+
+    #[test]
+    fn refresh() {
+        // TODO
+    }
+
+    #[test]
+    fn update_group_tree() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, mut vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let mut group_tree = GroupTree::new(root.clone(), &vault);
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert(TOGGLE_EXPANSION.to_owned(), 0);
+
+            GroupTree::toggle_expansion.mock_raw(|node, vault| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(TOGGLE_EXPANSION)
+                    .map(|c| *c += 1);
+                MockResult::Continue((node, vault))
+            });
+
+            assert!(group_tree.children.is_empty());
+            assert_eq!(call_map.borrow()[TOGGLE_EXPANSION], 0);
+            let _ = group_tree
+                .update(GroupTreeMessage::ToggleExpansion(Vec::new()), &vault)
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[TOGGLE_EXPANSION], 1);
+            assert_eq!(group_tree.children.len(), DEFAULT_GROUP_COUNT as usize);
+
+            let mut root_children = vault.get_groups_of(&root);
+            root_children.sort_by(|a, b| a.title().cmp(b.title()));
+            let roots_3rd_child_uuid = root_children.get(2).unwrap().uuid().clone();
+
+            assert!(group_tree.children[2].children.is_empty());
+            let _ = group_tree
+                .update(GroupTreeMessage::ToggleExpansion(vec![2]), &vault)
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[TOGGLE_EXPANSION], 2);
+            assert!(group_tree.children[2].children.is_empty());
+
+            for i in 0..5 {
+                let i = DEFAULT_GROUP_COUNT + i;
+                let group = pwduck_core::Group::new(
+                    [i; uuid::SIZE].into(),
+                    roots_3rd_child_uuid.clone(),
+                    format!("Group: {}", i),
+                );
+                vault.insert_group(group)
+            }
+
+            let _ = group_tree
+                .update(GroupTreeMessage::ToggleExpansion(vec![2]), &vault)
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[TOGGLE_EXPANSION], 3);
+            assert_eq!(group_tree.children[2].children.len(), 5);
+
+            let mut roots_3rd_child_children = vault.get_groups_of(&roots_3rd_child_uuid);
+            roots_3rd_child_children.sort_by(|a, b| a.title().cmp(b.title()));
+            let roots_3rd_child_4th_child_uuid =
+                roots_3rd_child_children.get(3).unwrap().uuid().clone();
+
+            assert!(group_tree.children[2].children[3].children.is_empty());
+
+            for i in 0..5 {
+                let i = DEFAULT_GROUP_COUNT + 5 + i;
+                let group = pwduck_core::Group::new(
+                    [i; uuid::SIZE].into(),
+                    roots_3rd_child_4th_child_uuid.clone(),
+                    format!("Group: {}", i),
+                );
+                vault.insert_group(group);
+            }
+
+            let _ = group_tree
+                .update(GroupTreeMessage::ToggleExpansion(vec![3, 2]), &vault)
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[TOGGLE_EXPANSION], 4);
+            assert_eq!(group_tree.children[2].children[3].children.len(), 5);
+
+            let _ = group_tree
+                .update(GroupTreeMessage::ToggleExpansion(vec![5, 4, 3, 2]), &vault)
+                .expect_err("Should fail");
+            assert_eq!(call_map.borrow()[TOGGLE_EXPANSION], 4);
+
+            let res = group_tree
+                .update(
+                    GroupTreeMessage::GroupSelected([0; uuid::SIZE].into()),
+                    &vault,
+                )
+                .expect_err("Should fail");
+            match res {
+                PWDuckGuiError::Unreachable(_) => {}
+                _ => panic!("Should contain unreachable warning."),
+            }
+        });
     }
 }

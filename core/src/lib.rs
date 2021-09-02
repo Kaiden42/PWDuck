@@ -69,7 +69,7 @@ pub use model::{
     group::Group,
     master_key::MasterKey,
     settings::{theme, ApplicationSettings},
-    uuid::Uuid,
+    uuid::{self, Uuid},
     vault::{ItemList, Vault},
 };
 
