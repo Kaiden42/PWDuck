@@ -1,8 +1,10 @@
 //! TODO
 
+use std::sync::MutexGuard;
+
 use iced::{Column, Command, Container, Length};
 use iced_focus::Focus;
-use pwduck_core::{AutoTypeSequenceParser, EntryBody, EntryHead, Group, Uuid, Vault};
+use pwduck_core::{AutoTypeSequenceParser, EntryBody, EntryHead, Group, MemKey, Uuid, Vault};
 
 mod list;
 use list::{ListMessage, ListView};
@@ -68,10 +70,11 @@ impl VaultContainer {
             || self
                 .modify_group_view
                 .as_ref()
-                .map_or(false, |view| view.group().is_modified())
-            || self.modify_entry_view.as_ref().map_or(false, |view| {
-                view.entry_head().is_modified() || view.entry_body().is_modified()
-            })
+                .map_or(false, |view| view.contains_unsaved_changes())
+            || self
+                .modify_entry_view
+                .as_ref()
+                .map_or(false, |view| view.contains_unsaved_changes())
     }
 
     /// TODO
@@ -90,10 +93,12 @@ impl VaultContainer {
     }
 
     /// Save the vault to disk.
-    fn save(&mut self) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
+    fn save(
+        &mut self,
+        mem_key: &MutexGuard<MemKey>,
+    ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         // TODO: find a way to do this async
-        let mem_key = crate::MEM_KEY.lock()?;
-        self.vault.save(&mem_key)?;
+        self.vault.save(mem_key)?;
         Ok(Command::none())
     }
 
@@ -141,11 +146,11 @@ impl VaultContainer {
     fn copy_username(
         &self,
         uuid: &Uuid,
+        mem_key: &MutexGuard<MemKey>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
-        let mem_key = crate::MEM_KEY.lock()?;
         let masterkey = self.vault.masterkey().as_unprotected(
-            &mem_key,
+            mem_key,
             self.vault.salt(),
             self.vault.nonce(),
         )?;
@@ -164,11 +169,11 @@ impl VaultContainer {
     fn copy_password(
         &self,
         uuid: &Uuid,
+        mem_key: &MutexGuard<MemKey>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
-        let mem_key = crate::MEM_KEY.lock()?;
         let masterkey = self.vault.masterkey().as_unprotected(
-            &mem_key,
+            mem_key,
             self.vault.salt(),
             self.vault.nonce(),
         )?;
@@ -190,7 +195,7 @@ impl VaultContainer {
         _clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         match message {
-            ToolBarMessage::Save => self.save(),
+            ToolBarMessage::Save => self.save(&crate::MEM_KEY.lock()?),
             ToolBarMessage::NewGroup => Ok(self.create_group()),
             ToolBarMessage::NewEntry => Ok(self.create_entry()),
             ToolBarMessage::AutoFill => {
@@ -201,7 +206,7 @@ impl VaultContainer {
                 //}
                 self.modify_entry_view.as_ref().map_or_else(
                     || Ok(Command::none()),
-                    |view| self.auto_fill::<P>(view.entry_head().uuid()),
+                    |view| self.auto_fill::<P>(view.entry_head().uuid(), &crate::MEM_KEY.lock()?),
                 )
             }
             ToolBarMessage::LockVault => {
@@ -240,6 +245,13 @@ impl VaultContainer {
             .get(self.list_view.selected_group_uuid())
             .ok_or(PWDuckGuiError::Option)?
             .clone();
+
+        if group.is_root() {
+            return Err(PWDuckGuiError::Unreachable(
+                "Root should not be able to edit".into(),
+            ));
+        }
+
         self.modify_group_view = Some(Box::new(ModifyGroupView::with(
             modify_group::State::Modify,
             group,
@@ -261,6 +273,7 @@ impl VaultContainer {
     fn select_entry(
         &mut self,
         uuid: &Uuid,
+        mem_key: &MutexGuard<MemKey>,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         let entry_head = self
             .vault
@@ -269,9 +282,8 @@ impl VaultContainer {
             .ok_or(PWDuckGuiError::Option)?
             .clone();
 
-        let mem_key = crate::MEM_KEY.lock()?;
         let masterkey = self.vault.masterkey().as_unprotected(
-            &mem_key,
+            mem_key,
             self.vault.salt(),
             self.vault.nonce(),
         )?;
@@ -299,6 +311,7 @@ impl VaultContainer {
     fn auto_fill<P: Platform + 'static>(
         &self,
         uuid: &Uuid,
+        mem_key: &MutexGuard<MemKey>,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         let entry_head = self
             .vault
@@ -307,9 +320,8 @@ impl VaultContainer {
             .ok_or(PWDuckGuiError::Option)?;
 
         // TODO: clean up
-        let mem_key = crate::MEM_KEY.lock()?;
         let masterkey = self.vault.masterkey().as_unprotected(
-            &mem_key,
+            mem_key,
             self.vault.salt(),
             self.vault.nonce(),
         )?;
@@ -335,6 +347,31 @@ impl VaultContainer {
         ))
     }
 
+    /// Resizes the split panel to the given divider position.
+    fn split_resize(&mut self, position: u16) -> Command<VaultContainerMessage> {
+        self.list_view
+            .split_state_mut()
+            .set_divider_position(position);
+        Command::none()
+    }
+
+    /// Handle the message that was send by the group tree.
+    fn update_group_tree(
+        &mut self,
+        message: list::GroupTreeMessage,
+    ) -> Result<Command<list::GroupTreeMessage>, PWDuckGuiError> {
+        match message {
+            list::GroupTreeMessage::ToggleExpansion(_) => {
+                self.list_view.group_tree_mut().update(message, &self.vault)
+            }
+            list::GroupTreeMessage::GroupSelected(uuid) => {
+                self.list_view.set_selected_group_uuid(uuid);
+                self.list_view.resize(&self.vault);
+                Ok(Command::none())
+            }
+        }
+    }
+
     /// Handle the message that was send by the list items.
     fn update_list_items<P: Platform + 'static>(
         &mut self,
@@ -343,10 +380,16 @@ impl VaultContainer {
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
         match message {
             ListItemMessage::GroupSelected(uuid) => Ok(self.select_group(uuid)),
-            ListItemMessage::EntrySelected(uuid) => self.select_entry(&uuid),
-            ListItemMessage::CopyUsername(uuid) => self.copy_username(&uuid, clipboard),
-            ListItemMessage::CopyPassword(uuid) => self.copy_password(&uuid, clipboard),
-            ListItemMessage::Autofill(uuid) => self.auto_fill::<P>(&uuid),
+            ListItemMessage::EntrySelected(uuid) => {
+                self.select_entry(&uuid, &crate::MEM_KEY.lock()?)
+            }
+            ListItemMessage::CopyUsername(uuid) => {
+                self.copy_username(&uuid, &crate::MEM_KEY.lock()?, clipboard)
+            }
+            ListItemMessage::CopyPassword(uuid) => {
+                self.copy_password(&uuid, &crate::MEM_KEY.lock()?, clipboard)
+            }
+            ListItemMessage::Autofill(uuid) => self.auto_fill::<P>(&uuid, &crate::MEM_KEY.lock()?),
         }
     }
 
@@ -363,28 +406,11 @@ impl VaultContainer {
             ListMessage::ListItemMessage(message) => {
                 self.update_list_items::<P>(message, clipboard)
             }
-            ListMessage::SplitResize(position) => {
-                self.list_view
-                    .split_state_mut()
-                    .set_divider_position(position);
-                Ok(Command::none())
-            }
-            ListMessage::GroupTreeMessage(message) => match message {
-                list::GroupTreeMessage::ToggleExpansion(_) => self
-                    .list_view
-                    .group_tree_mut()
-                    .update(message, &self.vault)
-                    .map(|cmd| {
-                        cmd.map(|msg| {
-                            VaultContainerMessage::List(ListMessage::GroupTreeMessage(msg))
-                        })
-                    }),
-                list::GroupTreeMessage::GroupSelected(uuid) => {
-                    self.list_view.set_selected_group_uuid(uuid);
-                    self.list_view.resize(&self.vault);
-                    Ok(Command::none())
-                }
-            },
+            ListMessage::SplitResize(position) => Ok(self.split_resize(position)),
+            ListMessage::GroupTreeMessage(message) => Ok(self
+                .update_group_tree(message)?
+                .map(ListMessage::GroupTreeMessage)
+                .map(VaultContainerMessage::List)),
         }
     }
 
@@ -463,7 +489,7 @@ impl VaultContainer {
 }
 
 /// The current view to display.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum CurrentView {
     /// Display the [`ListView`](ListView).
     ListView,
@@ -603,5 +629,1203 @@ impl Component for VaultContainer {
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::RefCell, collections::HashMap, sync::Mutex};
+
+    use iced::Command;
+    use mocktopus::mocking::*;
+    use modify_entry::{ModifyEntryMessage, ModifyEntryModalMessage};
+    use modify_group::{ModifyGroupMessage, ModifyGroupModalMessage};
+    use pwduck_core::{uuid, EntryHead, MemKey, Vault};
+    use tempfile::{tempdir, TempDir};
+
+    use crate::{error::PWDuckGuiError, Component, TestPlatform};
+
+    use super::{
+        list::{GroupTree, GroupTreeMessage, ListItemMessage, ListMessage, ListView},
+        modify_entry::{self, ModifyEntryView},
+        modify_group::{self, ModifyGroupView},
+        CurrentView, ToolBarMessage, VaultContainer, VaultContainerMessage,
+    };
+
+    thread_local! {
+        static CALL_MAP: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+    }
+
+    const PASSWORD: &str = "this is a totally secret password";
+    const DEFAULT_GROUP_COUNT: u8 = 15;
+    const DEFAULT_ENTRY_COUNT: u8 = 15;
+
+    const SAVE: &str = "save";
+    const CREATE_GROUP: &str = "create_group";
+    const CREATE_ENTRY: &str = "create_entry";
+    const COPY_USERNAME: &str = "copy_username";
+    const COPY_PASSWORD: &str = "copy_password";
+    const UPDATE_TOOLBAR: &str = "update_toolbar";
+    const UPDATE_SEARCH: &str = "update_search";
+    const GO_TO_PARENT_GROUP: &str = "go_to_parent_group";
+    const EDIT_GROUP: &str = "edit_group";
+    const SELECT_GROUP: &str = "select_group";
+    const SELECT_ENTRY: &str = "select_entry";
+    const AUTO_FILL: &str = "auto_fill";
+    const SPLIT_RESIZE: &str = "split_resize";
+    const UPDATE_GROUP_TREE: &str = "update_group_tree";
+    const UPDATE_LIST_ITEMS: &str = "update_list_items";
+    const UPDATE_LIST: &str = "update_list";
+    const UPDATE_MODIFY_GROUP: &str = "update_modify_group";
+    const UPDATE_MODIFY_ENTRY: &str = "update_modify_entry";
+
+    fn default_vault(mem_key: &MemKey) -> (TempDir, Vault) {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+        let mut vault = pwduck_core::Vault::generate(PASSWORD, mem_key, &path).unwrap();
+        let master_key = vault
+            .masterkey()
+            .as_unprotected(mem_key, vault.salt(), vault.nonce())
+            .unwrap();
+        let root = vault.get_root_uuid().unwrap();
+
+        // Add 10 groups
+        for i in 0..DEFAULT_GROUP_COUNT {
+            let group = pwduck_core::Group::new(
+                [i; uuid::SIZE].into(),
+                root.clone(),
+                format!("Group: {}", i),
+            );
+            vault.insert_group(group);
+        }
+
+        // Add 10 entries
+        for i in 0..DEFAULT_ENTRY_COUNT {
+            let head = pwduck_core::EntryHead::new(
+                [i; uuid::SIZE].into(),
+                root.clone(),
+                format!("Entry: {}", i),
+                [i; uuid::SIZE].into(),
+            );
+            let body = pwduck_core::EntryBody::new(
+                [i; uuid::SIZE].into(),
+                "username".into(),
+                "password".into(),
+            );
+            vault.insert_entry(head, body, &master_key).unwrap();
+        }
+
+        (dir, vault)
+    }
+
+    #[test]
+    fn contains_unsaved_changes() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        ModifyGroupView::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(false));
+        ModifyEntryView::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(false));
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        // The default vault should contain unsaved changes.
+        assert!(vault_container.contains_unsaved_changes());
+
+        vault_container.vault.save(&mem_key).unwrap();
+
+        // After save the vault should not contain unsaved changes.
+        assert!(!vault_container.contains_unsaved_changes());
+
+        ModifyGroupView::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(true));
+        // A non existent group view should not contain unsaved changes
+        assert!(!vault_container.contains_unsaved_changes());
+        vault_container.modify_group_view = Some(Box::new(ModifyGroupView::with(
+            modify_group::State::Create,
+            pwduck_core::Group::new([1; uuid::SIZE].into(), root.clone(), "".into()),
+        )));
+        // An existent group view should contain unsaved changes
+        assert!(vault_container.contains_unsaved_changes());
+        ModifyGroupView::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(false));
+        assert!(!vault_container.contains_unsaved_changes());
+
+        ModifyEntryView::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(true));
+        // A non existent entry view should not contain unsaved changes
+        assert!(!vault_container.contains_unsaved_changes());
+        vault_container.modify_entry_view = Some(Box::new(ModifyEntryView::with(
+            modify_entry::State::Create,
+            pwduck_core::EntryHead::new(
+                [1; uuid::SIZE].into(),
+                root.clone(),
+                "".into(),
+                [2; uuid::SIZE].into(),
+            ),
+            pwduck_core::EntryBody::new([2; uuid::SIZE].into(), "".into(), "".into()),
+        )));
+        // An existent entry view should contain unsaved changes
+        assert!(vault_container.contains_unsaved_changes());
+        ModifyEntryView::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(false));
+        assert!(!vault_container.contains_unsaved_changes());
+    }
+
+    #[test]
+    fn enable_view_focus() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+        assert!(vault_container.modify_group_view.is_none());
+        assert!(vault_container.modify_entry_view.is_none());
+        assert!(vault_container.enable_list_view_focus());
+        assert!(!vault_container.enable_modify_group_view_focus());
+        assert!(!vault_container.enable_modify_entry_view_focus());
+
+        vault_container.modify_group_view = Some(Box::new(ModifyGroupView::with(
+            modify_group::State::Create,
+            pwduck_core::Group::new([1; uuid::SIZE].into(), root.clone(), "".into()),
+        )));
+        assert!(vault_container.modify_group_view.is_some());
+        assert!(!vault_container.enable_list_view_focus());
+        assert!(vault_container.enable_modify_group_view_focus());
+        assert!(!vault_container.enable_modify_entry_view_focus());
+
+        vault_container.modify_group_view = None;
+        vault_container.modify_entry_view = Some(Box::new(ModifyEntryView::with(
+            modify_entry::State::Create,
+            pwduck_core::EntryHead::new(
+                [1; uuid::SIZE].into(),
+                root.clone(),
+                "".into(),
+                [2; uuid::SIZE].into(),
+            ),
+            pwduck_core::EntryBody::new([2; uuid::SIZE].into(), "".into(), "".into()),
+        )));
+        assert!(vault_container.modify_entry_view.is_some());
+        assert!(!vault_container.enable_list_view_focus());
+        assert!(!vault_container.enable_modify_group_view_focus());
+        assert!(vault_container.enable_modify_entry_view_focus());
+    }
+
+    #[test]
+    fn save() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        let mutex_mem_key = Mutex::new(mem_key);
+
+        assert!(vault_container.vault.contains_unsaved_changes());
+        let _ = vault_container
+            .save(&mutex_mem_key.lock().unwrap())
+            .expect("Should not fail");
+        assert!(!vault_container.vault.contains_unsaved_changes());
+    }
+
+    #[test]
+    fn create_group() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        assert!(vault_container.modify_group_view.is_none());
+        assert_eq!(vault_container.current_view, CurrentView::ListView);
+        let _ = vault_container.create_group();
+        assert!(vault_container.modify_group_view.is_some());
+        assert_eq!(vault_container.current_view, CurrentView::ModifyGroup);
+
+        let modify_group_view = vault_container.modify_group_view().as_ref().unwrap();
+        assert_eq!(
+            modify_group_view
+                .group()
+                .parent()
+                .as_ref()
+                .expect("Group should have a parent"),
+            vault_container.list_view.selected_group_uuid()
+        );
+        assert_eq!(modify_group_view.group().title().as_str(), "");
+    }
+
+    #[test]
+    fn create_entry() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        assert!(vault_container.modify_entry_view.is_none());
+        assert_eq!(vault_container.current_view, CurrentView::ListView);
+        let _ = vault_container.create_entry();
+        assert!(vault_container.modify_entry_view.is_some());
+        assert_eq!(vault_container.current_view, CurrentView::ModifyEntry);
+
+        let modify_entry_view = vault_container.modify_entry_view().as_ref().unwrap();
+        assert_eq!(
+            modify_entry_view.entry_head().parent(),
+            vault_container.list_view.selected_group_uuid()
+        );
+        assert_eq!(modify_entry_view.entry_head().title().as_str(), "");
+        assert_eq!(
+            modify_entry_view.entry_head().body(),
+            modify_entry_view.entry_body().uuid()
+        );
+        assert_eq!(modify_entry_view.entry_body().username().as_str(), "");
+        assert_eq!(modify_entry_view.entry_body().password().as_str(), "");
+    }
+
+    #[test]
+    fn update_toolbar() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+        // WARNING: This is highly unsafe!
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert(SAVE.to_owned(), 0);
+            call_map.borrow_mut().insert(CREATE_GROUP.to_owned(), 0);
+            call_map.borrow_mut().insert(CREATE_ENTRY.to_owned(), 0);
+            call_map.borrow_mut().insert(AUTO_FILL.to_owned(), 0);
+
+            VaultContainer::save.mock_raw(|_self, _mem_key| {
+                call_map.borrow_mut().get_mut(SAVE).map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            VaultContainer::create_group.mock_raw(|_self| {
+                call_map.borrow_mut().get_mut(CREATE_GROUP).map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultContainer::create_entry.mock_raw(|_self| {
+                call_map.borrow_mut().get_mut(CREATE_ENTRY).map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultContainer::auto_fill::<TestPlatform>.mock_raw(|_self, _uuid, _mem_key| {
+                call_map.borrow_mut().get_mut(AUTO_FILL).map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+
+            // Save
+            assert_eq!(call_map.borrow()[SAVE], 0);
+            let _ = vault_container
+                .update_toolbar::<TestPlatform>(&ToolBarMessage::Save, &mut clipboard);
+            assert_eq!(call_map.borrow()[SAVE], 1);
+
+            // New group
+            assert_eq!(call_map.borrow()[CREATE_GROUP], 0);
+            let _ = vault_container
+                .update_toolbar::<TestPlatform>(&ToolBarMessage::NewGroup, &mut clipboard);
+            assert_eq!(call_map.borrow()[CREATE_GROUP], 1);
+
+            // New entry
+            assert_eq!(call_map.borrow()[CREATE_ENTRY], 0);
+            let _ = vault_container
+                .update_toolbar::<TestPlatform>(&ToolBarMessage::NewEntry, &mut clipboard);
+            assert_eq!(call_map.borrow()[CREATE_ENTRY], 1);
+
+            // Auto fill
+            assert_eq!(call_map.borrow()[AUTO_FILL], 0);
+            // A non existent ModifyEntryView can not auto fill.
+            let _ = vault_container
+                .update_toolbar::<TestPlatform>(&ToolBarMessage::AutoFill, &mut clipboard);
+            assert_eq!(call_map.borrow()[AUTO_FILL], 0);
+            // An existent ModifyEntryView can auto fill.
+            vault_container.modify_entry_view = Some(Box::new(ModifyEntryView::with(
+                modify_entry::State::Create,
+                pwduck_core::EntryHead::new(
+                    [1; uuid::SIZE].into(),
+                    root.clone(),
+                    "".into(),
+                    [2; uuid::SIZE].into(),
+                ),
+                pwduck_core::EntryBody::new([2; uuid::SIZE].into(), "".into(), "".into()),
+            )));
+            let _ = vault_container
+                .update_toolbar::<TestPlatform>(&ToolBarMessage::AutoFill, &mut clipboard);
+            assert_eq!(call_map.borrow()[AUTO_FILL], 1);
+
+            // Lock vault
+            let res = vault_container
+                .update_toolbar::<TestPlatform>(&ToolBarMessage::LockVault, &mut clipboard)
+                .expect_err("Should fail");
+            match res {
+                PWDuckGuiError::Unreachable(_) => {}
+                _ => panic!("Should contain unreachable warning."),
+            }
+        })
+    }
+
+    #[test]
+    fn update_search() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert("resize".to_owned(), 0);
+
+            let search_string = "This is my search string";
+
+            ListView::resize.mock_raw(|_self, _vault| {
+                call_map.borrow_mut().get_mut("resize").map(|c| *c += 1);
+                MockResult::Return(())
+            });
+
+            assert_eq!(vault_container.list_view.search().as_str(), "");
+            assert_eq!(call_map.borrow()["resize"], 0);
+            let _ = vault_container.update_search(search_string.to_owned());
+            assert_eq!(vault_container.list_view.search().as_str(), search_string);
+            assert_eq!(call_map.borrow()["resize"], 1);
+        });
+    }
+
+    #[test]
+    fn go_to_parent_group() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert("resize".to_owned(), 0);
+
+            ListView::resize.mock_raw(|_self, _vault| {
+                call_map.borrow_mut().get_mut("resize").map(|c| *c += 1);
+                MockResult::Return(())
+            });
+
+            // Root should be go to root. No resize required.
+            assert_eq!(vault_container.list_view.selected_group_uuid(), &root);
+            assert_eq!(call_map.borrow()["resize"], 0);
+            let _ = vault_container
+                .go_to_parent_group()
+                .expect("Should not fail.");
+            assert_eq!(vault_container.list_view.selected_group_uuid(), &root);
+            assert_eq!(call_map.borrow()["resize"], 0);
+
+            // Set selected group to the third children of root
+            let roots_3rd_children_uuid = vault_container
+                .vault
+                .get_groups_of(&root)
+                .get(3)
+                .unwrap()
+                .uuid()
+                .to_owned();
+            let _ = vault_container
+                .list_view
+                .set_selected_group_uuid(roots_3rd_children_uuid.clone());
+
+            // Childrens parent should be root. Resize is required.
+            assert_eq!(
+                vault_container.list_view.selected_group_uuid(),
+                &roots_3rd_children_uuid
+            );
+            assert_eq!(call_map.borrow()["resize"], 0);
+            let _ = vault_container
+                .go_to_parent_group()
+                .expect("Should not fail.");
+            assert_eq!(vault_container.list_view.selected_group_uuid(), &root);
+            assert_eq!(call_map.borrow()["resize"], 1);
+        });
+    }
+
+    #[test]
+    fn edit_group() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        // Root should not be edible.
+        assert_eq!(vault_container.list_view.selected_group_uuid(), &root);
+        assert!(vault_container.modify_group_view().is_none());
+        assert_eq!(vault_container.current_view, CurrentView::ListView);
+        let _ = vault_container
+            .edit_group()
+            .expect_err("Root should not be edible");
+        assert!(vault_container.modify_group_view().is_none());
+        assert_eq!(vault_container.current_view, CurrentView::ListView);
+
+        // Set selected group to the third children of root
+        let roots_3rd_children_uuid = vault_container
+            .vault
+            .get_groups_of(&root)
+            .get(3)
+            .unwrap()
+            .uuid()
+            .to_owned();
+        let _ = vault_container
+            .list_view
+            .set_selected_group_uuid(roots_3rd_children_uuid.clone());
+
+        // Non-root should be edible
+        assert_eq!(
+            vault_container.list_view.selected_group_uuid(),
+            &roots_3rd_children_uuid
+        );
+        assert!(vault_container.modify_group_view().is_none());
+        assert_eq!(vault_container.current_view, CurrentView::ListView);
+        let _ = vault_container.edit_group().expect("Should not fail");
+        assert!(vault_container.modify_group_view().is_some());
+        assert_eq!(vault_container.current_view, CurrentView::ModifyGroup);
+
+        let modify_group_view = vault_container.modify_group_view().as_ref().unwrap();
+        assert_eq!(modify_group_view.group().uuid(), &roots_3rd_children_uuid);
+    }
+
+    #[test]
+    fn select_group() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert("resize".to_owned(), 0);
+
+            ListView::resize.mock_raw(|_self, _vault| {
+                call_map.borrow_mut().get_mut("resize").map(|c| *c += 1);
+                MockResult::Return(())
+            });
+
+            vault_container
+                .list_view
+                .set_search("This is some search string".into());
+
+            assert!(!vault_container.list_view.search().is_empty());
+            assert_eq!(vault_container.list_view.selected_group_uuid(), &root);
+            assert_eq!(call_map.borrow()["resize"], 0);
+            let _ = vault_container.select_group([1; uuid::SIZE].into());
+            assert!(vault_container.list_view.search().is_empty());
+            assert_eq!(
+                vault_container.list_view.selected_group_uuid(),
+                &[1; uuid::SIZE].into()
+            );
+            assert_eq!(call_map.borrow()["resize"], 1);
+        });
+    }
+
+    #[test]
+    fn select_entry() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        let roots_3rd_entry: EntryHead = vault_container
+            .vault
+            .get_entries_of(&root)
+            .get(3)
+            .map(|entry| (*entry).clone())
+            .unwrap();
+
+        let mutex_mem_key = Mutex::new(mem_key);
+
+        assert!(vault_container.modify_group_view().is_none());
+        assert_eq!(vault_container.current_view, CurrentView::ListView);
+        let _ = vault_container
+            .select_entry(roots_3rd_entry.uuid(), &mutex_mem_key.lock().unwrap())
+            .expect("Should not fail");
+        assert!(vault_container.modify_entry_view().is_some());
+        assert_eq!(vault_container.current_view, CurrentView::ModifyEntry);
+
+        let modify_entry_view = vault_container.modify_entry_view().as_ref().unwrap();
+        assert_eq!(
+            modify_entry_view.entry_head().uuid(),
+            roots_3rd_entry.uuid()
+        );
+        assert_eq!(
+            modify_entry_view.entry_head().title(),
+            roots_3rd_entry.title()
+        );
+        assert_eq!(
+            modify_entry_view.entry_body().uuid(),
+            roots_3rd_entry.body()
+        );
+    }
+
+    #[test]
+    fn split_resize() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        assert_ne!(
+            vault_container.list_view.split_state().divider_position(),
+            Some(1337)
+        );
+        vault_container.split_resize(1337);
+        assert_eq!(
+            vault_container.list_view.split_state().divider_position(),
+            Some(1337)
+        );
+    }
+
+    #[test]
+    fn update_group_tree() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert("update".to_owned(), 0);
+            call_map.borrow_mut().insert("resize".to_owned(), 0);
+
+            GroupTree::update.mock_raw(|_self, _message, _vault| {
+                call_map.borrow_mut().get_mut("update").map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            ListView::resize.mock_raw(|_self, _vault| {
+                call_map.borrow_mut().get_mut("resize").map(|c| *c += 1);
+                MockResult::Return(())
+            });
+
+            // Toggle expansion
+            assert_eq!(call_map.borrow()["update"], 0);
+            let _ =
+                vault_container.update_group_tree(GroupTreeMessage::ToggleExpansion(vec![1, 2, 3]));
+            assert_eq!(call_map.borrow()["update"], 1);
+
+            // Group selected
+            assert_eq!(call_map.borrow()["resize"], 0);
+            assert_eq!(vault_container.list_view.selected_group_uuid(), &root);
+            let _ = vault_container
+                .update_group_tree(GroupTreeMessage::GroupSelected([1; uuid::SIZE].into()));
+            assert_eq!(call_map.borrow()["resize"], 1);
+            assert_eq!(
+                vault_container.list_view.selected_group_uuid(),
+                &[1; uuid::SIZE].into()
+            );
+
+            assert!(call_map.borrow().values().all(|v| *v == 1));
+        })
+    }
+
+    #[test]
+    fn update_list_items() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        // WARNING: This is highly unsafe!
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert(SELECT_GROUP.to_owned(), 0);
+            call_map.borrow_mut().insert(SELECT_ENTRY.to_owned(), 0);
+            call_map.borrow_mut().insert(COPY_USERNAME.to_owned(), 0);
+            call_map.borrow_mut().insert(COPY_PASSWORD.to_owned(), 0);
+            call_map.borrow_mut().insert(AUTO_FILL.to_owned(), 0);
+
+            VaultContainer::select_group.mock_raw(|_self, _uuid| {
+                call_map.borrow_mut().get_mut(SELECT_GROUP).map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultContainer::select_entry.mock_raw(|_self, _uuid, _mem_key| {
+                call_map.borrow_mut().get_mut(SELECT_ENTRY).map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            VaultContainer::copy_username.mock_raw(|_self, _uuid, _mem_key, _clipboard| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(COPY_USERNAME)
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            VaultContainer::copy_password.mock_raw(|_self, _uuid, _mem_key, _clipboard| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(COPY_PASSWORD)
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            VaultContainer::auto_fill::<TestPlatform>.mock_raw(|_self, _uuid, _mem_key| {
+                call_map.borrow_mut().get_mut(AUTO_FILL).map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+
+            // Select group
+            assert_eq!(call_map.borrow()[SELECT_GROUP], 0);
+            let _ = vault_container.update_list_items::<TestPlatform>(
+                ListItemMessage::GroupSelected([1; uuid::SIZE].into()),
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[SELECT_GROUP], 1);
+
+            // Select entry
+            assert_eq!(call_map.borrow()[SELECT_ENTRY], 0);
+            let _ = vault_container
+                .update_list_items::<TestPlatform>(
+                    ListItemMessage::EntrySelected([1; uuid::SIZE].into()),
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[SELECT_ENTRY], 1);
+
+            // Copy username
+            assert_eq!(call_map.borrow()[COPY_USERNAME], 0);
+            let _ = vault_container
+                .update_list_items::<TestPlatform>(
+                    ListItemMessage::CopyUsername([1; uuid::SIZE].into()),
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[COPY_USERNAME], 1);
+
+            // Copy password
+            assert_eq!(call_map.borrow()[COPY_PASSWORD], 0);
+            let _ = vault_container
+                .update_list_items::<TestPlatform>(
+                    ListItemMessage::CopyPassword([1; uuid::SIZE].into()),
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[COPY_PASSWORD], 1);
+
+            // Auto fill
+            assert_eq!(call_map.borrow()[AUTO_FILL], 0);
+            let _ = vault_container
+                .update_list_items::<TestPlatform>(
+                    ListItemMessage::Autofill([1; uuid::SIZE].into()),
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[AUTO_FILL], 1);
+
+            assert!(call_map.borrow().values().all(|v| *v == 1));
+        });
+    }
+
+    #[test]
+    fn update_list() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        // WARNING: This is highly unsafe!
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert(UPDATE_SEARCH.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(GO_TO_PARENT_GROUP.to_owned(), 0);
+            call_map.borrow_mut().insert(EDIT_GROUP.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(UPDATE_LIST_ITEMS.to_owned(), 0);
+            call_map.borrow_mut().insert(SPLIT_RESIZE.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(UPDATE_GROUP_TREE.to_owned(), 0);
+
+            VaultContainer::update_search.mock_raw(|_self, _search| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(UPDATE_SEARCH)
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultContainer::go_to_parent_group.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(GO_TO_PARENT_GROUP)
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            VaultContainer::edit_group.mock_raw(|_self| {
+                call_map.borrow_mut().get_mut(EDIT_GROUP).map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            VaultContainer::update_list_items::<TestPlatform>.mock_raw(
+                |_self, _message, _clipboard| {
+                    call_map
+                        .borrow_mut()
+                        .get_mut(UPDATE_LIST_ITEMS)
+                        .map(|c| *c += 1);
+                    MockResult::Return(Ok(Command::none()))
+                },
+            );
+            VaultContainer::split_resize.mock_raw(|_self, _position| {
+                call_map.borrow_mut().get_mut(SPLIT_RESIZE).map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultContainer::update_group_tree.mock_raw(|_self, _message| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(UPDATE_GROUP_TREE)
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+
+            // Update search
+            assert_eq!(call_map.borrow()[UPDATE_SEARCH], 0);
+            let _ = vault_container.update_list::<TestPlatform>(
+                ListMessage::SearchInput("This is a search string".into()),
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[UPDATE_SEARCH], 1);
+
+            // Go to parent group
+            assert_eq!(call_map.borrow()[GO_TO_PARENT_GROUP], 0);
+            let _ = vault_container.update_list::<TestPlatform>(ListMessage::Back, &mut clipboard);
+            assert_eq!(call_map.borrow()[GO_TO_PARENT_GROUP], 1);
+
+            // Edit group
+            assert_eq!(call_map.borrow()[EDIT_GROUP], 0);
+            let _ =
+                vault_container.update_list::<TestPlatform>(ListMessage::EditGroup, &mut clipboard);
+            assert_eq!(call_map.borrow()[EDIT_GROUP], 1);
+
+            // Update list items
+            assert_eq!(call_map.borrow()[UPDATE_LIST_ITEMS], 0);
+            let _ = vault_container.update_list::<TestPlatform>(
+                ListMessage::ListItemMessage(ListItemMessage::GroupSelected(
+                    [1; uuid::SIZE].into(),
+                )),
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[UPDATE_LIST_ITEMS], 1);
+
+            // Split resize
+            assert_eq!(call_map.borrow()[SPLIT_RESIZE], 0);
+            let _ = vault_container
+                .update_list::<TestPlatform>(ListMessage::SplitResize(10), &mut clipboard);
+            assert_eq!(call_map.borrow()[SPLIT_RESIZE], 1);
+
+            // Update group tree
+            assert_eq!(call_map.borrow()[UPDATE_GROUP_TREE], 0);
+            let _ = vault_container.update_list::<TestPlatform>(
+                ListMessage::GroupTreeMessage(GroupTreeMessage::GroupSelected(
+                    [1; uuid::SIZE].into(),
+                )),
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[UPDATE_GROUP_TREE], 1);
+
+            assert!(call_map.borrow().values().all(|v| *v == 1));
+        })
+    }
+
+    #[test]
+    fn update_modify_group() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::default());
+        // WARNING: This is highly unsafe!
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert("update".to_owned(), 0);
+            call_map.borrow_mut().insert("resize".to_owned(), 0);
+            call_map.borrow_mut().insert("refresh".to_owned(), 0);
+
+            ModifyGroupView::update.mock_raw(|_self, _m, _v, _mod, _s, _c| {
+                call_map.borrow_mut().get_mut("update").map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            ListView::resize.mock_raw(|_self, _vault| {
+                call_map.borrow_mut().get_mut("resize").map(|c| *c += 1);
+                MockResult::Return(())
+            });
+            GroupTree::refresh.mock_raw(|_self, _vault| {
+                call_map.borrow_mut().get_mut("refresh").map(|c| *c += 1);
+                MockResult::Return(())
+            });
+
+            // Non existent ModifyGroupView should not be updated.
+            assert!(vault_container.modify_group_view.is_none());
+            assert_eq!(call_map.borrow()["update"], 0);
+            assert_eq!(call_map.borrow()["resize"], 0);
+            assert_eq!(call_map.borrow()["refresh"], 0);
+            let cmd = vault_container
+                .update_modify_group(
+                    &ModifyGroupMessage::TitleInput("title".into()),
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert!(cmd.futures().is_empty());
+            assert_eq!(call_map.borrow()["update"], 0);
+            assert_eq!(call_map.borrow()["resize"], 0);
+            assert_eq!(call_map.borrow()["refresh"], 0);
+
+            let roots_3rd_child_uuid = vault_container
+                .vault
+                .get_groups_of(&root)
+                .get(3)
+                .unwrap()
+                .uuid()
+                .to_owned();
+            let _ = vault_container
+                .list_view
+                .set_selected_group_uuid(roots_3rd_child_uuid);
+            let _ = vault_container.edit_group().expect("Should not fail");
+
+            // Existent ModifyGroupView should be updated.
+            assert!(vault_container.modify_group_view.is_some());
+            assert_eq!(call_map.borrow()["update"], 0);
+            assert_eq!(call_map.borrow()["resize"], 0);
+            assert_eq!(call_map.borrow()["refresh"], 0);
+            let _ = vault_container
+                .update_modify_group(
+                    &ModifyGroupMessage::TitleInput("title".into()),
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()["update"], 1);
+            assert_eq!(call_map.borrow()["resize"], 0);
+            assert_eq!(call_map.borrow()["refresh"], 0);
+
+            // Cancel should go back to the list view.
+            assert_eq!(vault_container.current_view, CurrentView::ModifyGroup);
+            assert!(vault_container.modify_group_view.is_some());
+            let _ = vault_container
+                .update_modify_group(
+                    &ModifyGroupMessage::Cancel,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(vault_container.current_view, CurrentView::ListView);
+            assert!(vault_container.modify_group_view.is_none());
+            assert_eq!(call_map.borrow()["update"], 2);
+            assert_eq!(call_map.borrow()["resize"], 1);
+            assert_eq!(call_map.borrow()["refresh"], 1);
+
+            // Submit should go back to the list view.
+            let _ = vault_container.edit_group().expect("Should not fail");
+            assert_eq!(vault_container.current_view, CurrentView::ModifyGroup);
+            assert!(vault_container.modify_group_view.is_some());
+            assert_eq!(call_map.borrow()["update"], 2);
+            assert_eq!(call_map.borrow()["resize"], 1);
+            assert_eq!(call_map.borrow()["refresh"], 1);
+            let _ = vault_container
+                .update_modify_group(
+                    &ModifyGroupMessage::Submit,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert!(vault_container.modify_group_view.is_none());
+            assert_eq!(call_map.borrow()["update"], 3);
+            assert_eq!(call_map.borrow()["resize"], 2);
+            assert_eq!(call_map.borrow()["refresh"], 2);
+
+            // Submit deletion of group should go back to the list view.
+            let _ = vault_container.edit_group().expect("Should not fail");
+            assert_eq!(vault_container.current_view, CurrentView::ModifyGroup);
+            assert!(vault_container.modify_group_view.is_some());
+            assert_eq!(call_map.borrow()["update"], 3);
+            assert_eq!(call_map.borrow()["resize"], 2);
+            assert_eq!(call_map.borrow()["refresh"], 2);
+            let _ = vault_container
+                .update_modify_group(
+                    &ModifyGroupMessage::Modal(ModifyGroupModalMessage::SubmitDelete),
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert!(vault_container.modify_group_view.is_none());
+            assert_eq!(call_map.borrow()["update"], 4);
+            assert_eq!(call_map.borrow()["resize"], 3);
+            assert_eq!(call_map.borrow()["refresh"], 3);
+        });
+    }
+
+    #[test]
+    fn update_modify_entry() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::default());
+        // WARNING: This is highly unsafe!
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert("update".to_owned(), 0);
+            call_map.borrow_mut().insert("resize".to_owned(), 0);
+
+            ModifyEntryView::update::<TestPlatform>.mock_raw(|_self, _m, _v, _mod, _c| {
+                call_map.borrow_mut().get_mut("update").map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            ListView::resize.mock_raw(|_self, _vault| {
+                call_map.borrow_mut().get_mut("resize").map(|c| *c += 1);
+                MockResult::Return(())
+            });
+
+            // Non existent ModifyEntryView should not be updated.
+            assert!(vault_container.modify_entry_view.is_none());
+            assert_eq!(call_map.borrow()["update"], 0);
+            assert_eq!(call_map.borrow()["resize"], 0);
+            let cmd = vault_container
+                .update_modify_entry::<TestPlatform>(
+                    &ModifyEntryMessage::TitleInput("title".into()),
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert!(cmd.futures().is_empty());
+            assert_eq!(call_map.borrow()["update"], 0);
+            assert_eq!(call_map.borrow()["resize"], 0);
+
+            let mutex_mem_key = Mutex::new(mem_key);
+            let roots_3rd_entry_uuid = vault_container
+                .vault
+                .get_entries_of(&root)
+                .get(3)
+                .unwrap()
+                .uuid()
+                .to_owned();
+            let _ =
+                vault_container.select_entry(&roots_3rd_entry_uuid, &mutex_mem_key.lock().unwrap());
+
+            // Existent ModifyEntryView should be updated.
+            assert!(vault_container.modify_entry_view.is_some());
+            assert_eq!(call_map.borrow()["update"], 0);
+            assert_eq!(call_map.borrow()["resize"], 0);
+            let _ = vault_container
+                .update_modify_entry::<TestPlatform>(
+                    &ModifyEntryMessage::TitleInput("title".into()),
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()["update"], 1);
+            assert_eq!(call_map.borrow()["resize"], 0);
+
+            // Cancel should go back to the list view.
+            assert_eq!(vault_container.current_view, CurrentView::ModifyEntry);
+            assert!(vault_container.modify_entry_view.is_some());
+            let _ = vault_container
+                .update_modify_entry::<TestPlatform>(
+                    &ModifyEntryMessage::Cancel,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(vault_container.current_view, CurrentView::ListView);
+            assert!(vault_container.modify_entry_view.is_none());
+            assert_eq!(call_map.borrow()["update"], 2);
+            assert_eq!(call_map.borrow()["resize"], 1);
+
+            // Submit should go back to the list view.
+            let _ =
+                vault_container.select_entry(&roots_3rd_entry_uuid, &mutex_mem_key.lock().unwrap());
+            assert_eq!(vault_container.current_view, CurrentView::ModifyEntry);
+            assert!(vault_container.modify_entry_view.is_some());
+            assert_eq!(call_map.borrow()["update"], 2);
+            assert_eq!(call_map.borrow()["resize"], 1);
+            let _ = vault_container
+                .update_modify_entry::<TestPlatform>(
+                    &ModifyEntryMessage::Submit,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(vault_container.current_view, CurrentView::ListView);
+            assert!(vault_container.modify_entry_view.is_none());
+            assert_eq!(call_map.borrow()["update"], 3);
+            assert_eq!(call_map.borrow()["resize"], 2);
+
+            // Submit deletion of entry should go back to the list view
+            let _ =
+                vault_container.select_entry(&roots_3rd_entry_uuid, &mutex_mem_key.lock().unwrap());
+            assert_eq!(vault_container.current_view, CurrentView::ModifyEntry);
+            assert!(vault_container.modify_entry_view.is_some());
+            assert_eq!(call_map.borrow()["update"], 3);
+            assert_eq!(call_map.borrow()["resize"], 2);
+            let _ = vault_container
+                .update_modify_entry::<TestPlatform>(
+                    &ModifyEntryMessage::Modal(ModifyEntryModalMessage::SubmitDelete),
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(vault_container.current_view, CurrentView::ListView);
+            assert!(vault_container.modify_entry_view.is_none());
+            assert_eq!(call_map.borrow()["update"], 4);
+            assert_eq!(call_map.borrow()["resize"], 3);
+        });
+    }
+
+    #[test]
+    fn new_container() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let vault_container = VaultContainer::new(Box::new(vault.clone()));
+
+        assert_eq!(vault_container.vault.get_root_uuid().unwrap(), root);
+        assert_eq!(vault_container.current_view, CurrentView::ListView);
+        assert_eq!(vault_container.list_view.selected_group_uuid(), &root);
+        assert!(vault_container.modify_group_view.is_none());
+        assert!(vault_container.modify_entry_view.is_none());
+    }
+
+    #[test]
+    fn title() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        assert!(vault_container.vault.contains_unsaved_changes());
+        assert!(vault_container
+            .title()
+            .contains(vault_container.vault.get_name()));
+        assert!(vault_container.title().contains("\u{2731}")); // Big star symbol
+
+        let mutex_mem_key = Mutex::new(mem_key);
+
+        let _ = vault_container
+            .save(&mutex_mem_key.lock().unwrap())
+            .unwrap();
+
+        assert!(!vault_container.vault.contains_unsaved_changes());
+        assert!(vault_container
+            .title()
+            .contains(vault_container.vault.get_name()));
+        assert!(!vault_container.title().contains("\u{2731}")); // Big star symbol
+    }
+
+    #[test]
+    fn update() {
+        let mem_key = MemKey::with_length(1);
+        let (_dir, vault) = default_vault(&mem_key);
+        let mut application_settings = pwduck_core::ApplicationSettings::default();
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::default());
+        // WARNING: This is highly unsafe!
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        let mut vault_container = VaultContainer::new(Box::new(vault));
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map.borrow_mut().insert(UPDATE_TOOLBAR.to_owned(), 0);
+            call_map.borrow_mut().insert(UPDATE_LIST.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(UPDATE_MODIFY_GROUP.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(UPDATE_MODIFY_ENTRY.to_owned(), 0);
+
+            VaultContainer::update_toolbar::<TestPlatform>.mock_raw(
+                |_self, _message, _clipboard| {
+                    call_map
+                        .borrow_mut()
+                        .get_mut(UPDATE_TOOLBAR)
+                        .map(|c| *c += 1);
+                    MockResult::Return(Ok(Command::none()))
+                },
+            );
+            VaultContainer::update_list::<TestPlatform>.mock_raw(|_self, _message, _clipboard| {
+                call_map.borrow_mut().get_mut(UPDATE_LIST).map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            VaultContainer::update_modify_group.mock_raw(|_self, _m, _mod, _c| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(UPDATE_MODIFY_GROUP)
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            VaultContainer::update_modify_entry::<TestPlatform>.mock_raw(|_self, _m, _mod, _c| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(UPDATE_MODIFY_ENTRY)
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+
+            // Update toolbar
+            assert_eq!(call_map.borrow()[UPDATE_TOOLBAR], 0);
+            let _ = vault_container
+                .update::<TestPlatform>(
+                    VaultContainerMessage::ToolBar(ToolBarMessage::LockVault),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[UPDATE_TOOLBAR], 1);
+
+            // Update list
+            assert_eq!(call_map.borrow()[UPDATE_LIST], 0);
+            let _ = vault_container
+                .update::<TestPlatform>(
+                    VaultContainerMessage::List(ListMessage::Back),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[UPDATE_LIST], 1);
+
+            // Update modify group
+            assert_eq!(call_map.borrow()[UPDATE_MODIFY_GROUP], 0);
+            let _ = vault_container
+                .update::<TestPlatform>(
+                    VaultContainerMessage::ModifyGroup(ModifyGroupMessage::Submit),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[UPDATE_MODIFY_GROUP], 1);
+
+            // Update modify entry
+            assert_eq!(call_map.borrow()[UPDATE_MODIFY_ENTRY], 0);
+            let _ = vault_container
+                .update::<TestPlatform>(
+                    VaultContainerMessage::ModifyEntry(ModifyEntryMessage::Submit),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            assert_eq!(call_map.borrow()[UPDATE_MODIFY_ENTRY], 1);
+
+            // Autotype ok
+            let _ = vault_container
+                .update::<TestPlatform>(
+                    VaultContainerMessage::AutoTypeResult(Ok(())),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+
+            // Autotype error
+            let _ = vault_container
+                .update::<TestPlatform>(
+                    VaultContainerMessage::AutoTypeResult(Err(PWDuckGuiError::String("".into()))),
+                    &mut application_settings,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail");
+
+            assert!(call_map.borrow().values().all(|v| *v == 1));
+        })
     }
 }

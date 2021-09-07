@@ -20,6 +20,9 @@ use crate::{
     DEFAULT_COLUMN_PADDING, DEFAULT_COLUMN_SPACING, DEFAULT_MAX_WIDTH, DEFAULT_ROW_SPACING,
 };
 
+#[cfg(test)]
+use mocktopus::macros::*;
+
 /// The state of the modify group view.
 #[derive(Debug, CopyGetters, Getters, MutGetters, Setters, Focus)]
 pub struct ModifyGroupView {
@@ -75,6 +78,7 @@ pub enum ModifyGroupMessage {
 }
 impl SomeIf for ModifyGroupMessage {}
 
+#[cfg_attr(test, mockable)]
 impl ModifyGroupView {
     /// Create a new [`ModifyGroupView`](ModifyGroupView).
     ///
@@ -103,6 +107,12 @@ impl ModifyGroupView {
 
             scrollable_state: scrollable::State::new(),
         }
+    }
+
+    /// True, if the group contains unsaved changes
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn contains_unsaved_changes(&self) -> bool {
+        self.group.is_modified()
     }
 
     /// Submit the modification of the group.

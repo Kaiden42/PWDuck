@@ -22,6 +22,9 @@ use crate::{
     DEFAULT_ROW_SPACING,
 };
 
+#[cfg(test)]
+use mocktopus::macros::*;
+
 /// The state of the modify entry view.
 #[derive(CopyGetters, Getters, MutGetters, Setters, Focus)]
 pub struct ModifyEntryView {
@@ -134,6 +137,7 @@ pub enum ModifyEntryMessage {
 }
 impl SomeIf for ModifyEntryMessage {}
 
+#[cfg_attr(test, mockable)]
 impl ModifyEntryView {
     /// Create a new [`ModifyEntryView`](ModifyEntryView).
     ///
@@ -178,6 +182,12 @@ impl ModifyEntryView {
 
             scroll_state: scrollable::State::new(),
         }
+    }
+
+    /// True, if the container contains unsaved changes.
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn contains_unsaved_changes(&self) -> bool {
+        self.entry_head.is_modified() || self.entry_body.is_modified()
     }
 
     /// Update the title and replace it with the given value.
