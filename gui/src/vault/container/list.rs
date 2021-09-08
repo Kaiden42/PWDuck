@@ -683,7 +683,11 @@ mod tests {
     use pwduck_core::{uuid, MemKey, Uuid, Vault};
     use tempfile::{tempdir, TempDir};
 
-    use std::{cell::RefCell, collections::HashMap};
+    use std::{
+        any::{Any, TypeId},
+        cell::RefCell,
+        collections::HashMap,
+    };
 
     use mocktopus::mocking::*;
 
@@ -692,14 +696,12 @@ mod tests {
     use super::{GroupTree, GroupTreeMessage, ListView};
 
     thread_local! {
-        static CALL_MAP: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+        static CALL_MAP: RefCell<HashMap<TypeId, usize>> = RefCell::new(HashMap::new());
     }
 
     const PASSWORD: &str = "this is a totally secret password";
     const DEFAULT_GROUP_COUNT: u8 = 15;
     const DEFAULT_ENTRY_COUNT: u8 = 15;
-
-    const TOGGLE_EXPANSION: &str = "toggle_expansion";
 
     fn default_vault(mem_key: &MemKey) -> (TempDir, Vault) {
         let dir = tempdir().unwrap();
@@ -948,22 +950,24 @@ mod tests {
         let mut group_tree = GroupTree::new(root.clone(), &vault);
 
         CALL_MAP.with(|call_map| unsafe {
-            call_map.borrow_mut().insert(TOGGLE_EXPANSION.to_owned(), 0);
+            call_map
+                .borrow_mut()
+                .insert(GroupTree::toggle_expansion.type_id(), 0);
 
             GroupTree::toggle_expansion.mock_raw(|node, vault| {
                 call_map
                     .borrow_mut()
-                    .get_mut(TOGGLE_EXPANSION)
+                    .get_mut(&GroupTree::toggle_expansion.type_id())
                     .map(|c| *c += 1);
                 MockResult::Continue((node, vault))
             });
 
             assert!(group_tree.children.is_empty());
-            assert_eq!(call_map.borrow()[TOGGLE_EXPANSION], 0);
+            assert_eq!(call_map.borrow()[&GroupTree::toggle_expansion.type_id()], 0);
             let _ = group_tree
                 .update(GroupTreeMessage::ToggleExpansion(Vec::new()), &vault)
                 .expect("Should not fail");
-            assert_eq!(call_map.borrow()[TOGGLE_EXPANSION], 1);
+            assert_eq!(call_map.borrow()[&GroupTree::toggle_expansion.type_id()], 1);
             assert_eq!(group_tree.children.len(), DEFAULT_GROUP_COUNT as usize);
 
             let mut root_children = vault.get_groups_of(&root);
@@ -974,7 +978,7 @@ mod tests {
             let _ = group_tree
                 .update(GroupTreeMessage::ToggleExpansion(vec![2]), &vault)
                 .expect("Should not fail");
-            assert_eq!(call_map.borrow()[TOGGLE_EXPANSION], 2);
+            assert_eq!(call_map.borrow()[&GroupTree::toggle_expansion.type_id()], 2);
             assert!(group_tree.children[2].children.is_empty());
 
             for i in 0..5 {
@@ -990,7 +994,7 @@ mod tests {
             let _ = group_tree
                 .update(GroupTreeMessage::ToggleExpansion(vec![2]), &vault)
                 .expect("Should not fail");
-            assert_eq!(call_map.borrow()[TOGGLE_EXPANSION], 3);
+            assert_eq!(call_map.borrow()[&GroupTree::toggle_expansion.type_id()], 3);
             assert_eq!(group_tree.children[2].children.len(), 5);
 
             let mut roots_3rd_child_children = vault.get_groups_of(&roots_3rd_child_uuid);
@@ -1013,13 +1017,13 @@ mod tests {
             let _ = group_tree
                 .update(GroupTreeMessage::ToggleExpansion(vec![3, 2]), &vault)
                 .expect("Should not fail");
-            assert_eq!(call_map.borrow()[TOGGLE_EXPANSION], 4);
+            assert_eq!(call_map.borrow()[&GroupTree::toggle_expansion.type_id()], 4);
             assert_eq!(group_tree.children[2].children[3].children.len(), 5);
 
             let _ = group_tree
                 .update(GroupTreeMessage::ToggleExpansion(vec![5, 4, 3, 2]), &vault)
                 .expect_err("Should fail");
-            assert_eq!(call_map.borrow()[TOGGLE_EXPANSION], 4);
+            assert_eq!(call_map.borrow()[&GroupTree::toggle_expansion.type_id()], 4);
 
             let res = group_tree
                 .update(

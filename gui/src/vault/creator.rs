@@ -512,7 +512,11 @@ fn button_row<'a>(
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, collections::HashMap};
+    use std::{
+        any::{Any, TypeId},
+        cell::RefCell,
+        collections::HashMap,
+    };
 
     use iced::Command;
     use mocktopus::mocking::*;
@@ -526,20 +530,8 @@ mod tests {
     use super::{VaultCreator, VaultCreatorMessage};
 
     thread_local! {
-        static CALL_MAP: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+        static CALL_MAP: RefCell<HashMap<TypeId, usize>> = RefCell::new(HashMap::new());
     }
-
-    const UPDATE_NAME: &str = "update_name";
-    const UPDATE_PATH: &str = "update_path";
-    const UPDATE_PASSWORD: &str = "update_password";
-    const TOGGLE_PASSWORD_VISIBILITY: &str = "toggle_password_visibility";
-    const UPDATE_PASSWORD_CONFIRM: &str = "update_password_confirm";
-    const TOGGLE_PASSWORD_CONFIRM_VISIBILITY: &str = "toggle_password_confirm_visibility";
-    const CHECK_PASSWORD_EQUALITY: &str = "check_password_equality";
-    const ESTIMATE_PASSWORD_STRENGTH: &str = "estimate_password_strength";
-    const SET_PASSWORD_SCORE: &str = "set_password_score";
-    const SUBMIT: &str = "submit";
-    const OPEN_FILE_DIALOG: &str = "open_file_dialog";
 
     #[test]
     fn update_name() {
@@ -571,30 +563,36 @@ mod tests {
         CALL_MAP.with(|call_map| unsafe {
             call_map
                 .borrow_mut()
-                .insert(CHECK_PASSWORD_EQUALITY.to_owned(), 0);
+                .insert(VaultCreator::check_password_equality.type_id(), 0);
             call_map
                 .borrow_mut()
-                .insert(ESTIMATE_PASSWORD_STRENGTH.to_owned(), 0);
+                .insert(VaultCreator::estimate_password_strength.type_id(), 0);
 
             VaultCreator::check_password_equality.mock_raw(|_self| {
                 call_map
                     .borrow_mut()
-                    .get_mut(CHECK_PASSWORD_EQUALITY)
+                    .get_mut(&VaultCreator::check_password_equality.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(())
             });
             VaultCreator::estimate_password_strength.mock_raw(|_self| {
                 call_map
                     .borrow_mut()
-                    .get_mut(ESTIMATE_PASSWORD_STRENGTH)
+                    .get_mut(&VaultCreator::estimate_password_strength.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
 
             let _ = vault_creator.update_password("password".into());
             assert_eq!(vault_creator.password.as_str(), "password");
-            assert_eq!(call_map.borrow()[CHECK_PASSWORD_EQUALITY], 1);
-            assert_eq!(call_map.borrow()[ESTIMATE_PASSWORD_STRENGTH], 1);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::check_password_equality.type_id()],
+                1
+            );
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::estimate_password_strength.type_id()],
+                1
+            );
         })
     }
 
@@ -620,19 +618,22 @@ mod tests {
         CALL_MAP.with(|call_map| unsafe {
             call_map
                 .borrow_mut()
-                .insert(CHECK_PASSWORD_EQUALITY.to_owned(), 0);
+                .insert(VaultCreator::check_password_equality.type_id(), 0);
 
             VaultCreator::check_password_equality.mock_raw(|_self| {
                 call_map
                     .borrow_mut()
-                    .get_mut(CHECK_PASSWORD_EQUALITY)
+                    .get_mut(&VaultCreator::check_password_equality.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(())
             });
 
             let _ = vault_creator.update_password_confirm("password".into());
             assert_eq!(vault_creator.password_confirm.as_str(), "password");
-            assert_eq!(call_map.borrow()[CHECK_PASSWORD_EQUALITY], 1);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::check_password_equality.type_id()],
+                1
+            );
         });
     }
 
@@ -747,182 +748,235 @@ mod tests {
         let mut application_settings = pwduck_core::ApplicationSettings::default();
         let mut modal_state = iced_aw::modal::State::new(crate::ModalState::default());
         // WARNING: This is highly unsafe!
+        #[allow(deref_nullptr)]
         let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
 
         CALL_MAP.with(|call_map| unsafe {
-            call_map.borrow_mut().insert(UPDATE_NAME.to_owned(), 0);
-            call_map.borrow_mut().insert(UPDATE_PATH.to_owned(), 0);
-            call_map.borrow_mut().insert(UPDATE_PASSWORD.to_owned(), 0);
             call_map
                 .borrow_mut()
-                .insert(TOGGLE_PASSWORD_VISIBILITY.to_owned(), 0);
+                .insert(VaultCreator::update_name.type_id(), 0);
             call_map
                 .borrow_mut()
-                .insert(UPDATE_PASSWORD_CONFIRM.to_owned(), 0);
+                .insert(VaultCreator::update_path.type_id(), 0);
             call_map
                 .borrow_mut()
-                .insert(TOGGLE_PASSWORD_CONFIRM_VISIBILITY.to_owned(), 0);
+                .insert(VaultCreator::update_password.type_id(), 0);
             call_map
                 .borrow_mut()
-                .insert(SET_PASSWORD_SCORE.to_owned(), 0);
-            call_map.borrow_mut().insert(SUBMIT.to_owned(), 0);
-            call_map.borrow_mut().insert(OPEN_FILE_DIALOG.to_owned(), 0);
+                .insert(VaultCreator::toggle_password_visibility.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(VaultCreator::update_password_confirm.type_id(), 0);
+            call_map.borrow_mut().insert(
+                VaultCreator::toggle_password_confirm_visibility.type_id(),
+                0,
+            );
+            call_map
+                .borrow_mut()
+                .insert(VaultCreator::set_password_score.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(VaultCreator::submit.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(VaultCreator::open_file_dialog::<TestPlatform>.type_id(), 0);
 
             VaultCreator::update_name.mock_raw(|_self, _name| {
-                call_map.borrow_mut().get_mut(UPDATE_NAME).map(|c| *c += 1);
+                call_map
+                    .borrow_mut()
+                    .get_mut(&VaultCreator::update_name.type_id())
+                    .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultCreator::update_path.mock_raw(|_self, _path| {
-                call_map.borrow_mut().get_mut(UPDATE_PATH).map(|c| *c += 1);
+                call_map
+                    .borrow_mut()
+                    .get_mut(&VaultCreator::update_path.type_id())
+                    .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultCreator::update_password.mock_raw(|_self, _password| {
                 call_map
                     .borrow_mut()
-                    .get_mut(UPDATE_PASSWORD)
+                    .get_mut(&VaultCreator::update_password.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultCreator::toggle_password_visibility.mock_raw(|_self| {
                 call_map
                     .borrow_mut()
-                    .get_mut(TOGGLE_PASSWORD_VISIBILITY)
+                    .get_mut(&VaultCreator::toggle_password_visibility.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultCreator::update_password_confirm.mock_raw(|_self, _password| {
                 call_map
                     .borrow_mut()
-                    .get_mut(UPDATE_PASSWORD_CONFIRM)
+                    .get_mut(&VaultCreator::update_password_confirm.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultCreator::toggle_password_confirm_visibility.mock_raw(|_self| {
                 call_map
                     .borrow_mut()
-                    .get_mut(TOGGLE_PASSWORD_CONFIRM_VISIBILITY)
+                    .get_mut(&VaultCreator::toggle_password_confirm_visibility.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultCreator::set_password_score.mock_raw(|_self, _score| {
                 call_map
                     .borrow_mut()
-                    .get_mut(SET_PASSWORD_SCORE)
+                    .get_mut(&VaultCreator::set_password_score.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultCreator::submit.mock_raw(|_self| {
-                call_map.borrow_mut().get_mut(SUBMIT).map(|c| *c += 1);
+                call_map
+                    .borrow_mut()
+                    .get_mut(&VaultCreator::submit.type_id())
+                    .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultCreator::open_file_dialog::<TestPlatform>.mock_raw(|| {
                 call_map
                     .borrow_mut()
-                    .get_mut(OPEN_FILE_DIALOG)
+                    .get_mut(&VaultCreator::open_file_dialog::<TestPlatform>.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
 
             // Update name
-            assert_eq!(call_map.borrow()[UPDATE_NAME], 0);
+            assert_eq!(call_map.borrow()[&VaultCreator::update_name.type_id()], 0);
             let _ = vault_creator.update::<TestPlatform>(
                 VaultCreatorMessage::NameInput("Name".into()),
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[UPDATE_NAME], 1);
+            assert_eq!(call_map.borrow()[&VaultCreator::update_name.type_id()], 1);
 
             // Update path
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 0);
+            assert_eq!(call_map.borrow()[&VaultCreator::update_path.type_id()], 0);
             let _ = vault_creator.update::<TestPlatform>(
                 VaultCreatorMessage::PathInput("Path".into()),
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 1);
+            assert_eq!(call_map.borrow()[&VaultCreator::update_path.type_id()], 1);
 
             // Open File Dialog
-            assert_eq!(call_map.borrow()[OPEN_FILE_DIALOG], 0);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::open_file_dialog::<TestPlatform>.type_id()],
+                0
+            );
             let _ = vault_creator.update::<TestPlatform>(
                 VaultCreatorMessage::PathOpenFD,
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[OPEN_FILE_DIALOG], 1);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::open_file_dialog::<TestPlatform>.type_id()],
+                1
+            );
 
             // Path selected
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 1);
+            assert_eq!(call_map.borrow()[&VaultCreator::update_path.type_id()], 1);
             let _ = vault_creator.update::<TestPlatform>(
                 VaultCreatorMessage::PathSelected(Ok("path".into())),
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
+            assert_eq!(call_map.borrow()[&VaultCreator::update_path.type_id()], 2);
             let _ = vault_creator.update::<TestPlatform>(
                 VaultCreatorMessage::PathSelected(Err(error::NfdError::Null)),
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
+            assert_eq!(call_map.borrow()[&VaultCreator::update_path.type_id()], 2);
 
             // Update password
-            assert_eq!(call_map.borrow()[UPDATE_PASSWORD], 0);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::update_password.type_id()],
+                0
+            );
             let _ = vault_creator.update::<TestPlatform>(
                 VaultCreatorMessage::PasswordInput("password".into()),
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[UPDATE_PASSWORD], 1);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::update_password.type_id()],
+                1
+            );
 
             // Toggle password visibility
-            assert_eq!(call_map.borrow()[TOGGLE_PASSWORD_VISIBILITY], 0);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::toggle_password_visibility.type_id()],
+                0
+            );
             let _ = vault_creator.update::<TestPlatform>(
                 VaultCreatorMessage::PasswordShow,
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[TOGGLE_PASSWORD_VISIBILITY], 1);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::toggle_password_visibility.type_id()],
+                1
+            );
 
             // Update password confirm
-            assert_eq!(call_map.borrow()[UPDATE_PASSWORD_CONFIRM], 0);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::update_password_confirm.type_id()],
+                0
+            );
             let _ = vault_creator.update::<TestPlatform>(
                 VaultCreatorMessage::PasswordConfirmInput("password".into()),
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[UPDATE_PASSWORD_CONFIRM], 1);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::update_password_confirm.type_id()],
+                1
+            );
 
             // Toggle password confirm visibility
-            assert_eq!(call_map.borrow()[TOGGLE_PASSWORD_CONFIRM_VISIBILITY], 0);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::toggle_password_confirm_visibility.type_id()],
+                0
+            );
             let _ = vault_creator.update::<TestPlatform>(
                 VaultCreatorMessage::PasswordConfirmShow,
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[TOGGLE_PASSWORD_CONFIRM_VISIBILITY], 1);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::toggle_password_confirm_visibility.type_id()],
+                1
+            );
 
             // Submit
-            assert_eq!(call_map.borrow()[SUBMIT], 0);
+            assert_eq!(call_map.borrow()[&VaultCreator::submit.type_id()], 0);
             let _ = vault_creator.update::<TestPlatform>(
                 VaultCreatorMessage::Submit,
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[SUBMIT], 1);
+            assert_eq!(call_map.borrow()[&VaultCreator::submit.type_id()], 1);
 
             // Set password score
-            assert_eq!(call_map.borrow()[SET_PASSWORD_SCORE], 0);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::set_password_score.type_id()],
+                0
+            );
             let _ = vault_creator.update::<TestPlatform>(
                 VaultCreatorMessage::PasswordScore(Err(pwduck_core::PWDuckCoreError::Error(
                     "".into(),
@@ -931,7 +985,10 @@ mod tests {
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[SET_PASSWORD_SCORE], 1);
+            assert_eq!(
+                call_map.borrow()[&VaultCreator::set_password_score.type_id()],
+                1
+            );
 
             // Cancel
             let res = vault_creator
@@ -963,14 +1020,12 @@ mod tests {
                 _ => panic!("Should contain unreachable warning."),
             }
 
-            //eprintln!("call map: {:#?}", call_map);
-            //assert!(call_map.borrow().values().all(|v| *v == 1));
             assert!(call_map
                 .borrow()
                 .iter()
-                .filter(|(k, _)| k.as_str() != UPDATE_PATH)
+                .filter(|(k, _)| *k != &VaultCreator::update_path.type_id())
                 .all(|(_, v)| *v == 1));
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
+            assert_eq!(call_map.borrow()[&VaultCreator::update_path.type_id()], 2);
         });
     }
 }

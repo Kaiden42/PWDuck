@@ -290,7 +290,11 @@ impl Component for VaultLoader {
 #[cfg(test)]
 mod tests {
 
-    use std::{cell::RefCell, collections::HashMap};
+    use std::{
+        any::{Any, TypeId},
+        cell::RefCell,
+        collections::HashMap,
+    };
 
     use iced::Command;
     use mocktopus::mocking::*;
@@ -303,14 +307,8 @@ mod tests {
     use super::{VaultLoader, VaultLoaderMessage};
 
     thread_local! {
-        static CALL_MAP: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+        static CALL_MAP: RefCell<HashMap<TypeId, usize>> = RefCell::new(HashMap::new());
     }
-
-    const UPDATE_PATH: &str = "update_path";
-    const UPDATE_PASSWORD: &str = "update_password";
-    const TOGGLE_PASSWORD_VISIBILITY: &str = "toggle_password_visibility";
-    const CONFIRM: &str = "confirm";
-    const OPEN_FILE_DIALOG: &str = "open_file_dialog";
 
     #[test]
     fn update_path() {
@@ -393,114 +391,146 @@ mod tests {
         let mut application_settings = pwduck_core::ApplicationSettings::default();
         let mut modal_state = iced_aw::modal::State::new(crate::ModalState::default());
         // WARNING: This is highly unsafe!
+        #[allow(deref_nullptr)]
         let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
 
         CALL_MAP.with(|call_map| unsafe {
-            call_map.borrow_mut().insert(UPDATE_PATH.to_owned(), 0);
-            call_map.borrow_mut().insert(UPDATE_PASSWORD.to_owned(), 0);
             call_map
                 .borrow_mut()
-                .insert(TOGGLE_PASSWORD_VISIBILITY.to_owned(), 0);
-            call_map.borrow_mut().insert(CONFIRM.to_owned(), 0);
-            call_map.borrow_mut().insert(OPEN_FILE_DIALOG.to_owned(), 0);
+                .insert(VaultLoader::update_path.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(VaultLoader::update_password.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(VaultLoader::toggle_password_visibility.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(VaultLoader::confirm.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(VaultLoader::open_file_dialog::<TestPlatform>.type_id(), 0);
 
             VaultLoader::update_path.mock_raw(|_self, _path| {
-                call_map.borrow_mut().get_mut(UPDATE_PATH).map(|c| *c += 1);
+                call_map
+                    .borrow_mut()
+                    .get_mut(&VaultLoader::update_path.type_id())
+                    .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultLoader::update_password.mock_raw(|_self, _password| {
                 call_map
                     .borrow_mut()
-                    .get_mut(UPDATE_PASSWORD)
+                    .get_mut(&VaultLoader::update_password.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultLoader::toggle_password_visibility.mock_raw(|_self| {
                 call_map
                     .borrow_mut()
-                    .get_mut(TOGGLE_PASSWORD_VISIBILITY)
+                    .get_mut(&VaultLoader::toggle_password_visibility.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultLoader::confirm.mock_raw(|_self| {
-                call_map.borrow_mut().get_mut(CONFIRM).map(|c| *c += 1);
+                call_map
+                    .borrow_mut()
+                    .get_mut(&VaultLoader::confirm.type_id())
+                    .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultLoader::open_file_dialog::<TestPlatform>.mock_raw(|| {
                 call_map
                     .borrow_mut()
-                    .get_mut(OPEN_FILE_DIALOG)
+                    .get_mut(&VaultLoader::open_file_dialog::<TestPlatform>.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
 
             // Update path
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 0);
+            assert_eq!(call_map.borrow()[&VaultLoader::update_path.type_id()], 0);
             let _ = vault_loader.update::<TestPlatform>(
                 VaultLoaderMessage::PathInput("path".into()),
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 1);
+            assert_eq!(call_map.borrow()[&VaultLoader::update_path.type_id()], 1);
 
             // Update password
-            assert_eq!(call_map.borrow()[UPDATE_PASSWORD], 0);
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::update_password.type_id()],
+                0
+            );
             let _ = vault_loader.update::<TestPlatform>(
                 VaultLoaderMessage::PasswordInput("password".into()),
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[UPDATE_PASSWORD], 1);
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::update_password.type_id()],
+                1
+            );
 
             // Toggle password visibility
-            assert_eq!(call_map.borrow()[TOGGLE_PASSWORD_VISIBILITY], 0);
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::toggle_password_visibility.type_id()],
+                0
+            );
             let _ = vault_loader.update::<TestPlatform>(
                 VaultLoaderMessage::ShowPassword,
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[TOGGLE_PASSWORD_VISIBILITY], 1);
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::toggle_password_visibility.type_id()],
+                1
+            );
 
             // Confirm
-            assert_eq!(call_map.borrow()[CONFIRM], 0);
+            assert_eq!(call_map.borrow()[&VaultLoader::confirm.type_id()], 0);
             let _ = vault_loader.update::<TestPlatform>(
                 VaultLoaderMessage::Confirm,
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[CONFIRM], 1);
+            assert_eq!(call_map.borrow()[&VaultLoader::confirm.type_id()], 1);
 
             // Open File Dialog
-            assert_eq!(call_map.borrow()[OPEN_FILE_DIALOG], 0);
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::open_file_dialog::<TestPlatform>.type_id()],
+                0
+            );
             let _ = vault_loader.update::<TestPlatform>(
                 VaultLoaderMessage::OpenFileDialog,
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[OPEN_FILE_DIALOG], 1);
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::open_file_dialog::<TestPlatform>.type_id()],
+                1
+            );
 
             // Path selected
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 1);
+            assert_eq!(call_map.borrow()[&VaultLoader::update_path.type_id()], 1);
             let _ = vault_loader.update::<TestPlatform>(
                 VaultLoaderMessage::PathSelected(Ok("path".into())),
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
+            assert_eq!(call_map.borrow()[&VaultLoader::update_path.type_id()], 2);
             let _ = vault_loader.update::<TestPlatform>(
                 VaultLoaderMessage::PathSelected(Err(error::NfdError::Null)),
                 &mut application_settings,
                 &mut modal_state,
                 &mut clipboard,
             );
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
+            assert_eq!(call_map.borrow()[&VaultLoader::update_path.type_id()], 2);
 
             // Create
             let res = vault_loader
@@ -533,9 +563,9 @@ mod tests {
             assert!(call_map
                 .borrow()
                 .iter()
-                .filter(|(k, _)| k.as_str() != UPDATE_PATH)
+                .filter(|(k, _)| *k != &VaultLoader::update_path.type_id())
                 .all(|(_, v)| *v == 1));
-            assert_eq!(call_map.borrow()[UPDATE_PATH], 2);
+            assert_eq!(call_map.borrow()[&VaultLoader::update_path.type_id()], 2);
         });
     }
 }
