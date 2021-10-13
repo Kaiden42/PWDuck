@@ -273,21 +273,6 @@ mod tests {
     const SALT: &'static str = "pa7lMD/slzor2CVNHZWNyA";
 
     #[test]
-    fn test_mocking() {
-        fill_random_bytes.mock_safe(|buf| {
-            buf.fill(0);
-            MockResult::Return(())
-        });
-        let mut buf: [u8; 4] = [1u8; 4];
-        fill_random_bytes(&mut buf);
-        assert_eq!([0, 0, 0, 0], buf);
-
-        let iv = generate_aes_iv();
-        let expected = [0u8; AES_IV_LENGTH];
-        assert_eq!(iv, expected);
-    }
-
-    #[test]
     fn test_generate_aes_iv() {
         fill_random_bytes.mock_safe(|buf| {
             buf.fill(42);
