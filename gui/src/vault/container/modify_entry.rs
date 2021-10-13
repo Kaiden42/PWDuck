@@ -974,6 +974,21 @@ mod tests {
         default_mev_with_parent([0; uuid::SIZE].into())
     }
 
+    fn equal_heads(a: &pwduck_core::EntryHead, b: &pwduck_core::EntryHead) -> bool {
+        a.uuid() == b.uuid()
+            && a.parent() == b.parent()
+            && a.title() == b.title()
+            && a.web_address() == b.web_address()
+            && a.body() == b.body()
+    }
+
+    fn equal_bodies(a: &pwduck_core::EntryBody, b: &pwduck_core::EntryBody) -> bool {
+        a.uuid() == b.uuid()
+            && a.username() == b.username()
+            && a.password() == b.password()
+            && a.email() == b.email()
+    }
+
     #[test]
     fn with() {
         let head = pwduck_core::EntryHead::new(
@@ -1021,7 +1036,7 @@ mod tests {
         assert!(mev.entry_body().is_modified());
         assert!(mev.contains_unsaved_changes());
 
-        // TODO
+        // TODO find a way to pass mocking from core to gui
     }
 
     #[test]
@@ -1035,21 +1050,6 @@ mod tests {
 
         assert_eq!(mev.entry_head().title().as_str(), "title");
         assert!(mev.is_modified);
-    }
-
-    fn equal_heads(a: &pwduck_core::EntryHead, b: &pwduck_core::EntryHead) -> bool {
-        a.uuid() == b.uuid()
-            && a.parent() == b.parent()
-            && a.title() == b.title()
-            && a.web_address() == b.web_address()
-            && a.body() == b.body()
-    }
-
-    fn equal_bodies(a: &pwduck_core::EntryBody, b: &pwduck_core::EntryBody) -> bool {
-        a.uuid() == b.uuid()
-            && a.username() == b.username()
-            && a.password() == b.password()
-            && a.email() == b.email()
     }
 
     #[test]
@@ -1298,7 +1298,7 @@ mod tests {
             modal_state.inner()
         {
         } else {
-            panic!("Modal state should b a delete request");
+            panic!("Modal state should be a delete request");
         }
 
         let _ = mev.close_modal(&mut modal_state);
