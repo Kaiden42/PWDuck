@@ -1,5 +1,7 @@
 //! TODO
 
+use std::sync::MutexGuard;
+
 use getset::{CopyGetters, Getters, MutGetters, Setters};
 use iced::{
     button, scrollable, text_input, Button, Column, Command, Element, Length, Row, Scrollable,
@@ -7,7 +9,7 @@ use iced::{
 };
 use iced_aw::{modal, Card};
 use iced_focus::Focus;
-use pwduck_core::{EntryBody, EntryHead, PWDuckCoreError, PasswordInfo, Uuid, Vault};
+use pwduck_core::{EntryBody, EntryHead, MemKey, PWDuckCoreError, PasswordInfo, Uuid, Vault};
 
 use crate::{
     error::PWDuckGuiError,
@@ -252,7 +254,7 @@ impl ModifyEntryView {
     }
 
     /// Toggle the visibility of the advanced area.
-    fn toggle_advanced_visiblity(&mut self) -> Command<ModifyEntryMessage> {
+    fn toggle_advanced_visibility(&mut self) -> Command<ModifyEntryMessage> {
         self.show_advanced = !self.show_advanced;
         Command::none()
     }
@@ -275,16 +277,43 @@ impl ModifyEntryView {
     }
 
     /// Submit the modification of the entry.
-    fn submit(&self, vault: &mut Vault) -> Result<Command<ModifyEntryMessage>, PWDuckGuiError> {
+    fn submit(
+        &self,
+        vault: &mut Vault,
+        mem_key: &MutexGuard<MemKey>,
+    ) -> Result<Command<ModifyEntryMessage>, PWDuckGuiError> {
         // TODO async
-        let mem_key = crate::MEM_KEY.lock()?;
         let masterkey = vault
             .masterkey()
-            .as_unprotected(&mem_key, vault.salt(), vault.nonce())?;
+            .as_unprotected(mem_key, vault.salt(), vault.nonce())?;
 
         vault.insert_entry(self.entry_head.clone(), self.entry_body.clone(), &masterkey)?;
 
         Ok(Command::none())
+    }
+
+    /// Request the deletion of the entry.
+    #[allow(clippy::unused_self)]
+    fn request_entry_deletion(
+        &mut self,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
+    ) -> Command<ModifyEntryMessage> {
+        *modal_state = modal::State::new(crate::ModalState::ModifyEntry(
+            ModifyEntryModal::delete_request(),
+        ));
+        modal_state.show(true);
+        Command::none()
+    }
+
+    /// Update the auto type sequence of the entry to the given sequence.
+    fn update_auto_type_sequence(
+        &mut self,
+        auto_type_sequence: String,
+    ) -> Command<ModifyEntryMessage> {
+        self.entry_head
+            .set_auto_type_sequence(auto_type_sequence.into());
+        self.is_modified = true;
+        Command::none()
     }
 
     /// Update the advanced state with the given message.
@@ -294,20 +323,27 @@ impl ModifyEntryView {
         modal_state: &mut iced_aw::modal::State<crate::ModalState>,
     ) -> Command<ModifyEntryMessage> {
         match message {
-            AdvancedStateMessage::DeleteEntryRequest => {
-                *modal_state = modal::State::new(crate::ModalState::ModifyEntry(
-                    ModifyEntryModal::delete_request(),
-                ));
-                modal_state.show(true);
-                Command::none()
-            }
+            AdvancedStateMessage::DeleteEntryRequest => self.request_entry_deletion(modal_state),
             AdvancedStateMessage::AutoTypeInput(auto_type_sequence) => {
-                self.entry_head
-                    .set_auto_type_sequence(auto_type_sequence.into());
-                self.is_modified = true;
-                Command::none()
+                self.update_auto_type_sequence(auto_type_sequence)
             }
         }
+    }
+
+    /// Close the modal
+    #[allow(clippy::unused_self)]
+    fn close_modal(
+        &mut self,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
+    ) -> Command<ModifyEntryMessage> {
+        *modal_state = modal::State::default();
+        Command::none()
+    }
+
+    /// Delete the entry from the vault.
+    fn delete_entry(&mut self, vault: &mut Vault) -> Command<ModifyEntryMessage> {
+        vault.delete_entry(self.entry_head.uuid());
+        Command::none()
     }
 
     /// Update the state of the modal.
@@ -318,14 +354,10 @@ impl ModifyEntryView {
         modal_state: &mut iced_aw::modal::State<crate::ModalState>,
     ) -> Command<ModifyEntryMessage> {
         match message {
-            ModifyEntryModalMessage::Close => {
-                *modal_state = modal::State::default();
-                Command::none()
-            }
+            ModifyEntryModalMessage::Close => self.close_modal(modal_state),
             ModifyEntryModalMessage::SubmitDelete => {
-                *modal_state = modal::State::default();
-                vault.delete_entry(self.entry_head.uuid());
-                Command::none()
+                let _cmd1 = self.delete_entry(vault);
+                self.close_modal(modal_state)
             }
         }
     }
@@ -357,7 +389,7 @@ impl ModifyEntryView {
             ModifyEntryMessage::PasswordScore(password_info) => {
                 Ok(self.set_password_score(password_info))
             }
-            ModifyEntryMessage::ToggleAdvanced => Ok(self.toggle_advanced_visiblity()),
+            ModifyEntryMessage::ToggleAdvanced => Ok(self.toggle_advanced_visibility()),
             ModifyEntryMessage::Advanced(message) => {
                 Ok(self.update_advanced::<P>(message, modal_state))
             }
@@ -370,7 +402,7 @@ impl ModifyEntryView {
             //    PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into()
             //}
             ModifyEntryMessage::Cancel => Ok(Command::none()),
-            ModifyEntryMessage::Submit => self.submit(vault),
+            ModifyEntryMessage::Submit => self.submit(vault, &crate::MEM_KEY.lock()?),
             ModifyEntryMessage::PasswordGenerate => {
                 PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into()
             }
@@ -889,5 +921,951 @@ impl ModifyEntryModal {
 impl Default for ModifyEntryModal {
     fn default() -> Self {
         Self::None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::{
+        any::{Any, TypeId},
+        cell::RefCell,
+        collections::HashMap,
+        sync::Mutex,
+    };
+
+    use iced::Command;
+    use mocktopus::mocking::*;
+    use pwduck_core::{uuid, Uuid};
+    use tempfile::tempdir;
+
+    thread_local! {
+        static CALL_MAP: RefCell<HashMap<TypeId, usize>> = RefCell::new(HashMap::new());
+    }
+
+    use crate::{PWDuckGuiError, TestPlatform};
+
+    use super::{
+        AdvancedState, AdvancedStateMessage, ModifyEntryMessage, ModifyEntryModal,
+        ModifyEntryModalMessage, ModifyEntryView, State,
+    };
+
+    const DEFAULT_TITLE: &str = "default title";
+    const DEFAULT_USERNAME: &str = "default username";
+    const DEFAULT_PASSWORD: &str = "default password";
+
+    fn default_mev_with_parent(parent: Uuid) -> ModifyEntryView {
+        let head = pwduck_core::EntryHead::new(
+            [1; uuid::SIZE].into(),
+            parent,
+            DEFAULT_TITLE.into(),
+            [2; uuid::SIZE].into(),
+        );
+        let body = pwduck_core::EntryBody::new(
+            [2; uuid::SIZE].into(),
+            DEFAULT_USERNAME.into(),
+            DEFAULT_PASSWORD.into(),
+        );
+
+        ModifyEntryView::with(State::Create, head, body)
+    }
+
+    fn default_mev() -> ModifyEntryView {
+        default_mev_with_parent([0; uuid::SIZE].into())
+    }
+
+    #[test]
+    fn with() {
+        let head = pwduck_core::EntryHead::new(
+            [1; uuid::SIZE].into(),
+            [0; uuid::SIZE].into(),
+            "title".into(),
+            [2; uuid::SIZE].into(),
+        );
+        let body = pwduck_core::EntryBody::new(
+            [1; uuid::SIZE].into(),
+            "username".into(),
+            "password".into(),
+        );
+
+        let mev = ModifyEntryView::with(State::Create, head.clone(), body.clone());
+        assert_eq!(mev.state, State::Create);
+        assert!(equal_heads(&mev.entry_head, &head));
+        assert!(equal_bodies(&mev.entry_body, &body));
+        assert!(mev.title_state.is_focused());
+        assert!(!mev.username_state.is_focused());
+        assert!(!mev.password_state.is_focused());
+        assert!(!mev.web_address_state.is_focused());
+        assert!(!mev.email_state.is_focused());
+        assert!(!mev.is_modified);
+        assert!(!mev.show_advanced);
+
+        let mev = ModifyEntryView::with(State::Modify, head.clone(), body.clone());
+        assert_eq!(mev.state, State::Modify);
+        assert!(equal_heads(&mev.entry_head, &head));
+        assert!(equal_bodies(&mev.entry_body, &body));
+        assert!(!mev.title_state.is_focused());
+        assert!(!mev.username_state.is_focused());
+        assert!(!mev.password_state.is_focused());
+        assert!(!mev.web_address_state.is_focused());
+        assert!(!mev.email_state.is_focused());
+        assert!(!mev.is_modified);
+        assert!(!mev.show_advanced);
+    }
+
+    #[test]
+    fn contains_unsaved_changes() {
+        let mev = default_mev();
+
+        assert!(mev.entry_head().is_modified());
+        assert!(mev.entry_body().is_modified());
+        assert!(mev.contains_unsaved_changes());
+
+        // TODO
+    }
+
+    #[test]
+    fn update_title() {
+        let mut mev = default_mev();
+
+        assert_eq!(mev.entry_head().title().as_str(), DEFAULT_TITLE);
+        assert!(!mev.is_modified);
+
+        let _ = mev.update_title("title".into());
+
+        assert_eq!(mev.entry_head().title().as_str(), "title");
+        assert!(mev.is_modified);
+    }
+
+    fn equal_heads(a: &pwduck_core::EntryHead, b: &pwduck_core::EntryHead) -> bool {
+        a.uuid() == b.uuid()
+            && a.parent() == b.parent()
+            && a.title() == b.title()
+            && a.web_address() == b.web_address()
+            && a.body() == b.body()
+    }
+
+    fn equal_bodies(a: &pwduck_core::EntryBody, b: &pwduck_core::EntryBody) -> bool {
+        a.uuid() == b.uuid()
+            && a.username() == b.username()
+            && a.password() == b.password()
+            && a.email() == b.email()
+    }
+
+    #[test]
+    fn update_username() {
+        let mut mev = default_mev();
+
+        assert_eq!(mev.entry_body().username().as_str(), DEFAULT_USERNAME);
+        assert!(!mev.is_modified);
+
+        let _ = mev.update_username("username".into());
+
+        assert_eq!(mev.entry_body().username().as_str(), "username");
+        assert!(mev.is_modified);
+    }
+
+    #[test]
+    fn update_password() {
+        let mut mev = default_mev();
+
+        assert_eq!(mev.entry_body().password().as_str(), DEFAULT_PASSWORD);
+        assert!(!mev.is_modified);
+
+        let _ = mev.update_password("password".into());
+
+        assert_eq!(mev.entry_body().password().as_str(), "password");
+        assert!(mev.is_modified);
+    }
+
+    #[test]
+    fn update_web_address() {
+        let mut mev = default_mev();
+
+        assert!(mev.entry_head().web_address().as_str().is_empty());
+        assert!(!mev.is_modified);
+
+        let _ = mev.update_web_address("https://example.com".into());
+
+        assert_eq!(
+            mev.entry_head().web_address().as_str(),
+            "https://example.com"
+        );
+        assert!(mev.is_modified);
+    }
+
+    #[test]
+    fn update_email() {
+        let mut mev = default_mev();
+
+        assert!(mev.entry_body().email().as_str().is_empty());
+        assert!(!mev.is_modified);
+
+        let _ = mev.update_email("example@web_address.de".into());
+
+        assert_eq!(mev.entry_body().email().as_str(), "example@web_address.de");
+        assert!(mev.is_modified);
+    }
+
+    #[test]
+    fn toggle_password_visibility() {
+        let mut mev = default_mev();
+
+        assert!(!mev.password_show);
+
+        let _ = mev.toggle_password_visibility();
+
+        assert!(mev.password_show);
+
+        let _ = mev.toggle_password_visibility();
+
+        assert!(!mev.password_show);
+    }
+
+    #[test]
+    fn toggle_advanced_visibility() {
+        let mut mev = default_mev();
+
+        assert!(!mev.show_advanced);
+
+        let _ = mev.toggle_advanced_visibility();
+
+        assert!(mev.show_advanced);
+
+        let _ = mev.toggle_advanced_visibility();
+
+        assert!(!mev.show_advanced);
+    }
+
+    #[test]
+    fn set_password_score() {
+        use iced::executor::Executor;
+
+        let mut mev = default_mev();
+
+        assert!(mev.password_score.is_none());
+
+        let executor = iced::executor::Default::new().unwrap();
+
+        executor.spawn(async move {
+            let password_score =
+                crate::utils::estimate_password_strength("this_is_a_password".into()).await;
+
+            let _ = mev.set_password_score(password_score.clone());
+
+            assert!(mev.password_score.is_some());
+        });
+    }
+
+    #[test]
+    fn submit() {
+        let mev = default_mev();
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+
+        let password = "this_is_a_password";
+        let mem_key = pwduck_core::MemKey::with_length(1);
+
+        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let root = vault.get_root_uuid().unwrap();
+
+        let mutex_mem_key = Mutex::new(mem_key);
+
+        assert!(vault
+            .get_item_list_for(&root, Some("default"))
+            .groups()
+            .is_empty());
+
+        let expected_head = mev.entry_head().clone();
+
+        mev.submit(&mut vault, &mutex_mem_key.lock().unwrap())
+            .expect("Should not fail");
+
+        assert!(equal_heads(
+            &expected_head,
+            vault
+                .get_item_list_for(&root, Some("default"))
+                .entries()
+                .first()
+                .unwrap()
+        ));
+    }
+
+    #[test]
+    fn request_entry_deletion() {
+        let mut mev = default_mev();
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::None);
+
+        if let crate::ModalState::None = modal_state.inner() {
+        } else {
+            panic!("Modal state should be None");
+        }
+
+        let _ = mev.request_entry_deletion(&mut modal_state);
+
+        if let crate::ModalState::ModifyEntry(ModifyEntryModal::DeleteRequest { .. }) =
+            modal_state.inner()
+        {
+        } else {
+            panic!("Modal state should be an delete request");
+        }
+    }
+
+    #[test]
+    fn update_auto_type_sequence() {
+        let mut mev = default_mev();
+
+        assert_eq!(
+            mev.entry_head().auto_type_sequence().as_str(),
+            pwduck_core::AutoTypeSequence::default().as_str()
+        );
+
+        let _ = mev.update_auto_type_sequence("Autotype".into());
+
+        assert_eq!(mev.entry_head().auto_type_sequence().as_str(), "Autotype");
+    }
+
+    #[test]
+    fn update_advanced() {
+        let mut mev = default_mev();
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::None);
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::request_entry_deletion.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::update_auto_type_sequence.type_id(), 0);
+
+            ModifyEntryView::request_entry_deletion.mock_raw(|_self, _state| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::request_entry_deletion.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::update_auto_type_sequence.mock_raw(|_self, _sequence| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::update_auto_type_sequence.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+
+            // Request entry deletion
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::request_entry_deletion.type_id()],
+                0
+            );
+            let _ = mev.update_advanced::<TestPlatform>(
+                AdvancedStateMessage::DeleteEntryRequest,
+                &mut modal_state,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::request_entry_deletion.type_id()],
+                1
+            );
+
+            // Update auto type sequence.
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_auto_type_sequence.type_id()],
+                0
+            );
+            let _ = mev.update_advanced::<TestPlatform>(
+                AdvancedStateMessage::AutoTypeInput("Autotype".into()),
+                &mut modal_state,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_auto_type_sequence.type_id()],
+                1
+            );
+
+            assert!(call_map.borrow().values().all(|v| *v == 1));
+        })
+    }
+
+    #[test]
+    fn close_modal() {
+        let mut mev = default_mev();
+
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::ModifyEntry(
+            ModifyEntryModal::delete_request(),
+        ));
+
+        if let crate::ModalState::ModifyEntry(ModifyEntryModal::DeleteRequest { .. }) =
+            modal_state.inner()
+        {
+        } else {
+            panic!("Modal state should b a delete request");
+        }
+
+        let _ = mev.close_modal(&mut modal_state);
+
+        if let crate::ModalState::None = modal_state.inner() {
+        } else {
+            panic!("Modal state should be None");
+        }
+    }
+
+    #[test]
+    fn delete_entry() {
+        let mut mev = default_mev();
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+
+        let password = "this_is_a_password";
+        let mem_key = pwduck_core::MemKey::with_length(1);
+
+        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let root = vault.get_root_uuid().unwrap();
+
+        let mutex_mem_key = Mutex::new(mem_key);
+
+        let _ = mev.submit(&mut vault, &mutex_mem_key.lock().unwrap());
+
+        let expected_head = mev.entry_head().clone();
+
+        assert!(equal_heads(
+            &expected_head,
+            vault
+                .get_item_list_for(&root, Some("default"))
+                .entries()
+                .first()
+                .unwrap()
+        ));
+
+        let _ = mev.delete_entry(&mut vault);
+
+        assert!(vault
+            .get_item_list_for(&root, Some("default"))
+            .entries()
+            .first()
+            .is_none());
+    }
+
+    #[test]
+    fn update_modal() {
+        let mut mev = default_mev();
+
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::ModifyEntry(
+            ModifyEntryModal::delete_request(),
+        ));
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+
+        let password = "this_is_a_password";
+        let mem_key = pwduck_core::MemKey::with_length(1);
+
+        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::close_modal.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::delete_entry.type_id(), 0);
+
+            ModifyEntryView::close_modal.mock_raw(|_self, _state| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::close_modal.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::delete_entry.mock_raw(|_self, _state| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::delete_entry.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+
+            // Close modal
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::close_modal.type_id()],
+                0
+            );
+            let _ = mev.update_modal(
+                &ModifyEntryModalMessage::Close,
+                &mut vault,
+                &mut modal_state,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::close_modal.type_id()],
+                1
+            );
+
+            // Delete entry
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::delete_entry.type_id()],
+                0
+            );
+            let _ = mev.update_modal(
+                &ModifyEntryModalMessage::SubmitDelete,
+                &mut vault,
+                &mut modal_state,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::delete_entry.type_id()],
+                1
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::close_modal.type_id()],
+                2
+            );
+        })
+    }
+
+    #[test]
+    fn update() {
+        let mut mev = default_mev();
+
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::ModifyEntry(
+            ModifyEntryModal::delete_request(),
+        ));
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+
+        let password = "this_is_a_password";
+        let mem_key = pwduck_core::MemKey::with_length(1);
+
+        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+
+        // WARNING: This is highly unsafe!
+        #[allow(deref_nullptr)]
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::update_title.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::update_username.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::copy_username.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::update_password.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::toggle_password_visibility.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::copy_password.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::update_web_address.type_id(), 0);
+            call_map.borrow_mut().insert(
+                ModifyEntryView::open_in_browser::<TestPlatform>.type_id(),
+                0,
+            );
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::update_email.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::set_password_score.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::toggle_advanced_visibility.type_id(), 0);
+            call_map.borrow_mut().insert(
+                ModifyEntryView::update_advanced::<TestPlatform>.type_id(),
+                0,
+            );
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::update_modal.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyEntryView::submit.type_id(), 0);
+
+            ModifyEntryView::update_title.mock_raw(|_self, _value| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::update_title.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::update_username.mock_raw(|_self, _value| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::update_username.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::copy_username.mock_raw(|_self, _clipboard| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::copy_username.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::update_password.mock_raw(|_self, _value| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::update_password.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::toggle_password_visibility.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::toggle_password_visibility.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::copy_password.mock_raw(|_self, _clipboard| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::copy_password.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::update_web_address.mock_raw(|_self, _value| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::update_web_address.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::open_in_browser::<TestPlatform>.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::open_in_browser::<TestPlatform>.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::update_email.mock_raw(|_self, _value| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::update_email.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::set_password_score.mock_raw(|_self, _value| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::set_password_score.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::toggle_advanced_visibility.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::toggle_advanced_visibility.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::update_advanced::<TestPlatform>.mock_raw(|_self, _message, _state| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::update_advanced::<TestPlatform>.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::update_modal.mock_raw(|_self, _message, _vault, _state| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::update_modal.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyEntryView::submit.mock_raw(|_self, _vault, _key| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyEntryView::submit.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+
+            // Update title
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_title.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::TitleInput("Title".into()),
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_title.type_id()],
+                1
+            );
+
+            // Update username
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_username.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::UsernameInput("Username".into()),
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_username.type_id()],
+                1
+            );
+
+            // Copy username
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::copy_username.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::UsernameCopy,
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::copy_username.type_id()],
+                1
+            );
+
+            // Update password
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_password.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::PasswordInput("Password".into()),
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_password.type_id()],
+                1
+            );
+
+            // Toggle password visibility
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::toggle_password_visibility.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::PasswordShow,
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::toggle_password_visibility.type_id()],
+                1
+            );
+
+            // Copy password
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::copy_password.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::PasswordCopy,
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::copy_password.type_id()],
+                1
+            );
+
+            // Update web address
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_web_address.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::WebAddressInput("Web".into()),
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_web_address.type_id()],
+                1
+            );
+
+            // Open in browser
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::open_in_browser::<TestPlatform>.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::OpenInBrowser,
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::open_in_browser::<TestPlatform>.type_id()],
+                1
+            );
+
+            // Result of opener
+            let _ = mev
+                .update::<TestPlatform>(
+                    ModifyEntryMessage::Opener(Ok(())),
+                    &mut vault,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+            let _ = mev
+                .update::<TestPlatform>(
+                    ModifyEntryMessage::Opener(Err(crate::PWDuckGuiError::String("Oops".into()))),
+                    &mut vault,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail");
+
+            // Update email
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_email.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::EmailInput("Email".into()),
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_email.type_id()],
+                1
+            );
+
+            // Set password score
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::set_password_score.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::PasswordScore(Err(pwduck_core::PWDuckCoreError::Error(
+                    "".into(),
+                ))),
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::set_password_score.type_id()],
+                1
+            );
+
+            // Toggle advanced visibility
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::toggle_advanced_visibility.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::ToggleAdvanced,
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::toggle_advanced_visibility.type_id()],
+                1
+            );
+
+            // Update advanced
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_advanced::<TestPlatform>.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::Advanced(AdvancedStateMessage::DeleteEntryRequest),
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_advanced::<TestPlatform>.type_id()],
+                1
+            );
+
+            // Update modal
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_modal.type_id()],
+                0
+            );
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::Modal(ModifyEntryModalMessage::SubmitDelete),
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyEntryView::update_modal.type_id()],
+                1
+            );
+
+            // Cancel
+            let _ = mev
+                .update::<TestPlatform>(
+                    ModifyEntryMessage::Cancel,
+                    &mut vault,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+
+            // Submit
+            assert_eq!(call_map.borrow()[&ModifyEntryView::submit.type_id()], 0);
+            let _ = mev.update::<TestPlatform>(
+                ModifyEntryMessage::Submit,
+                &mut vault,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[&ModifyEntryView::submit.type_id()], 1);
+
+            // Password generate
+            let res = mev
+                .update::<TestPlatform>(
+                    ModifyEntryMessage::PasswordGenerate,
+                    &mut vault,
+                    &mut modal_state,
+                    &mut clipboard,
+                )
+                .expect_err("Should fail");
+            match res {
+                PWDuckGuiError::Unreachable(_) => {}
+                _ => panic!("Should contain unreachable warning."),
+            }
+
+            assert!(call_map.borrow().values().all(|v| *v == 1));
+        });
+    }
+
+    #[test]
+    fn new_advanced_state() {
+        let state = AdvancedState::new();
+
+        assert!(!state.auto_type.is_focused())
+    }
+
+    #[test]
+    fn new_delete_request() {
+        let modal_state = ModifyEntryModal::delete_request();
+
+        if let ModifyEntryModal::DeleteRequest { .. } = modal_state {
+        } else {
+            panic!("State should be a delete request");
+        }
     }
 }

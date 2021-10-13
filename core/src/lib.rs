@@ -65,7 +65,7 @@ pub use mem_protection::{try_to_prevent_core_dump, MemKey, SecString, SecVec};
 
 mod model;
 pub use model::{
-    entry::{EntryBody, EntryHead},
+    entry::{AutoTypeSequence, EntryBody, EntryHead},
     group::Group,
     master_key::MasterKey,
     settings::{theme, ApplicationSettings},
