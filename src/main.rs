@@ -95,6 +95,8 @@ impl Platform for Desktop {
     }
 
     async fn auto_type(sequence: Sequence) -> Result<(), pwduck_gui::error::PWDuckGuiError> {
+        async_std::task::sleep(std::time::Duration::from_millis(1000)).await;
+
         let mut enigo = enigo::Enigo::new();
         #[cfg(target_os = "linux")]
         {
@@ -109,8 +111,6 @@ impl Platform for Desktop {
                     .map_err(|_err| PWDuckGuiError::XDOToolsMissing)?,
             );
         }
-
-        async_std::task::sleep(std::time::Duration::from_millis(1000)).await;
 
         for part in sequence.iter() {
             match part {
