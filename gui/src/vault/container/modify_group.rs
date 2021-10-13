@@ -134,6 +134,29 @@ impl ModifyGroupView {
         Command::none()
     }
 
+    /// Request the deletion of a group from the user.
+    ///
+    /// If the group is empty a confirmation modal will be shown, else an error modal.
+    fn request_group_deletion(
+        &mut self,
+        vault: &Vault,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
+    ) -> Command<ModifyGroupMessage> {
+        if vault.get_entries_of(self.group.uuid()).is_empty()
+            && vault.get_groups_of(self.group.uuid()).is_empty()
+        {
+            *modal_state = modal::State::new(crate::ModalState::ModifyGroup(
+                ModifyGroupModal::delete_request(),
+            ));
+        } else {
+            *modal_state = modal::State::new(crate::ModalState::ModifyGroup(
+                ModifyGroupModal::group_not_empty(),
+            ));
+        }
+        modal_state.show(true);
+        Command::none()
+    }
+
     /// Update the advanced state with the given message.
     fn update_advanced(
         &mut self,
@@ -143,21 +166,25 @@ impl ModifyGroupView {
     ) -> Command<ModifyGroupMessage> {
         match message {
             AdvancedStateMessage::DeleteGroupRequest => {
-                if vault.get_entries_of(self.group.uuid()).is_empty()
-                    && vault.get_groups_of(self.group.uuid()).is_empty()
-                {
-                    *modal_state = modal::State::new(crate::ModalState::ModifyGroup(
-                        ModifyGroupModal::delete_request(),
-                    ));
-                } else {
-                    *modal_state = modal::State::new(crate::ModalState::ModifyGroup(
-                        ModifyGroupModal::group_not_empty(),
-                    ));
-                }
-                modal_state.show(true);
-                Command::none()
+                self.request_group_deletion(vault, modal_state)
             }
         }
+    }
+
+    /// Close the modal.
+    #[allow(clippy::unused_self)]
+    fn close_modal(
+        &mut self,
+        modal_state: &mut iced_aw::modal::State<crate::ModalState>,
+    ) -> Command<ModifyGroupMessage> {
+        *modal_state = modal::State::default();
+        Command::none()
+    }
+
+    /// Delete the group from the vault.
+    fn delete_group(&mut self, vault: &mut Vault) -> Command<ModifyGroupMessage> {
+        vault.delete_group(self.group.uuid());
+        Command::none()
     }
 
     /// Update the state of the modal.
@@ -169,20 +196,18 @@ impl ModifyGroupView {
         selected_group_uuid: &mut Uuid,
     ) -> Result<Command<ModifyGroupMessage>, PWDuckGuiError> {
         match message {
-            ModifyGroupModalMessage::Close => {
-                *modal_state = modal::State::default();
-                Ok(Command::none())
-            }
+            ModifyGroupModalMessage::Close => Ok(self.close_modal(modal_state)),
             ModifyGroupModalMessage::SubmitDelete => {
-                *modal_state = modal::State::default();
+                // Set current selected group uuid to parent.
                 *selected_group_uuid = self
                     .group()
                     .parent()
                     .as_ref()
                     .ok_or(PWDuckGuiError::Option)?
                     .clone();
-                vault.delete_group(self.group.uuid());
-                Ok(Command::none())
+
+                let _cmd = self.delete_group(vault);
+                Ok(self.close_modal(modal_state))
             }
         }
     }
@@ -505,5 +530,550 @@ impl ModifyGroupModal {
 impl Default for ModifyGroupModal {
     fn default() -> Self {
         Self::None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::{
+        any::{Any, TypeId},
+        cell::RefCell,
+        collections::HashMap,
+    };
+
+    use iced::Command;
+    use mocktopus::mocking::*;
+    use pwduck_core::{uuid, Uuid};
+    use tempfile::tempdir;
+
+    thread_local! {
+        static CALL_MAP: RefCell<HashMap<TypeId, usize>> = RefCell::new(HashMap::new());
+    }
+
+    use super::{
+        AdvancedStateMessage, ModifyGroupMessage, ModifyGroupModal, ModifyGroupModalMessage,
+        ModifyGroupView, State,
+    };
+
+    const DEFAULT_TITLE: &'static str = "default title";
+
+    fn default_mgv_with_parent(parent: Uuid) -> ModifyGroupView {
+        let group = pwduck_core::Group::new([1; uuid::SIZE].into(), parent, DEFAULT_TITLE.into());
+
+        ModifyGroupView::with(State::Create, group)
+    }
+
+    fn default_mgv() -> ModifyGroupView {
+        default_mgv_with_parent([0; uuid::SIZE].into())
+    }
+
+    fn equal_groups(a: &pwduck_core::Group, b: &pwduck_core::Group) -> bool {
+        a.uuid() == b.uuid() && a.parent() == b.parent() && a.title() == b.title()
+    }
+
+    #[test]
+    fn with() {
+        let group = pwduck_core::Group::new(
+            [1; uuid::SIZE].into(),
+            [0; uuid::SIZE].into(),
+            "title".into(),
+        );
+
+        let mgv = ModifyGroupView::with(State::Create, group.clone());
+        assert_eq!(mgv.state, State::Create);
+        assert!(equal_groups(&mgv.group, &group));
+        assert!(mgv.title_state.is_focused());
+        assert!(!mgv.is_modified);
+        assert!(!mgv.show_advanced);
+
+        let mgv = ModifyGroupView::with(State::Modify, group.clone());
+        assert_eq!(mgv.state, State::Modify);
+        assert!(equal_groups(&mgv.group, &group));
+        assert!(!mgv.title_state.is_focused());
+        assert!(!mgv.is_modified);
+        assert!(!mgv.show_advanced);
+    }
+
+    #[test]
+    fn contains_unsaved_changes() {
+        let mgv = default_mgv();
+
+        assert!(mgv.group.is_modified());
+        assert!(mgv.contains_unsaved_changes());
+
+        // TODO find a way to pass mocking from core to gui
+    }
+
+    #[test]
+    fn submit() {
+        let mgv = default_mgv();
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+
+        let password = "this_is_a_password";
+        let mem_key = pwduck_core::MemKey::with_length(1);
+
+        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let root = vault.get_root_uuid().unwrap();
+
+        assert!(vault
+            .get_item_list_for(&root, Some("default"))
+            .groups()
+            .is_empty());
+
+        let expected_group = mgv.group().clone();
+
+        let _ = mgv.submit(&mut vault);
+
+        assert!(equal_groups(
+            &expected_group,
+            vault
+                .get_item_list_for(&root, Some("default"))
+                .groups()
+                .first()
+                .unwrap(),
+        ))
+    }
+
+    #[test]
+    fn update_title() {
+        let mut mgv = default_mgv();
+
+        assert_eq!(mgv.group().title().as_str(), DEFAULT_TITLE);
+        assert!(!mgv.is_modified);
+
+        let _ = mgv.update_title("title".into());
+
+        assert_eq!(mgv.group().title().as_str(), "title");
+        assert!(mgv.is_modified);
+    }
+
+    #[test]
+    fn toggle_advanced_visibility() {
+        let mut mgv = default_mgv();
+
+        assert!(!mgv.show_advanced);
+
+        let _ = mgv.toggle_advanced_visibility();
+
+        assert!(mgv.show_advanced);
+
+        let _ = mgv.toggle_advanced_visibility();
+
+        assert!(!mgv.show_advanced);
+    }
+
+    #[test]
+    fn request_group_deletion() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+
+        let password = "this_is_a_password";
+        let mem_key = pwduck_core::MemKey::with_length(1);
+
+        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let root = vault.get_root_uuid().unwrap();
+
+        let mut mgv = default_mgv_with_parent(root.clone());
+        mgv.submit(&mut vault);
+
+        // Empty group should be deleteable
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::None);
+        assert!(!modal_state.is_shown());
+        let _ = mgv.request_group_deletion(&vault, &mut modal_state);
+        if let crate::ModalState::ModifyGroup(ModifyGroupModal::DeleteRequest { .. }) =
+            modal_state.inner()
+        {
+        } else {
+            panic!("Modal should be a delete request");
+        }
+        assert!(modal_state.is_shown());
+
+        // Non-empty group should not be deletable
+        vault.insert_group(pwduck_core::Group::new(
+            [255; uuid::SIZE].into(),
+            mgv.group().uuid().clone(),
+            "title".into(),
+        ));
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::None);
+        assert!(!modal_state.is_shown());
+        let _ = mgv.request_group_deletion(&vault, &mut modal_state);
+        if let crate::ModalState::ModifyGroup(ModifyGroupModal::GroupNotEmpty { .. }) =
+            modal_state.inner()
+        {
+        } else {
+            panic!("Modal should be a not empty warning");
+        }
+        assert!(modal_state.is_shown());
+    }
+
+    #[test]
+    fn update_advanced() {
+        let mut mgv = default_mgv();
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::None);
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+
+        let password = "this_is_a_password";
+        let mem_key = pwduck_core::MemKey::with_length(1);
+
+        let vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(ModifyGroupView::request_group_deletion.type_id(), 0);
+
+            ModifyGroupView::request_group_deletion.mock_raw(|_self, _vault, _modal| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyGroupView::request_group_deletion.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+
+            // Request group deletion
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::request_group_deletion.type_id()],
+                0
+            );
+            let _ = mgv.update_advanced(
+                &AdvancedStateMessage::DeleteGroupRequest,
+                &vault,
+                &mut modal_state,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::request_group_deletion.type_id()],
+                1
+            );
+        })
+    }
+
+    #[test]
+    fn close_modal() {
+        let mut mgv = default_mgv();
+
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::ModifyGroup(
+            ModifyGroupModal::delete_request(),
+        ));
+
+        if let crate::ModalState::ModifyGroup(ModifyGroupModal::DeleteRequest { .. }) =
+            modal_state.inner()
+        {
+        } else {
+            panic!("Modal state should be a delete request");
+        }
+
+        let _ = mgv.close_modal(&mut modal_state);
+
+        if let crate::ModalState::None = modal_state.inner() {
+        } else {
+            panic!("Modal state should be None");
+        }
+    }
+
+    #[test]
+    fn delete_group() {
+        let mut mgv = default_mgv();
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+
+        let password = "this_is_a_password";
+        let mem_key = pwduck_core::MemKey::with_length(1);
+
+        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let root = vault.get_root_uuid().unwrap();
+
+        let _ = mgv.submit(&mut vault);
+
+        let expected_group = mgv.group().clone();
+
+        assert!(equal_groups(
+            &expected_group,
+            vault
+                .get_item_list_for(&root, Some("default"))
+                .groups()
+                .first()
+                .unwrap(),
+        ));
+
+        let _ = mgv.delete_group(&mut vault);
+
+        assert!(vault
+            .get_item_list_for(&root, Some("default"))
+            .groups()
+            .first()
+            .is_none());
+    }
+
+    #[test]
+    fn update_modal() {
+        let mut mgv = default_mgv();
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+
+        let password = "this_is_a_password";
+        let mem_key = pwduck_core::MemKey::with_length(1);
+
+        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::None);
+
+        let mut selected_group_uuid: Uuid = [255; uuid::SIZE].into();
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(ModifyGroupView::close_modal.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyGroupView::delete_group.type_id(), 0);
+
+            ModifyGroupView::close_modal.mock_raw(|_self, _modal| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyGroupView::close_modal.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyGroupView::delete_group.mock_raw(|_self, _modal| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyGroupView::delete_group.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+
+            // Close modal
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::close_modal.type_id()],
+                0
+            );
+            let _ = mgv.update_modal(
+                &ModifyGroupModalMessage::Close,
+                &mut vault,
+                &mut modal_state,
+                &mut selected_group_uuid,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::close_modal.type_id()],
+                1
+            );
+            assert_eq!(selected_group_uuid, Uuid::from([255; uuid::SIZE]));
+
+            // Delete group
+            let parent = mgv.group().parent().as_ref().unwrap().clone();
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::delete_group.type_id()],
+                0
+            );
+            let _ = mgv.update_modal(
+                &ModifyGroupModalMessage::SubmitDelete,
+                &mut vault,
+                &mut modal_state,
+                &mut selected_group_uuid,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::delete_group.type_id()],
+                1
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::close_modal.type_id()],
+                2
+            );
+            assert_eq!(selected_group_uuid, parent);
+        })
+    }
+
+    #[test]
+    fn update() {
+        let mut mgv = default_mgv();
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+
+        let password = "this_is_a_password";
+        let mem_key = pwduck_core::MemKey::with_length(1);
+
+        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::None);
+
+        let mut selected_group_uuid: Uuid = [255; uuid::SIZE].into();
+
+        // WARNING: This is highly unsafe!
+        #[allow(deref_nullptr)]
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(ModifyGroupView::submit.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyGroupView::update_title.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyGroupView::toggle_advanced_visibility.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyGroupView::update_advanced.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(ModifyGroupView::update_modal.type_id(), 0);
+
+            ModifyGroupView::submit.mock_raw(|_self, _vault| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyGroupView::submit.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyGroupView::update_title.mock_raw(|_self, _value| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyGroupView::update_title.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyGroupView::toggle_advanced_visibility.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyGroupView::toggle_advanced_visibility.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyGroupView::update_advanced.mock_raw(|_self, _message, _vault, _state| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyGroupView::update_advanced.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            ModifyGroupView::update_modal.mock_raw(|_self, _message, _vault, _state, _uuid| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&ModifyGroupView::update_modal.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+
+            // Cancel
+            let _ = mgv
+                .update(
+                    ModifyGroupMessage::Cancel,
+                    &mut vault,
+                    &mut modal_state,
+                    &mut selected_group_uuid,
+                    &mut clipboard,
+                )
+                .expect("Should not fail");
+
+            // Submit
+            assert_eq!(call_map.borrow()[&ModifyGroupView::submit.type_id()], 0);
+            let _ = mgv.update(
+                ModifyGroupMessage::Submit,
+                &mut vault,
+                &mut modal_state,
+                &mut selected_group_uuid,
+                &mut clipboard,
+            );
+            assert_eq!(call_map.borrow()[&ModifyGroupView::submit.type_id()], 1);
+
+            // Update title
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::update_title.type_id()],
+                0
+            );
+            let _ = mgv.update(
+                ModifyGroupMessage::TitleInput("Title".into()),
+                &mut vault,
+                &mut modal_state,
+                &mut selected_group_uuid,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::update_title.type_id()],
+                1
+            );
+
+            // Toggle advanced visibility
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::toggle_advanced_visibility.type_id()],
+                0
+            );
+            let _ = mgv.update(
+                ModifyGroupMessage::ToggleAdvanced,
+                &mut vault,
+                &mut modal_state,
+                &mut selected_group_uuid,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::toggle_advanced_visibility.type_id()],
+                1
+            );
+
+            // Update advanced
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::update_advanced.type_id()],
+                0
+            );
+            let _ = mgv.update(
+                ModifyGroupMessage::Advanced(AdvancedStateMessage::DeleteGroupRequest),
+                &mut vault,
+                &mut modal_state,
+                &mut selected_group_uuid,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::update_advanced.type_id()],
+                1
+            );
+
+            // Update modal
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::update_modal.type_id()],
+                0
+            );
+            let _ = mgv.update(
+                ModifyGroupMessage::Modal(ModifyGroupModalMessage::SubmitDelete),
+                &mut vault,
+                &mut modal_state,
+                &mut selected_group_uuid,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&ModifyGroupView::update_modal.type_id()],
+                1
+            );
+
+            assert!(call_map.borrow().values().all(|v| *v == 1));
+        })
+    }
+
+    #[test]
+    fn new_delete_request() {
+        let modal_state = ModifyGroupModal::delete_request();
+
+        if let ModifyGroupModal::DeleteRequest { .. } = modal_state {
+        } else {
+            panic!("State should be a delete request");
+        }
+    }
+
+    #[test]
+    fn new_group_not_empty_message() {
+        let modal_state = ModifyGroupModal::group_not_empty();
+
+        if let ModifyGroupModal::GroupNotEmpty { .. } = modal_state {
+        } else {
+            panic!("State should be a delete request");
+        }
     }
 }
