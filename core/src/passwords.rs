@@ -71,6 +71,7 @@ pub fn generate_password(length: u8, symbols: &Symbols) -> Result<String, PWDuck
 }
 
 /// Calculate the entropy of the given password.
+#[cfg_attr(coverage, no_coverage)]
 pub fn password_entropy(password: &str) -> Result<pw_entropy::PasswordInfo, PWDuckCoreError> {
     Ok(pw_entropy::PasswordInfo::for_password(password))
 }

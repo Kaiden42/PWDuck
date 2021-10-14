@@ -27,6 +27,7 @@ pub enum PWDuckCoreError {
 }
 
 impl Clone for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
     fn clone(&self) -> Self {
         match self {
             Self::Argon2(error) => Self::Argon2(*error),
@@ -44,66 +45,77 @@ impl Clone for PWDuckCoreError {
 }
 
 impl From<argon2::password_hash::Error> for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: argon2::password_hash::Error) -> Self {
         Self::Argon2(error)
     }
 }
 
 impl From<base64::DecodeError> for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: base64::DecodeError) -> Self {
         Self::Base64(error)
     }
 }
 
 impl From<block_modes::BlockModeError> for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: block_modes::BlockModeError) -> Self {
         Self::BlockMode(error)
     }
 }
 
 impl From<block_modes::InvalidKeyIvLength> for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: block_modes::InvalidKeyIvLength) -> Self {
         Self::BlockModeIV(error)
     }
 }
 
 impl From<String> for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(s: String) -> Self {
         Self::Error(s)
     }
 }
 
 impl From<std::io::Error> for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: std::io::Error) -> Self {
         Self::IO(error)
     }
 }
 
 impl<T> From<PoisonError<T>> for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: PoisonError<T>) -> Self {
         Self::Mutex(format!("{:?}", error))
     }
 }
 
 impl From<ron::Error> for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: ron::Error) -> Self {
         Self::Ron(error)
     }
 }
 
 impl From<SequenceParseError> for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: SequenceParseError) -> Self {
         Self::SequenceParseError(error)
     }
 }
 
 impl From<std::string::FromUtf8Error> for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: std::string::FromUtf8Error) -> Self {
         Self::Utf8(error)
     }
 }
 
 impl Display for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PWDuckCoreError::Argon2(error) => write!(f, "Could not derive a key ({})", error),
@@ -149,12 +161,14 @@ impl<T> From<pest::error::Error<T>> for SequenceParseError
 where
     T: std::fmt::Debug,
 {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: pest::error::Error<T>) -> Self {
         Self::ParseError(format!("{:?}", error))
     }
 }
 
 impl Display for SequenceParseError {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SequenceParseError::InvalidField(field) => write!(f, "Invalid field: {}", field),

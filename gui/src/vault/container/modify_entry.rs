@@ -410,6 +410,7 @@ impl ModifyEntryView {
     }
 
     /// Create the view of the [`ModifyEntryView`](ModifyEntryView).
+    #[cfg_attr(coverage, no_coverage)]
     pub fn view<P: Platform + 'static>(
         &mut self,
         _selected_group_uuid: &Uuid,
@@ -486,6 +487,7 @@ impl ModifyEntryView {
 }
 
 /// Create the field for the title field.
+#[cfg_attr(coverage, no_coverage)]
 fn title_text_input<'a>(
     state: &'a mut text_input::State,
     title: &'a str,
@@ -502,6 +504,7 @@ fn title_text_input<'a>(
 }
 
 /// Create the row for the username field.
+#[cfg_attr(coverage, no_coverage)]
 fn username_row<'a>(
     text_input_state: &'a mut text_input::State,
     username: &'a str,
@@ -537,6 +540,7 @@ fn username_row<'a>(
 }
 
 /// Create the row for the password field.
+#[cfg_attr(coverage, no_coverage)]
 #[allow(clippy::too_many_arguments)]
 fn password_row<'a>(
     text_input_state: &'a mut text_input::State,
@@ -619,6 +623,7 @@ fn password_row<'a>(
 }
 
 /// Create the row of the web address field.
+#[cfg_attr(coverage, no_coverage)]
 fn web_address_row<'a, P: Platform + 'static>(
     text_input_state: &'a mut text_input::State,
     web_address: &'a str,
@@ -654,6 +659,7 @@ fn web_address_row<'a, P: Platform + 'static>(
 }
 
 /// Create the text input of the email field.
+#[cfg_attr(coverage, no_coverage)]
 fn email_text_input<'a>(
     text_input_state: &'a mut text_input::State,
     email: &'a str,
@@ -670,6 +676,7 @@ fn email_text_input<'a>(
 }
 
 /// Create the control row containing the cancel and submit buttons.
+#[cfg_attr(coverage, no_coverage)]
 fn control_button_row<'a>(
     cancel_button_state: &'a mut button::State,
     submit_button_state: &'a mut button::State,
@@ -710,6 +717,7 @@ fn control_button_row<'a>(
 }
 
 /// Create the advanced area.
+#[cfg_attr(coverage, no_coverage)]
 fn advanced_area<'a, P: Platform + 'static>(
     button_state: &'a mut button::State,
     show_advanced: bool,
@@ -752,6 +760,7 @@ fn advanced_area<'a, P: Platform + 'static>(
 }
 
 impl std::fmt::Debug for ModifyEntryView {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("No debug info available for ModifyEntryView")
     }
@@ -795,6 +804,7 @@ impl AdvancedState {
     }
 
     /// Create the advanced view.
+    #[cfg_attr(coverage, no_coverage)]
     pub fn view<P: Platform + 'static>(
         &mut self,
         state: State,
@@ -873,6 +883,7 @@ impl ModifyEntryModal {
     }
 
     /// Create the view of the modal.
+    #[cfg_attr(coverage, no_coverage)]
     pub fn view(&mut self, theme: &dyn Theme) -> Element<'_, ModifyEntryModalMessage> {
         match self {
             ModifyEntryModal::DeleteRequest {

@@ -209,6 +209,7 @@ impl Component for VaultCreator {
         }
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn title(&self) -> String {
         "Create a new vault".into()
     }
@@ -257,6 +258,7 @@ impl Component for VaultCreator {
         Ok(cmd)
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn view<P: Platform + 'static>(
         &mut self,
         _application_settings: &pwduck_core::ApplicationSettings,
@@ -339,6 +341,7 @@ impl Component for VaultCreator {
 ///     - The state of the [`TextInput`](iced::TextInput)
 ///     - The value of the path
 ///     - The state of the [`Button`](iced::Button) to open the native file dialog
+#[cfg_attr(coverage, no_coverage)]
 fn path_row<'a, P: Platform + 'static>(
     path_state: &'a mut text_input::State,
     path: &'a str,
@@ -383,6 +386,7 @@ fn path_row<'a, P: Platform + 'static>(
 ///     - The value of the password
 ///     - The visibility of the password
 ///     - The state of the [`Button`](iced::Button) to toggle the visibility
+#[cfg_attr(coverage, no_coverage)]
 fn password_row<'a>(
     password_state: &'a mut text_input::State,
     password: &'a str,
@@ -425,6 +429,7 @@ fn password_row<'a>(
 ///     - The state of the [`Button`] to toggle the visibility
 ///     - True, if the password is empty
 ///     - True, if the password equals the password confirmation
+#[cfg_attr(coverage, no_coverage)]
 fn password_confirm_row<'a>(
     password_confirm_state: &'a mut text_input::State,
     password_confirm: &str,
@@ -471,6 +476,7 @@ fn password_confirm_row<'a>(
 ///     - The state of the cancel [`Button`](iced::Button)
 ///     - The state of the submit [`Button`](iced::Button)
 ///     - True, if the creation can be submitted.
+#[cfg_attr(coverage, no_coverage)]
 fn button_row<'a>(
     cancel_state: &'a mut button::State,
     submit_state: &'a mut button::State,

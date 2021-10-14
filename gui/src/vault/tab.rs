@@ -127,12 +127,14 @@ impl VaultTabVec {
 impl std::ops::Deref for VaultTabVec {
     type Target = Vec<VaultTab>;
 
+    #[cfg_attr(coverage, no_coverage)]
     fn deref(&self) -> &Self::Target {
         &self.1
     }
 }
 
 impl std::ops::DerefMut for VaultTabVec {
+    #[cfg_attr(coverage, no_coverage)]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.1
     }
@@ -245,6 +247,7 @@ impl Component for VaultTab {
         }
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn view<P: Platform + 'static>(
         &mut self,
         application_settings: &pwduck_core::ApplicationSettings,

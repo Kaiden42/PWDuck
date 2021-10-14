@@ -26,6 +26,7 @@ pub enum PWDuckGuiError {
 }
 
 impl Clone for PWDuckGuiError {
+    #[cfg_attr(coverage, no_coverage)]
     fn clone(&self) -> Self {
         match self {
             Self::Iced(error) => Self::String(format!("{}", error)),
@@ -41,18 +42,21 @@ impl Clone for PWDuckGuiError {
 }
 
 impl From<iced::Error> for PWDuckGuiError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: iced::Error) -> Self {
         Self::Iced(error)
     }
 }
 
 impl<T> From<PoisonError<T>> for PWDuckGuiError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: PoisonError<T>) -> Self {
         Self::Mutex(format!("{:?}", error))
     }
 }
 
 impl From<PWDuckCoreError> for PWDuckGuiError {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: PWDuckCoreError) -> Self {
         Self::PWDuckCoreError(error)
     }
@@ -66,12 +70,14 @@ pub enum NfdError {
 }
 
 impl<T> From<PWDuckGuiError> for Result<T, PWDuckGuiError> {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(error: PWDuckGuiError) -> Self {
         Err(error)
     }
 }
 
 impl Display for PWDuckGuiError {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PWDuckGuiError::Iced(error) => write!(f, "An error within Iced occurred: {}.", error),

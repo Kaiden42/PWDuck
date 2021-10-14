@@ -59,6 +59,7 @@ impl Component for Settings {
         Self {}
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn title(&self) -> String {
         "Settings".into()
     }
@@ -77,6 +78,7 @@ impl Component for Settings {
         Ok(cmd)
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn view<P: crate::Platform + 'static>(
         &mut self,
         application_settings: &pwduck_core::ApplicationSettings,

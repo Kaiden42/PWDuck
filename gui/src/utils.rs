@@ -28,11 +28,13 @@ pub struct ButtonData<'a, Message: 'a + Clone> {
 
 impl<'a, Message: 'a + Clone> ButtonData<'a, Message> {
     /// Create the element containing only the icon.
+    #[cfg_attr(coverage, no_coverage)]
     pub fn icon_element(&self) -> Element<'a, Message> {
         icon_text(self.icon).into()
     }
 
     /// Create the element containing the icon and the text.
+    #[cfg_attr(coverage, no_coverage)]
     pub fn icon_text_element(&self) -> Element<'a, Message> {
         Row::new()
             .spacing(DEFAULT_ROW_SPACING)
@@ -55,6 +57,7 @@ pub enum ButtonKind {
 
 impl ButtonKind {
     /// Returns the style sheet for the specific [`ButtonKind`](ButtonKind).
+    #[cfg_attr(coverage, no_coverage)]
     pub fn style_sheet(&self, theme: &dyn Theme) -> Box<dyn button::StyleSheet> {
         match self {
             ButtonKind::Normal => theme.button(),
@@ -71,6 +74,7 @@ impl ButtonKind {
 ///     - The tooltip of the [`Button`](Button).
 ///     - If only the [`Icon`](Icon) of the [`Button`](Button) should be visible.
 ///     - The theme of the application.
+#[cfg_attr(coverage, no_coverage)]
 pub fn icon_button<'a, Message: 'a + Clone>(
     button_data: ButtonData<'a, Message>,
     tooltip: impl Into<String>,
@@ -110,6 +114,7 @@ pub fn icon_button<'a, Message: 'a + Clone>(
 ///     - The tooltip of the [`Button`](Button).
 ///     - The width of the [`Button`](Button).
 ///     - The theme of the application.
+#[cfg_attr(coverage, no_coverage)]
 pub fn icon_button_with_width<'a, Message: 'a + Clone>(
     button_data: ButtonData<'a, Message>,
     tooltip: impl Into<String>,
@@ -135,6 +140,7 @@ pub fn icon_button_with_width<'a, Message: 'a + Clone>(
 }
 
 /// Create a label containing an Icon with the default `ICON_FONT`.
+#[cfg_attr(coverage, no_coverage)]
 pub fn icon_text(icon: Icon) -> Text {
     Text::new(icon).width(Length::Shrink).font(ICON_FONT)
 }
@@ -146,6 +152,7 @@ pub fn icon_text(icon: Icon) -> Text {
 ///     - The state of the password visibility
 ///     - The message that the [`Button`](Button) sends if the user presses on it
 ///     - The theme of the application.
+#[cfg_attr(coverage, no_coverage)]
 pub fn password_toggle<'a, Message: 'a + Clone>(
     state: &'a mut button::State,
     show_password: bool,
@@ -195,6 +202,7 @@ pub fn horizontal_centered_text(label: impl Into<String>) -> Text {
 ///     - The placeholder of the [`TextInput`](TextInput)
 ///     - The value of the [`TextInput`](TextInput)
 ///     - The message that the [`TextInput`](TextInput) sends if the value is changed
+#[cfg_attr(coverage, no_coverage)]
 pub fn default_text_input<'a, F, Message: Clone>(
     state: &'a mut text_input::State,
     placeholder: &str,
@@ -208,6 +216,7 @@ where
 }
 
 /// Create a default container.
+#[cfg_attr(coverage, no_coverage)]
 pub fn centered_container_with_column<'a, Message: 'a>(
     children: Vec<Element<'a, Message>>,
     theme: &dyn Theme,
@@ -226,11 +235,13 @@ pub fn centered_container_with_column<'a, Message: 'a>(
 }
 
 /// Create a default vertical [`Space`](Space).
+#[cfg_attr(coverage, no_coverage)]
 pub fn default_vertical_space() -> Space {
     vertical_space(1)
 }
 
 /// Create a vertical [`Space`] that is `factor` times larger than the default [`Space`](Space).
+#[cfg_attr(coverage, no_coverage)]
 pub fn vertical_space(factor: u16) -> Space {
     Space::with_height(Length::Units(factor * DEFAULT_SPACE_HEIGHT))
 }

@@ -76,6 +76,7 @@ pub enum Icon {
 }
 
 /// Map the [`Icon`](Icon) to the associated character.
+#[cfg_attr(coverage, no_coverage)]
 pub const fn icon_to_char(icon: Icon) -> char {
     match icon {
         Icon::ArrowClockwise => '\u{0FA0}',
@@ -111,18 +112,21 @@ pub const fn icon_to_char(icon: Icon) -> char {
 }
 
 impl From<Icon> for char {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(icon: Icon) -> Self {
         icon_to_char(icon)
     }
 }
 
 impl From<Icon> for String {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(icon: Icon) -> Self {
         icon_to_char(icon).into()
     }
 }
 
 impl std::fmt::Display for Icon {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", icon_to_char(*self))
     }

@@ -19,6 +19,7 @@ impl PasswordScore {
     }
 
     /// Create the view of this [`PasswordScore`](PasswordScore).
+    #[cfg_attr(coverage, no_coverage)]
     pub fn view<'a, Message: 'a + Clone>(&'a mut self) -> Element<Message> {
         match self.password_info.as_ref() {
             Ok(password_info) => {
@@ -54,6 +55,7 @@ impl PasswordScore {
 }
 
 /// Create the view of the strength bar based on the given strength.
+#[cfg_attr(coverage, no_coverage)]
 fn create_strength_bar<'a, Message>(password_strength: PasswordStrength) -> Row<'a, Message>
 where
     Message: 'a + Clone,
@@ -81,6 +83,7 @@ where
 ///     - The amount of colored parts contained in this bar
 ///     - The amount of uncolored parts contained in this bar
 ///     - The style to color the colored parts with
+#[cfg_attr(coverage, no_coverage)]
 fn fill_strength_bar<'a, Style: 'static, Message>(
     mut strength_bar: Row<'a, Message>,
     colored: usize,
@@ -115,6 +118,7 @@ where
 struct ClearStyle;
 
 impl container::StyleSheet for ClearStyle {
+    #[cfg_attr(coverage, no_coverage)]
     fn style(&self) -> container::Style {
         container::Style {
             text_color: None,
@@ -131,6 +135,7 @@ impl container::StyleSheet for ClearStyle {
 struct BadStyle;
 
 impl container::StyleSheet for BadStyle {
+    #[cfg_attr(coverage, no_coverage)]
     fn style(&self) -> container::Style {
         container::Style {
             text_color: None,
@@ -147,6 +152,7 @@ impl container::StyleSheet for BadStyle {
 struct WeakStyle;
 
 impl container::StyleSheet for WeakStyle {
+    #[cfg_attr(coverage, no_coverage)]
     fn style(&self) -> container::Style {
         container::Style {
             text_color: None,
@@ -163,6 +169,7 @@ impl container::StyleSheet for WeakStyle {
 struct GoodStyle;
 
 impl container::StyleSheet for GoodStyle {
+    #[cfg_attr(coverage, no_coverage)]
     fn style(&self) -> container::Style {
         container::Style {
             text_color: None,
@@ -179,6 +186,7 @@ impl container::StyleSheet for GoodStyle {
 struct StrongStyle;
 
 impl container::StyleSheet for StrongStyle {
+    #[cfg_attr(coverage, no_coverage)]
     fn style(&self) -> container::Style {
         container::Style {
             text_color: None,
@@ -195,6 +203,7 @@ impl container::StyleSheet for StrongStyle {
 struct AwesomeStyle;
 
 impl container::StyleSheet for AwesomeStyle {
+    #[cfg_attr(coverage, no_coverage)]
     fn style(&self) -> container::Style {
         container::Style {
             text_color: None,
@@ -235,6 +244,7 @@ impl PasswordStrength {
 }
 
 impl std::fmt::Display for PasswordStrength {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

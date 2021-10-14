@@ -4,6 +4,7 @@
 #![deny(unused_results)]
 //#![forbid(unsafe_code)]
 #![cfg_attr(not(test), forbid(unsafe_code))]
+#![cfg_attr(coverage, feature(no_coverage))]
 #![warn(
     clippy::pedantic,
     clippy::nursery,

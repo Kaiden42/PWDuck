@@ -49,19 +49,19 @@ impl MemKey {
     pub fn with_length(length: usize) -> Self {
         Self {
             key: SecBytes::with(length, |buf| {
-                #[cfg(not(debug_assertions))]
+                //#[cfg(not(debug_assertions))]
                 fill_random_bytes(buf);
-                #[cfg(debug_assertions)] // TODO
-                buf.iter_mut()
-                    .enumerate()
-                    .for_each(|(i, x)| *x = (i % 16) as u8);
-                //buf.iter_mut().for_each(|x| *x = 0xff);
+                //#[cfg(debug_assertions)]
+                //buf.iter_mut()
+                //    .enumerate()
+                //    .for_each(|(i, x)| *x = (i % 16) as u8);
             }),
         }
     }
 }
 
 impl From<SecBytes> for MemKey {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(bytes: SecBytes) -> Self {
         Self { key: bytes }
     }
@@ -76,12 +76,14 @@ impl Default for MemKey {
 impl Deref for MemKey {
     type Target = SecBytes;
 
+    #[cfg_attr(coverage, no_coverage)]
     fn deref(&self) -> &Self::Target {
         &self.key
     }
 }
 
 impl DerefMut for MemKey {
+    #[cfg_attr(coverage, no_coverage)]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.key
     }
@@ -118,25 +120,28 @@ impl<T: Zeroize> Default for SecVec<T> {
 impl<T: Zeroize> Deref for SecVec<T> {
     type Target = Vec<T>;
 
+    #[cfg_attr(coverage, no_coverage)]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
 impl<T: Zeroize> DerefMut for SecVec<T> {
+    #[cfg_attr(coverage, no_coverage)]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
 impl<T: Zeroize> Drop for SecVec<T> {
+    #[cfg_attr(coverage, no_coverage)]
     fn drop(&mut self) {
-        //self.iter_mut().for_each(Zeroize::zeroize);
         self.0.zeroize();
     }
 }
 
 impl<T: Zeroize> From<Vec<T>> for SecVec<T> {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(v: Vec<T>) -> Self {
         Self(v)
     }
@@ -179,36 +184,42 @@ impl SecString {
 impl Deref for SecString {
     type Target = String;
 
+    #[cfg_attr(coverage, no_coverage)]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
 impl DerefMut for SecString {
+    #[cfg_attr(coverage, no_coverage)]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
 impl From<String> for SecString {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(s: String) -> Self {
         Self(s)
     }
 }
 
 impl From<&str> for SecString {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(s: &str) -> Self {
         Self(s.to_owned())
     }
 }
 
 impl Debug for SecString {
+    #[cfg_attr(coverage, no_coverage)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("This is a SecString")
     }
 }
 
 impl From<SecString> for String {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(sec_string: SecString) -> Self {
         sec_string.0.clone()
     }
@@ -216,6 +227,7 @@ impl From<SecString> for String {
 
 /// This function tries to configure the process to prevent the creation of a core dump once this process crashes.
 /// This should work on all Unix/Linux systems. On windows this will just silently fail.
+#[cfg_attr(coverage, no_coverage)]
 pub fn try_to_prevent_core_dump() -> Result<(), PWDuckCoreError> {
     #[cfg(not(windows))]
     rlimit::setrlimit(
@@ -249,7 +261,7 @@ mod tests {
 
         MemKey::with_length.clear_mock();
 
-        // New key with size of 1
+        // New key with size of 42
         let mem_key = MemKey::with_length(42);
         let guard = mem_key.key.read();
         assert_eq!(guard.len(), 42)

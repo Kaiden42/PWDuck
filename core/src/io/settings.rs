@@ -61,6 +61,7 @@ fn get_settings_dir() -> Result<PathBuf, PWDuckCoreError> {
 
 /// Get the config directory that is specified by the system.
 #[cfg_attr(test, mockable)]
+#[cfg_attr(coverage, no_coverage)]
 fn get_system_config_dir() -> Result<PathBuf, PWDuckCoreError> {
     dirs::config_dir().ok_or_else(|| {
         PWDuckCoreError::Error("Could not find the config directory of the user.".into())

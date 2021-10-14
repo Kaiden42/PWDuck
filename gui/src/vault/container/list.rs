@@ -139,6 +139,7 @@ impl ListView {
     }
 
     /// Create the view of the [`ListView`](ListView).
+    #[cfg_attr(coverage, no_coverage)]
     pub fn view<'a>(
         &'a mut self,
         vault: &'a Vault,
@@ -214,6 +215,7 @@ impl ListView {
 }
 
 /// Create the view of the group tree.
+#[cfg_attr(coverage, no_coverage)]
 fn tree_view<'a>(
     vault: &'a Vault,
     scroll_state: &'a mut scrollable::State,
@@ -237,6 +239,7 @@ fn tree_view<'a>(
 }
 
 /// Create the view of the group entries.
+#[cfg_attr(coverage, no_coverage)]
 #[allow(clippy::too_many_arguments)]
 fn group_view<'a>(
     vault: &'a Vault,
@@ -362,6 +365,7 @@ struct ListGroupItem {
 
 impl ListGroupItem {
     /// Create the view of the [`ListGroupItem`](ListGroupItem).
+    #[cfg_attr(coverage, no_coverage)]
     fn view<'a>(&'a mut self, group: &'a Group, theme: &dyn Theme) -> Element<'a, ListItemMessage> {
         Button::new(
             &mut self.state,
@@ -393,6 +397,7 @@ struct ListEntryItem {
 
 impl ListEntryItem {
     /// Create the view of the [`ListEntryItem`](ListEntryItem).
+    #[cfg_attr(coverage, no_coverage)]
     fn view<'a>(
         &'a mut self,
         entry: &'a EntryHead,
@@ -621,6 +626,7 @@ impl GroupTree {
     }
 
     /// Create the view of the group tree node.
+    #[cfg_attr(coverage, no_coverage)]
     pub fn view(
         &mut self,
         indentation: u16,

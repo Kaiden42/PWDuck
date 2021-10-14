@@ -3,6 +3,7 @@
 #![deny(missing_debug_implementations)]
 //#![deny(unused_results)]
 #![cfg_attr(not(test), forbid(unsafe_code))]
+#![cfg_attr(coverage, feature(no_coverage))]
 #![warn(
     clippy::pedantic,
     clippy::nursery,
@@ -149,11 +150,13 @@ pub struct ErrorDialogState {
 
 impl ErrorDialogState {
     /// Create a new state for the error modal.
+    #[cfg_attr(coverage, no_coverage)]
     const fn new(error: String) -> Self {
         Self { error }
     }
 
     /// Create the view of the error modal.
+    #[cfg_attr(coverage, no_coverage)]
     fn view(&mut self, theme: &dyn Theme) -> Element<'_, Message> {
         Card::new(
             Text::new("An error occurred"),
@@ -177,6 +180,7 @@ pub struct Viewport {
 
 impl<P: Platform + 'static> PWDuckGui<P> {
     /// Start the gui application.
+    #[cfg_attr(coverage, no_coverage)]
     pub fn start() -> Result<(), PWDuckGuiError> {
         pwduck_core::try_to_prevent_core_dump()?;
 
@@ -214,6 +218,7 @@ impl<P: Platform + 'static> PWDuckGui<P> {
     }
 
     /// Catch and handle an [`Event`](iced_native::Event) thrown by iced.
+    #[cfg_attr(coverage, no_coverage)]
     fn catch_iced_event<Message>(
         &mut self,
         event: iced_native::Event,
@@ -427,6 +432,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         }
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
         let theme: &dyn Theme = match self.application_settings.theme() {
             pwduck_core::theme::Theme::Light => &theme::Light,
@@ -517,6 +523,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         .into()
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn subscription(&self) -> Subscription<Self::Message> {
         //iced_native::subscription::events().map(Message::IcedEvent)
         iced_native::subscription::events_with(|event, _status| {
@@ -536,6 +543,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         })
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn should_exit(&self) -> bool {
         self.can_exit
         //&& !self.tabs.iter().any(VaultTab::contains_unsaved_changes)
@@ -602,26 +610,32 @@ pub struct TestPlatform;
 #[cfg(test)]
 #[async_trait]
 impl Platform for TestPlatform {
+    #[cfg_attr(coverage, no_coverage)]
     fn is_nfd_available() -> bool {
         true
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     async fn nfd_choose_folder() -> Result<PathBuf, NfdError> {
         Ok(PathBuf::from("this/is/a/path"))
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn is_open_in_browser_available() -> bool {
         false
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     async fn open_in_browser(_url: String) -> Result<(), PWDuckGuiError> {
         PWDuckGuiError::String("Not implemented".into()).into()
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn is_auto_type_available() -> bool {
         false
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     async fn auto_type(_sequence: Sequence) -> Result<(), PWDuckGuiError> {
         PWDuckGuiError::String("Not implemented".into()).into()
     }
@@ -650,6 +664,7 @@ impl Default for ModalState {
 
 impl ModalState {
     /// Create the view of the modal.
+    #[cfg_attr(coverage, no_coverage)]
     fn view(&mut self, index: usize, theme: &dyn Theme) -> Element<'_, Message> {
         match self {
             ModalState::Error(error_modal_state) => error_modal_state.view(theme),

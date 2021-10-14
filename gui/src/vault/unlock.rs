@@ -133,6 +133,7 @@ impl Component for VaultUnlocker {
         }
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn view<P: crate::Platform + 'static>(
         &mut self,
         _application_settings: &pwduck_core::ApplicationSettings,

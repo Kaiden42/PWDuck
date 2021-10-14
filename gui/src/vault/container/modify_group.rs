@@ -236,6 +236,7 @@ impl ModifyGroupView {
     }
 
     /// Create the view of the [`ModifyGroupView`](ModifyGroupView).
+    #[cfg_attr(coverage, no_coverage)]
     pub fn view(
         &mut self,
         vault: &Vault,
@@ -319,6 +320,7 @@ impl ModifyGroupView {
 }
 
 /// Create the advanced area.
+#[cfg_attr(coverage, no_coverage)]
 fn advanced_area<'a>(
     button_state: &'a mut button::State,
     show_advanced: bool,
@@ -395,6 +397,7 @@ impl AdvancedState {
     }
 
     /// Create the advanced view.
+    #[cfg_attr(coverage, no_coverage)]
     pub fn view(&mut self, _group: &Group, theme: &dyn Theme) -> Element<AdvancedStateMessage> {
         let delete = icon_button(
             ButtonData {
@@ -462,6 +465,7 @@ impl ModifyGroupModal {
     }
 
     /// Create the view of the modal.
+    #[cfg_attr(coverage, no_coverage)]
     pub fn view(&mut self, theme: &dyn Theme) -> Element<'_, ModifyGroupModalMessage> {
         match self {
             ModifyGroupModal::DeleteRequest { cancel_button_state, submit_button_state } => {

@@ -44,6 +44,7 @@ impl SomeIf for ToolBarMessage {}
 
 impl ToolBar {
     /// Create the view of the [`ToolBar`](ToolBar).
+    #[cfg_attr(coverage, no_coverage)]
     pub fn view(&mut self, flags: Flags, theme: &dyn Theme) -> Element<ToolBarMessage> {
         let save = icon_button(
             ButtonData {

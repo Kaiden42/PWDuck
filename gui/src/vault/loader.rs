@@ -145,6 +145,7 @@ impl Component for VaultLoader {
         }
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn title(&self) -> String {
         "Load vault from storage".into()
     }
@@ -183,6 +184,7 @@ impl Component for VaultLoader {
         Ok(cmd)
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn view<P: Platform + 'static>(
         &mut self,
         _application_settings: &pwduck_core::ApplicationSettings,

@@ -56,6 +56,7 @@ pub fn generate_iv(length: usize) -> Vec<u8> {
 
 /// Generate a new random salt.
 #[cfg_attr(test, mockable)]
+#[cfg_attr(coverage, no_coverage)]
 fn generate_salt() -> SaltString {
     SaltString::generate(&mut OsRng)
 }
@@ -115,14 +116,13 @@ pub fn generate_masterkey(password: &str) -> Result<MasterKey, PWDuckCoreError> 
 
     // Generate random master key and encrypt it with password hash
     let mut master_key = [0_u8; MASTER_KEY_SIZE];
-    #[cfg(not(debug_assertions))]
+    //#[cfg(not(debug_assertions))]
     fill_random_bytes(&mut master_key);
-    //OsRng.fill_bytes(&mut master_key);
-    #[cfg(debug_assertions)] // TODO
-    master_key
-        .iter_mut()
-        .enumerate()
-        .for_each(|(i, x)| *x = (i % 16) as u8);
+    //#[cfg(debug_assertions)]
+    //master_key
+    //    .iter_mut()
+    //    .enumerate()
+    //    .for_each(|(i, x)| *x = (i % 16) as u8);
 
     let encrypted_key = aes_cbc_encrypt(&master_key, password_hash.as_slice(), &iv)?;
     master_key.zeroize();
@@ -271,6 +271,20 @@ mod tests {
 
     const PASSWORD: &'static str = "This is a totally secret password";
     const SALT: &'static str = "pa7lMD/slzor2CVNHZWNyA";
+
+    #[test]
+    fn test_generate_iv() {
+        fill_random_bytes.mock_safe(|buf| {
+            buf.fill(42);
+            MockResult::Return(())
+        });
+
+        let iv = generate_iv(42);
+
+        assert!(!iv.is_empty());
+        assert_eq!(iv.len(), 42);
+        assert_eq!(iv, vec![42_u8; 42]);
+    }
 
     #[test]
     fn test_generate_aes_iv() {

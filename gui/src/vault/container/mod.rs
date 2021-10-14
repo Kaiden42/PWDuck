@@ -143,6 +143,7 @@ impl VaultContainer {
     }
 
     /// Copy the username to the clipboard.
+    #[cfg_attr(coverage, no_coverage)]
     fn copy_username(
         &self,
         uuid: &Uuid,
@@ -166,6 +167,7 @@ impl VaultContainer {
     }
 
     /// Copy the password to the clipboard.
+    #[cfg_attr(coverage, no_coverage)]
     fn copy_password(
         &self,
         uuid: &Uuid,
@@ -570,6 +572,7 @@ impl Component for VaultContainer {
         }
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn view<P: Platform + 'static>(
         &mut self,
         _application_settings: &pwduck_core::ApplicationSettings,

@@ -1,4 +1,5 @@
 #![windows_subsystem = "windows"]
+#![cfg_attr(coverage, feature(no_coverage))]
 //! TODO
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]

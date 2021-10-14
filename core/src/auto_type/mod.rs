@@ -89,6 +89,7 @@ impl Sequence {
 impl Deref for Sequence {
     type Target = Vec<Part>;
 
+    #[cfg_attr(coverage, no_coverage)]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
