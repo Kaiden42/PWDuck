@@ -188,13 +188,6 @@ pub fn password_toggle<'a, Message: 'a + Clone>(
     }
 }
 
-/// Create text that is horizontally centered.
-pub fn horizontal_centered_text(label: impl Into<String>) -> Text {
-    Text::new(label)
-        .horizontal_alignment(iced::HorizontalAlignment::Center)
-        .width(Length::Fill)
-}
-
 /// Create a default [`TextInput`](TextInput).
 ///
 /// It expects:
@@ -278,5 +271,28 @@ pub trait SomeIf {
         } else {
             Some(self)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SomeIf;
+
+    #[test]
+    fn some_if() {
+        struct Test;
+        impl SomeIf for Test {}
+
+        assert!(Test.some_if(true).is_some());
+        assert!(Test.some_if(false).is_none());
+    }
+
+    #[test]
+    fn some_if_not() {
+        struct Test;
+        impl SomeIf for Test {}
+
+        assert!(Test.some_if_not(false).is_some());
+        assert!(Test.some_if_not(true).is_none());
     }
 }

@@ -505,7 +505,123 @@ mod tests {
 
     #[test]
     fn save_and_load_vault() {
-        // TODO
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        let mem_key = default_mem_key();
+
+        let mut vault = default_vault(&path, &mem_key);
+
+        let root = vault.get_root_uuid().unwrap();
+        let master_key = vault
+            .masterkey
+            .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
+            .unwrap();
+
+        let mut groups: Vec<Group> = (0..=20)
+            .into_iter()
+            .map(|next| {
+                let uuid: Uuid = [next; uuid::SIZE].into();
+                let group = Group::new(uuid, root.clone(), format!("Group: {}", next));
+                vault.insert_group(group.clone());
+                group
+            })
+            .collect();
+
+        let mut entries: Vec<(EntryHead, EntryBody)> = (0..=20)
+            .into_iter()
+            .map(|next| {
+                let uuid: Uuid = [next; uuid::SIZE].into();
+                let head = EntryHead::new(
+                    uuid.clone(),
+                    root.clone(),
+                    format!("Entry: {}", next),
+                    uuid.clone(),
+                );
+                let body = EntryBody::new(
+                    uuid,
+                    format!("Username: {}", next),
+                    format!("Password: {}", next),
+                );
+                vault
+                    .insert_entry(head.clone(), body.clone(), &master_key)
+                    .unwrap();
+                (head, body)
+            })
+            .collect();
+
+        vault.save(&mem_key).expect("Should not fail");
+
+        groups.sort_by(|a, b| a.title().cmp(b.title()));
+        entries.sort_by(|(a, _), (b, _)| a.title().cmp(b.title()));
+
+        // Check if the loaded vault contains all saved items.
+        let loaded_vault =
+            Vault::load(PASSWORD, &mem_key, &path.join(VAULT_NAME)).expect("Should not fail");
+
+        let item_list_for_root = loaded_vault.get_item_list_for(&root, None);
+        assert_eq!(item_list_for_root.groups.len(), groups.len());
+        assert_eq!(item_list_for_root.entries.len(), entries.len());
+        groups
+            .iter()
+            .zip(item_list_for_root.groups.iter())
+            .for_each(|(expected, group)| {
+                assert_eq!(expected.title(), group.title());
+            });
+        entries
+            .iter()
+            .zip(item_list_for_root.entries.iter())
+            .for_each(|((expected_head, expected_body), entry)| {
+                assert_eq!(expected_head.title(), entry.title());
+                let body =
+                    EntryBody::load(&path.join(VAULT_NAME), entry.body(), &master_key).unwrap();
+                assert_eq!(expected_body.username(), body.username());
+                assert_eq!(expected_body.password(), body.password());
+            });
+
+        // Check if the deletion of items works.
+        let delete_group_count = 3;
+        let delete_entry_count = 7;
+        groups.iter().take(delete_group_count).for_each(|group| {
+            vault.delete_group(group.uuid());
+        });
+        entries
+            .iter()
+            .take(delete_entry_count)
+            .for_each(|(entry, _)| {
+                vault.delete_entry(entry.uuid());
+            });
+        vault.save(&mem_key).expect("Should not fail");
+
+        let loaded_vault =
+            Vault::load(PASSWORD, &mem_key, &path.join(VAULT_NAME)).expect("Should not fail");
+
+        let item_list_for_root = loaded_vault.get_item_list_for(&root, None);
+        assert_eq!(
+            item_list_for_root.groups.len(),
+            groups.len() - delete_group_count
+        );
+        assert_eq!(
+            item_list_for_root.entries.len(),
+            entries.len() - delete_entry_count
+        );
+        groups
+            .iter()
+            .skip(delete_group_count)
+            .zip(item_list_for_root.groups.iter())
+            .for_each(|(expected, group)| {
+                assert_eq!(expected.title(), group.title());
+            });
+        entries
+            .iter()
+            .skip(delete_entry_count)
+            .zip(item_list_for_root.entries.iter())
+            .for_each(|((expected_head, expected_body), entry)| {
+                assert_eq!(expected_head.title(), entry.title());
+                let body =
+                    EntryBody::load(&path.join(VAULT_NAME), entry.body(), &master_key).unwrap();
+                assert_eq!(expected_body.username(), body.username());
+                assert_eq!(expected_body.password(), body.password());
+            });
     }
 
     #[test]

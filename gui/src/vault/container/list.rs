@@ -944,7 +944,48 @@ mod tests {
 
     #[test]
     fn refresh() {
-        // TODO
+        let mem_key = MemKey::with_length(1);
+        let (_dir, mut vault) = default_vault(&mem_key);
+        let root = vault.get_root_uuid().unwrap();
+
+        let mut group_tree = GroupTree::new(root.clone(), &vault);
+
+        // Name is changing
+        assert!(group_tree
+            .children
+            .iter()
+            .all(|c| !c.group_title.contains("Example")));
+
+        let item_list = vault.get_item_list_for(&root, None);
+        let group_count = item_list.groups().len();
+
+        let child_3_uuid = item_list.groups().get(3).unwrap().uuid().clone();
+        let child_3 = vault.groups_mut().get_mut(&child_3_uuid).unwrap();
+
+        assert_eq!(child_3.title().as_str(), "Group: 11");
+        child_3.set_title("Group: 11 Example".into());
+
+        group_tree.refresh(&vault);
+        assert_eq!(
+            group_tree.children.get(3).unwrap().group_title.as_str(),
+            "Group: 11 Example"
+        );
+
+        // Less children
+        vault.delete_group(&child_3_uuid);
+        assert_eq!(group_tree.children.len(), group_count);
+        group_tree.refresh(&vault);
+        assert_eq!(group_tree.children.len(), group_count - 1);
+
+        // More children
+        vault.insert_group(pwduck_core::Group::new(
+            [255u8; uuid::SIZE].into(),
+            root,
+            "New Group".into(),
+        ));
+        assert_eq!(group_tree.children.len(), group_count - 1);
+        group_tree.refresh(&vault);
+        assert_eq!(group_tree.children.len(), group_count);
     }
 
     #[test]

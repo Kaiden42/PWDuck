@@ -11,6 +11,12 @@ use crate::{theme::Theme, utils::vertical_space, DEFAULT_COLUMN_SPACING, DEFAULT
 
 use bitflags::bitflags;
 
+#[cfg(test)]
+use mocktopus::macros::*;
+
+/// The default length of the password tab.
+const DEFAULT_LENGTH: u8 = 32;
+
 /// The state of the password generator tab.
 #[derive(Debug, Default)]
 pub struct PasswordTabState {
@@ -54,42 +60,61 @@ pub enum PasswordTabMessage {
     IncludeSpecial,
 }
 
+#[cfg_attr(test, mockable)]
 impl PasswordTabState {
     /// Create a new [`PasswordTabState`](PasswordTabState).
     pub fn new() -> Self {
         Self {
-            length: 32,
+            length: DEFAULT_LENGTH,
             ..Self::default()
         }
+    }
+
+    /// Update the length of the password to the given value.
+    fn update_length(&mut self, length: u8) -> Command<PasswordTabMessage> {
+        self.length = length;
+        Command::none()
+    }
+
+    /// Toggle the inclusion of upper symbols.
+    fn toggle_upper_symbols(&mut self) -> Command<PasswordTabMessage> {
+        self.flags.toggle(Flags::INCLUDE_UPPER);
+        Command::none()
+    }
+
+    /// Toggle the inclusion of lower symbols.
+    fn toggle_lower_symbols(&mut self) -> Command<PasswordTabMessage> {
+        self.flags.toggle(Flags::INCLUDE_LOWER);
+        Command::none()
+    }
+
+    /// Toggle the inclusion of number symbols.
+    fn toggle_numbers_symbols(&mut self) -> Command<PasswordTabMessage> {
+        self.flags.toggle(Flags::INCLUDE_NUMBERS);
+        Command::none()
+    }
+
+    /// Toggle the inclusion of special symbols.
+    fn toggle_special_symbols(&mut self) -> Command<PasswordTabMessage> {
+        self.flags.toggle(Flags::INCLUDE_SPECIAL);
+        Command::none()
     }
 
     /// Update the [`PasswordTabState`](PasswordTabState) with the given message.
     pub fn update(&mut self, message: &PasswordTabMessage) -> Command<PasswordTabMessage> {
         match message {
             PasswordTabMessage::LengthSlider(length) | PasswordTabMessage::LengthInput(length) => {
-                self.length = *length;
-                Command::none()
+                self.update_length(*length)
             }
-            PasswordTabMessage::IncludeUpper => {
-                self.flags.toggle(Flags::INCLUDE_UPPER);
-                Command::none()
-            }
-            PasswordTabMessage::IncludeLower => {
-                self.flags.toggle(Flags::INCLUDE_LOWER);
-                Command::none()
-            }
-            PasswordTabMessage::IncludeNumbers => {
-                self.flags.toggle(Flags::INCLUDE_NUMBERS);
-                Command::none()
-            }
-            PasswordTabMessage::IncludeSpecial => {
-                self.flags.toggle(Flags::INCLUDE_SPECIAL);
-                Command::none()
-            }
+            PasswordTabMessage::IncludeUpper => self.toggle_upper_symbols(),
+            PasswordTabMessage::IncludeLower => self.toggle_lower_symbols(),
+            PasswordTabMessage::IncludeNumbers => self.toggle_numbers_symbols(),
+            PasswordTabMessage::IncludeSpecial => self.toggle_special_symbols(),
         }
     }
 
     /// Create the view of the [`PasswordTabState`](PasswordTabState).
+    #[cfg_attr(coverage, no_coverage)]
     pub fn view(&mut self, theme: &dyn Theme) -> Element<PasswordTabMessage> {
         let length = Text::new("Length:");
 
@@ -213,5 +238,229 @@ bitflags! {
 impl Default for Flags {
     fn default() -> Self {
         Self::all()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        any::{Any, TypeId},
+        cell::RefCell,
+        collections::HashMap,
+    };
+
+    use iced::Command;
+    use mocktopus::mocking::*;
+
+    use super::{Flags, PasswordTabMessage, PasswordTabState, DEFAULT_LENGTH};
+
+    thread_local! {
+        static CALL_MAP: RefCell<HashMap<TypeId, usize>> = RefCell::new(HashMap::new());
+    }
+
+    #[test]
+    fn new() {
+        let state = PasswordTabState::new();
+
+        assert_eq!(state.length, DEFAULT_LENGTH);
+
+        assert!(state.flags.is_all());
+    }
+
+    #[test]
+    fn update_length() {
+        let mut state = PasswordTabState::new();
+
+        assert_eq!(state.length, DEFAULT_LENGTH);
+
+        state.update_length(128);
+
+        assert_eq!(state.length, 128);
+    }
+
+    #[test]
+    fn toggle_upper_symbols() {
+        let mut state = PasswordTabState::new();
+
+        assert!(state.flags.contains(Flags::INCLUDE_UPPER));
+
+        state.toggle_upper_symbols();
+
+        assert!(!state.flags.contains(Flags::INCLUDE_UPPER));
+
+        state.toggle_upper_symbols();
+
+        assert!(state.flags.contains(Flags::INCLUDE_UPPER));
+    }
+
+    #[test]
+    fn toggle_lower_symbols() {
+        let mut state = PasswordTabState::new();
+
+        assert!(state.flags.contains(Flags::INCLUDE_LOWER));
+
+        state.toggle_lower_symbols();
+
+        assert!(!state.flags.contains(Flags::INCLUDE_LOWER));
+
+        state.toggle_lower_symbols();
+
+        assert!(state.flags.contains(Flags::INCLUDE_LOWER));
+    }
+
+    #[test]
+    fn toggle_numbers_symbols() {
+        let mut state = PasswordTabState::new();
+
+        assert!(state.flags.contains(Flags::INCLUDE_NUMBERS));
+
+        state.toggle_numbers_symbols();
+
+        assert!(!state.flags.contains(Flags::INCLUDE_NUMBERS));
+
+        state.toggle_numbers_symbols();
+
+        assert!(state.flags.contains(Flags::INCLUDE_NUMBERS));
+    }
+
+    #[test]
+    fn toggle_special_symbols() {
+        let mut state = PasswordTabState::new();
+
+        assert!(state.flags.contains(Flags::INCLUDE_SPECIAL));
+
+        state.toggle_special_symbols();
+
+        assert!(!state.flags.contains(Flags::INCLUDE_SPECIAL));
+
+        state.toggle_special_symbols();
+
+        assert!(state.flags.contains(Flags::INCLUDE_SPECIAL));
+    }
+
+    #[test]
+    fn update() {
+        let mut state = PasswordTabState::new();
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(PasswordTabState::update_length.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PasswordTabState::toggle_upper_symbols.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PasswordTabState::toggle_lower_symbols.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PasswordTabState::toggle_numbers_symbols.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PasswordTabState::toggle_special_symbols.type_id(), 0);
+
+            PasswordTabState::update_length.mock_raw(|_self, _value| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordTabState::update_length.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordTabState::toggle_upper_symbols.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordTabState::toggle_upper_symbols.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordTabState::toggle_lower_symbols.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordTabState::toggle_lower_symbols.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordTabState::toggle_numbers_symbols.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordTabState::toggle_numbers_symbols.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordTabState::toggle_special_symbols.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordTabState::toggle_special_symbols.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+
+            // Update length
+            assert_eq!(
+                call_map.borrow()[&PasswordTabState::update_length.type_id()],
+                0
+            );
+            let _ = state.update(&PasswordTabMessage::LengthSlider(42));
+            assert_eq!(
+                call_map.borrow()[&PasswordTabState::update_length.type_id()],
+                1
+            );
+            let _ = state.update(&PasswordTabMessage::LengthInput(42));
+            assert_eq!(
+                call_map.borrow()[&PasswordTabState::update_length.type_id()],
+                2
+            );
+
+            // Toggle upper symbols
+            assert_eq!(
+                call_map.borrow()[&PasswordTabState::toggle_upper_symbols.type_id()],
+                0
+            );
+            let _ = state.update(&PasswordTabMessage::IncludeUpper);
+            assert_eq!(
+                call_map.borrow()[&PasswordTabState::toggle_upper_symbols.type_id()],
+                1
+            );
+
+            // Toggle lower symbols
+            assert_eq!(
+                call_map.borrow()[&PasswordTabState::toggle_lower_symbols.type_id()],
+                0
+            );
+            let _ = state.update(&PasswordTabMessage::IncludeLower);
+            assert_eq!(
+                call_map.borrow()[&PasswordTabState::toggle_lower_symbols.type_id()],
+                1
+            );
+
+            // Toggle numbers symbols
+            assert_eq!(
+                call_map.borrow()[&PasswordTabState::toggle_numbers_symbols.type_id()],
+                0
+            );
+            let _ = state.update(&PasswordTabMessage::IncludeNumbers);
+            assert_eq!(
+                call_map.borrow()[&PasswordTabState::toggle_numbers_symbols.type_id()],
+                1
+            );
+
+            // Toggle special symbols
+            assert_eq!(
+                call_map.borrow()[&PasswordTabState::toggle_special_symbols.type_id()],
+                0
+            );
+            let _ = state.update(&PasswordTabMessage::IncludeSpecial);
+            assert_eq!(
+                call_map.borrow()[&PasswordTabState::toggle_special_symbols.type_id()],
+                1
+            );
+        });
+    }
+
+    #[test]
+    fn default_flags() {
+        let flags = Flags::default();
+
+        assert!(flags.is_all());
     }
 }

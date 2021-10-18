@@ -28,6 +28,9 @@ use passphrase_tab::{PassphraseTabMessage, PassphraseTabState};
 mod password_tab;
 use password_tab::{PasswordTabMessage, PasswordTabState};
 
+#[cfg(test)]
+use mocktopus::macros::*;
+
 /// The state of the password generator.
 #[derive(Debug, Default, Getters, Setters)]
 pub struct PasswordGeneratorState {
@@ -93,6 +96,7 @@ pub enum PasswordGeneratorMessage {
     Submit,
 }
 
+#[cfg_attr(test, mockable)]
 impl PasswordGeneratorState {
     /// Create a new [`PasswordGeneratorState`](PasswordGeneratorState).
     pub fn new() -> Self {
@@ -140,6 +144,7 @@ impl PasswordGeneratorState {
     }
 
     /// Submit the generated password.
+    #[cfg_attr(coverage, no_coverage)]
     pub fn submit(
         &mut self,
         selected_tab: usize,
@@ -164,6 +169,7 @@ impl PasswordGeneratorState {
     }
 
     /// Calculate the strength of the generated password.
+    #[cfg_attr(coverage, no_coverage)]
     fn estimate_password_strength(&self) -> Command<PasswordGeneratorMessage> {
         Command::perform(
             estimate_password_strength(self.password.clone()),
@@ -178,12 +184,13 @@ impl PasswordGeneratorState {
     }
 
     /// Toggle the visibility of the password.
-    fn toogle_password_visibility(&mut self) -> Command<PasswordGeneratorMessage> {
+    fn toggle_password_visibility(&mut self) -> Command<PasswordGeneratorMessage> {
         self.password_show = !self.password_show;
         Command::none()
     }
 
     /// Copy the password to clipboard.
+    #[cfg_attr(coverage, no_coverage)]
     fn copy_password(&self, clipboard: &mut iced::Clipboard) -> Command<PasswordGeneratorMessage> {
         clipboard.write(self.password.deref().clone());
         Command::none()
@@ -244,7 +251,7 @@ impl PasswordGeneratorState {
     ) -> Result<Command<PasswordGeneratorMessage>, PWDuckGuiError> {
         match message {
             PasswordGeneratorMessage::PasswordInput(password) => Ok(self.update_password(password)),
-            PasswordGeneratorMessage::PasswordShow => Ok(self.toogle_password_visibility()),
+            PasswordGeneratorMessage::PasswordShow => Ok(self.toggle_password_visibility()),
             PasswordGeneratorMessage::PasswordCopy => Ok(self.copy_password(clipboard)),
             PasswordGeneratorMessage::PasswordReroll => Ok(self.reroll_password()),
             PasswordGeneratorMessage::PasswordScore(score) => Ok(self.set_password_score(score)),
@@ -262,6 +269,7 @@ impl PasswordGeneratorState {
     }
 
     /// Create the view of the [`PasswordGeneratorState`](PasswordGeneratorState).
+    #[cfg_attr(coverage, no_coverage)]
     #[allow(clippy::too_many_lines)]
     pub fn view(&mut self, theme: &dyn Theme) -> Element<PasswordGeneratorMessage> {
         let head = Text::new("Generate new password");
@@ -419,5 +427,446 @@ pub enum Target {
 impl Default for Target {
     fn default() -> Self {
         Self::None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        any::{Any, TypeId},
+        cell::RefCell,
+        collections::HashMap,
+    };
+
+    use iced::Command;
+    use mocktopus::mocking::*;
+
+    use crate::error::PWDuckGuiError;
+
+    use super::{
+        passphrase_tab::{PassphraseTabMessage, PassphraseTabState},
+        password_tab::{PasswordTabMessage, PasswordTabState},
+        PasswordGeneratorMessage, PasswordGeneratorState, Target,
+    };
+
+    thread_local! {
+        static CALL_MAP: RefCell<HashMap<TypeId, usize>> = RefCell::new(HashMap::new());
+    }
+
+    #[test]
+    fn new() {
+        let state = PasswordGeneratorState::new();
+
+        assert!(state.password.is_empty());
+        assert!(!state.password_state.is_focused());
+        assert!(!state.password_show);
+        assert!(state.password_score.is_none());
+        assert_eq!(state.active_tab, 0);
+        assert_eq!(state.target, Target::default());
+    }
+
+    #[test]
+    fn show() {
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::None);
+
+        // Target entry modifier
+        let _ = PasswordGeneratorState::show(
+            &crate::Message::VaultTab(
+                0,
+                crate::vault::tab::VaultTabMessage::Container(
+                    crate::vault::container::VaultContainerMessage::ModifyEntry(
+                        crate::vault::container::ModifyEntryMessage::PasswordGenerate,
+                    ),
+                ),
+            ),
+            &mut modal_state,
+        );
+
+        if let crate::ModalState::Password(password_generator) = modal_state.inner() {
+            assert!(!password_generator.password.is_empty());
+            assert_eq!(password_generator.target, Target::EntryModifier);
+        } else {
+            panic!("Modal state should be a password generator");
+        }
+    }
+
+    #[test]
+    fn cancel() {
+        let mut modal_state = iced_aw::modal::State::new(crate::ModalState::Password(Box::new(
+            PasswordGeneratorState::new(),
+        )));
+
+        PasswordGeneratorState::cancel(&mut modal_state);
+
+        if let crate::ModalState::None = modal_state.inner() {
+        } else {
+            panic!("Modal state should be None");
+        }
+    }
+
+    #[test]
+    fn update_password() {
+        let mut state = PasswordGeneratorState::new();
+
+        assert!(state.password.is_empty());
+
+        let _ = state.update_password("password".into());
+
+        assert_eq!(state.password.as_str(), "password");
+    }
+
+    #[test]
+    fn toggle_password_visibility() {
+        let mut state = PasswordGeneratorState::new();
+
+        assert!(!state.password_show);
+
+        let _ = state.toggle_password_visibility();
+
+        assert!(state.password_show);
+
+        let _ = state.toggle_password_visibility();
+
+        assert!(!state.password_show);
+    }
+
+    #[test]
+    fn reroll_password() {
+        let mut state = PasswordGeneratorState::new();
+
+        let previous = state.password.clone();
+
+        let _ = state.reroll_password();
+
+        assert_ne!(state.password.as_str(), previous.as_str());
+
+        let previous = state.password.clone();
+
+        let _ = state.reroll_password();
+
+        assert_ne!(state.password.as_str(), previous.as_str());
+    }
+
+    #[test]
+    fn set_password_score() {
+        let mut state = PasswordGeneratorState::new();
+
+        assert!(state.password_score.is_none());
+
+        let _ = state.set_password_score(Err(pwduck_core::PWDuckCoreError::Error("error".into())));
+
+        assert!(state.password_score.is_some());
+    }
+
+    #[test]
+    fn select_tab() {
+        let mut state = PasswordGeneratorState::new();
+
+        assert_eq!(state.active_tab, 0);
+        assert!(state.password.is_empty());
+
+        let _ = state.select_tab(0);
+
+        // TODO
+        // assert_eq!(state.active_tab, 0);
+        // assert!(!state.password.is_empty());
+        //
+        // let _ = state.select_tab(1);
+        // assert_eq!(state.active_tab, 0);
+        // assert!(!state.password.is_empty());
+    }
+
+    #[test]
+    fn update_password_tab() {
+        let mut state = PasswordGeneratorState::new();
+        assert!(state.password.is_empty());
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(PasswordTabState::update.type_id(), 0);
+
+            PasswordTabState::update.mock_raw(|_self, _message| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordTabState::update.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+
+            // Update password tab state.
+            assert_eq!(call_map.borrow()[&PasswordTabState::update.type_id()], 0);
+            let _ = state.update_password_tab(&PasswordTabMessage::IncludeLower);
+            assert_eq!(call_map.borrow()[&PasswordTabState::update.type_id()], 1);
+
+            assert!(!state.password.is_empty());
+        });
+    }
+
+    //#[test] TODO
+    fn update_passphrase_tab() {
+        let mut state = PasswordGeneratorState::new();
+        assert!(state.password.is_empty());
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(PassphraseTabState::update.type_id(), 0);
+
+            PassphraseTabState::update.mock_raw(|_self, _message| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PassphraseTabState::update.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+
+            // Update passphrase tab state.
+            assert_eq!(call_map.borrow()[&PassphraseTabState::update.type_id()], 0);
+            let _ = state.update_passphrase_tab(&PassphraseTabMessage::Todo);
+            assert_eq!(call_map.borrow()[&PassphraseTabState::update.type_id()], 1);
+
+            assert!(!state.password.is_empty());
+        })
+    }
+
+    #[test]
+    fn update() {
+        let mut state = PasswordGeneratorState::new();
+
+        // WARNING: This is highly unsafe!
+        #[allow(deref_nullptr)]
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(PasswordGeneratorState::update_password.type_id(), 0);
+            call_map.borrow_mut().insert(
+                PasswordGeneratorState::toggle_password_visibility.type_id(),
+                0,
+            );
+            call_map
+                .borrow_mut()
+                .insert(PasswordGeneratorState::copy_password.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PasswordGeneratorState::reroll_password.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PasswordGeneratorState::set_password_score.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PasswordGeneratorState::select_tab.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PasswordGeneratorState::update_password_tab.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PasswordGeneratorState::update_passphrase_tab.type_id(), 0);
+
+            PasswordGeneratorState::update_password.mock_raw(|_self, _value| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordGeneratorState::update_password.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordGeneratorState::toggle_password_visibility.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordGeneratorState::toggle_password_visibility.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordGeneratorState::copy_password.mock_raw(|_self, _clipboard| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordGeneratorState::copy_password.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordGeneratorState::reroll_password.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordGeneratorState::reroll_password.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordGeneratorState::set_password_score.mock_raw(|_self, _score| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordGeneratorState::set_password_score.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordGeneratorState::select_tab.mock_raw(|_self, _index| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordGeneratorState::select_tab.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordGeneratorState::update_password_tab.mock_raw(|_self, _message| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordGeneratorState::update_password_tab.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordGeneratorState::update_passphrase_tab.mock_raw(|_self, _message| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordGeneratorState::update_passphrase_tab.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+
+            // Update password
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::update_password.type_id()],
+                0
+            );
+            let _ = state.update(
+                PasswordGeneratorMessage::PasswordInput("password".into()),
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::update_password.type_id()],
+                1
+            );
+
+            // Toggle password visibility
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::toggle_password_visibility.type_id()],
+                0
+            );
+            let _ = state.update(PasswordGeneratorMessage::PasswordShow, &mut clipboard);
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::toggle_password_visibility.type_id()],
+                1
+            );
+
+            // Copy password
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::copy_password.type_id()],
+                0
+            );
+            let _ = state.update(PasswordGeneratorMessage::PasswordCopy, &mut clipboard);
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::copy_password.type_id()],
+                1
+            );
+
+            // Reroll password
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::reroll_password.type_id()],
+                0
+            );
+            let _ = state.update(PasswordGeneratorMessage::PasswordReroll, &mut clipboard);
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::reroll_password.type_id()],
+                1
+            );
+
+            // Set password score
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::set_password_score.type_id()],
+                0
+            );
+            let _ = state.update(
+                PasswordGeneratorMessage::PasswordScore(Err(pwduck_core::PWDuckCoreError::Error(
+                    "error".into(),
+                ))),
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::set_password_score.type_id()],
+                1
+            );
+
+            // Select tab
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::select_tab.type_id()],
+                0
+            );
+            let _ = state.update(PasswordGeneratorMessage::TabSelected(0), &mut clipboard);
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::select_tab.type_id()],
+                1
+            );
+
+            // Update password tab
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::update_password_tab.type_id()],
+                0
+            );
+            let _ = state.update(
+                PasswordGeneratorMessage::PasswordTabMessage(PasswordTabMessage::IncludeLower),
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::update_password_tab.type_id()],
+                1
+            );
+
+            // Update passphrase tab
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::update_passphrase_tab.type_id()],
+                0
+            );
+            let _ = state.update(
+                PasswordGeneratorMessage::PassphraseTabMessage(PassphraseTabMessage::Todo),
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::update_passphrase_tab.type_id()],
+                1
+            );
+
+            // Cancel
+            let res = state
+                .update(PasswordGeneratorMessage::Cancel, &mut clipboard)
+                .expect_err("Should fail.");
+            match res {
+                PWDuckGuiError::Unreachable(_) => {}
+                _ => panic!("Should contain unreachable warning."),
+            }
+
+            // Submit
+            let res = state
+                .update(PasswordGeneratorMessage::Submit, &mut clipboard)
+                .expect_err("Should fail.");
+            match res {
+                PWDuckGuiError::Unreachable(_) => {}
+                _ => panic!("Should contain unreachable warning."),
+            }
+
+            assert!(call_map.borrow().values().all(|v| *v == 1));
+        })
+    }
+
+    #[test]
+    fn generate_and_update_password() {
+        let mut state = PasswordGeneratorState::new();
+        assert!(state.password.is_empty());
+        assert_eq!(state.active_tab, 0);
+
+        state.generate_and_update_password();
+        assert!(!state.password.is_empty());
+
+        // TODO
+        // let mut state = PasswordGeneratorState::new();
+        // assert!(state.password.is_empty());
+        // state.active_tab = 1;
+        //
+        // state.generate_and_update_password();
+        // assert!(!state.password.is_empty());
+    }
+
+    #[test]
+    fn default_target() {
+        let target = Target::default();
+        assert_eq!(target, Target::None);
     }
 }

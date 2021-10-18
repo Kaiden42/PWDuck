@@ -182,6 +182,7 @@ pub enum VaultTabState {
     Settings(#[focus(enable)] Settings),
 }
 
+#[cfg_attr(test, mockable)]
 impl Component for VaultTab {
     type Message = VaultTabMessage;
     type ConstructorParam = ();
@@ -423,6 +424,56 @@ mod tests {
         if let VaultTabState::Empty(_) = vault_tab.state {
         } else {
             panic!("VaultTab should be in the empty state");
+        }
+    }
+
+    #[test]
+    fn title() {
+        let mut vault_tab = VaultTab::new(());
+
+        // Empty title
+        if let VaultTabState::Empty(ref empty) = vault_tab.state {
+            assert_eq!(empty.title(), vault_tab.title());
+        } else {
+            panic!("VaultTab should be empty state");
+        }
+
+        // Create title
+        vault_tab.change_to_create_state();
+        if let VaultTabState::Create(ref create) = vault_tab.state {
+            assert_eq!(create.title(), vault_tab.title());
+        } else {
+            panic!("VaultTab should be create state");
+        }
+
+        // Open title
+        let mem_key = pwduck_core::MemKey::with_length(1);
+        let password = "password";
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("TempVault");
+        let vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+
+        vault_tab.change_to_open_state(Box::new(vault));
+        if let VaultTabState::Open(ref open) = vault_tab.state {
+            assert_eq!(open.title(), vault_tab.title());
+        } else {
+            panic!("VaultTab should be open state");
+        }
+
+        // Unlock title
+        vault_tab.change_to_unlock_state(path);
+        if let VaultTabState::Unlock(ref unlock) = vault_tab.state {
+            assert_eq!(unlock.title(), vault_tab.title());
+        } else {
+            panic!("VaultTab should be unlock state");
+        }
+
+        // Settings title
+        vault_tab.change_to_settings_state();
+        if let VaultTabState::Settings(ref settings) = vault_tab.state {
+            assert_eq!(settings.title(), vault_tab.title());
+        } else {
+            panic!("VaultTab should be settings state");
         }
     }
 

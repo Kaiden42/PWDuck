@@ -84,6 +84,9 @@ mod icons;
 
 pub use pwduck_core::{Key, Part, Sequence};
 
+#[cfg(test)]
+use mocktopus::macros::*;
+
 /// The default maximum width of a [`Container`](iced::Container).
 const DEFAULT_MAX_WIDTH: u32 = 600;
 /// The default padding of a [`Column`](iced::Column).
@@ -178,6 +181,7 @@ pub struct Viewport {
     pub(crate) height: u32,
 }
 
+#[cfg_attr(test, mockable)]
 impl<P: Platform + 'static> PWDuckGui<P> {
     /// Start the gui application.
     #[cfg_attr(coverage, no_coverage)]
@@ -243,6 +247,39 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         }
     }
 
+    /// Select the tab identified by the tab index.
+    fn select_tab(&mut self, index: usize) -> Command<Message> {
+        self.tabs.select(index);
+        Command::none()
+    }
+
+    /// Create a new tab.
+    fn create_tab(&mut self) -> Command<Message> {
+        self.tabs.push(VaultTab::new(()));
+        self.tabs.select(self.tabs.len() - 1);
+        Command::none()
+    }
+
+    /// Close the tab identified by the tab index.
+    fn close_tab(&mut self, index: usize) -> Result<Command<Message>, PWDuckGuiError> {
+        if self.tabs[index].contains_unsaved_changes() {
+            Err(PWDuckGuiError::VaultContainsUnsavedChanges)
+        } else {
+            self.tabs.remove(index);
+
+            self.tabs.select(if self.tabs.is_empty() {
+                0
+            } else {
+                self.tabs.selected().min(self.tabs.len() - 1)
+            });
+
+            if self.tabs.is_empty() {
+                self.can_exit = true;
+            }
+            Ok(Command::none())
+        }
+    }
+
     /// Update the tab of a vault identified by the given message.
     fn update_vault_tab(
         &mut self,
@@ -258,6 +295,15 @@ impl<P: Platform + 'static> PWDuckGui<P> {
                 clipboard,
             )
             .map(move |cmd| cmd.map(move |msg| Message::VaultTab(index, msg)))
+    }
+
+    /// Open the settings tab.
+    fn open_settings(&mut self) -> Command<Message> {
+        let mut settings_tab = VaultTab::new(());
+        settings_tab.change_to_settings_state();
+        self.tabs.push(settings_tab);
+        self.tabs.select(self.tabs.len() - 1);
+        Command::none()
     }
 }
 
@@ -310,6 +356,7 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
         )
     }
 
+    #[cfg_attr(coverage, no_coverage)]
     fn title(&self) -> String {
         "PWDuck - Password Manager".into()
     }
@@ -366,50 +413,13 @@ impl<P: Platform + 'static> Application for PWDuckGui<P> {
 
             Message::VaultTab(index, message) => self.update_vault_tab(index, message, clipboard),
 
-            Message::TabSelected(index) => {
-                //self.selected_tab = index;
-                self.tabs.select(index);
-                Ok(Command::none())
-            }
+            Message::TabSelected(index) => Ok(self.select_tab(index)),
 
-            Message::TabCreate => {
-                self.tabs.push(VaultTab::new(()));
-                //self.selected_tab = self.tabs.len() - 1;
-                self.tabs.select(self.tabs.len() - 1);
-                Ok(Command::none())
-            }
+            Message::TabCreate => Ok(self.create_tab()),
 
-            Message::TabClose(index) => {
-                if self.tabs[index].contains_unsaved_changes() {
-                    Err(PWDuckGuiError::VaultContainsUnsavedChanges)
-                } else {
-                    self.tabs.remove(index);
-                    //self.selected_tab = if self.tabs.is_empty() {
-                    //    0
-                    //} else {
-                    //    self.selected_tab.min(self.tabs.len() - 1)
-                    //};
-                    self.tabs.select(if self.tabs.is_empty() {
-                        0
-                    } else {
-                        self.tabs.selected().min(self.tabs.len() - 1)
-                    });
+            Message::TabClose(index) => self.close_tab(index),
 
-                    if self.tabs.is_empty() {
-                        self.can_exit = true;
-                    }
-                    Ok(Command::none())
-                }
-            }
-
-            Message::OpenSettings => {
-                let mut settings_tab = VaultTab::new(());
-                settings_tab.change_to_settings_state();
-                self.tabs.push(settings_tab);
-                //self.selected_tab = self.tabs.len() - 1;
-                self.tabs.select(self.tabs.len() - 1);
-                Ok(Command::none())
-            }
+            Message::OpenSettings => Ok(self.open_settings()),
 
             Message::Focus(direction) => {
                 let _ = self.focus(direction);
@@ -693,5 +703,576 @@ impl ModalState {
             }
             ModalState::None => Text::new("This is a bug and should never be visible!").into(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        any::{Any, TypeId},
+        cell::RefCell,
+        collections::HashMap,
+    };
+
+    use crate::{
+        error::PWDuckGuiError,
+        pw_modal::PasswordGeneratorState,
+        vault::tab::{VaultTab, VaultTabMessage},
+        Component, ErrorDialogState,
+    };
+    use iced::{Application, Command};
+    use mocktopus::mocking::*;
+
+    use super::{Message, ModalState, PWDuckGui, TestPlatform};
+    use pwduck_core::ApplicationSettings;
+
+    thread_local! {
+        static CALL_MAP: RefCell<HashMap<TypeId, usize>> = RefCell::new(HashMap::new());
+    }
+
+    fn default_pwduck_gui() -> PWDuckGui<TestPlatform> {
+        let application_settings = ApplicationSettings::default();
+        PWDuckGui::new(application_settings).0
+    }
+
+    #[test]
+    fn update_password_generator() {
+        use crate::PasswordGeneratorMessage;
+        let mut gui = default_pwduck_gui();
+
+        #[allow(deref_nullptr)]
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(PasswordGeneratorState::update.type_id(), 0);
+
+            PasswordGeneratorState::update.mock_raw(|_self, _message, _clipboard| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordGeneratorState::update.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+
+            if let ModalState::None = gui.modal_state.inner() {
+            } else {
+                panic!("Modal state is not None");
+            }
+
+            // Update a non existent generator should be ignored
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::update.type_id()],
+                0
+            );
+            let _ = gui.update_password_generator(PasswordGeneratorMessage::Cancel, &mut clipboard);
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::update.type_id()],
+                0
+            );
+
+            // Update an existent generator should not be ignored
+            gui.modal_state = iced_aw::modal::State::new(ModalState::Password(Box::new(
+                PasswordGeneratorState::new(),
+            )));
+            let _ = gui.update_password_generator(PasswordGeneratorMessage::Cancel, &mut clipboard);
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::update.type_id()],
+                1
+            );
+        })
+    }
+
+    #[test]
+    fn close_error_dialog() {
+        let mut gui = default_pwduck_gui();
+
+        gui.modal_state =
+            iced_aw::modal::State::new(ModalState::Error(ErrorDialogState::new("Error".into())));
+
+        if let ModalState::None = gui.modal_state.inner() {
+            panic!("Modal state should not be None");
+        }
+
+        gui.close_error_dialog();
+
+        if let ModalState::None = gui.modal_state.inner() {
+        } else {
+            panic!("Modal state should be None");
+        }
+    }
+
+    #[test]
+    fn select_tab() {
+        let mut gui = default_pwduck_gui();
+
+        for _ in 0..10 {
+            let _ = gui.create_tab();
+        }
+
+        assert_eq!(gui.tabs.selected(), 10);
+
+        gui.select_tab(3);
+
+        assert_eq!(gui.tabs.selected(), 3);
+    }
+
+    #[test]
+    fn create_tab() {
+        let mut gui = default_pwduck_gui();
+
+        assert_eq!(gui.tabs.selected(), 0);
+
+        for i in 1..10 {
+            gui.create_tab();
+            assert_eq!(gui.tabs.selected(), i);
+
+            // TODO: check state of tab
+            //let tab = gui.tabs[i];
+            //if let crate::vault::tab::VaultTabState::Empty(..) = tab.state {
+            //} else {
+            //    panic!("Newly created tab should be empty");
+            //}
+        }
+    }
+
+    #[test]
+    fn close_tab() {
+        let mut gui = default_pwduck_gui();
+
+        // Tab without unsaved changes should be closable.
+        VaultTab::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(false));
+
+        for _ in 0..10 {
+            let _ = gui.create_tab();
+        }
+
+        assert_eq!(gui.tabs.selected(), 10);
+        assert_eq!(gui.tabs.len(), 11);
+
+        let _ = gui.select_tab(5);
+        let _ = gui.close_tab(5).expect("Should not fail");
+
+        assert_eq!(gui.tabs.selected(), 5);
+        assert_eq!(gui.tabs.len(), 10);
+
+        let _ = gui.select_tab(9);
+        let _ = gui.close_tab(9).expect("Should not fail");
+
+        assert_eq!(gui.tabs.selected(), 8);
+        assert_eq!(gui.tabs.len(), 9);
+
+        let _ = gui.select_tab(3);
+        let _ = gui.close_tab(6).expect("Should not fail");
+
+        assert_eq!(gui.tabs.selected(), 3);
+        assert_eq!(gui.tabs.len(), 8);
+
+        // Tab with unsaved changes should not be closable.
+        VaultTab::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(true));
+
+        let _ = gui.close_tab(0).expect_err("Should fail");
+
+        VaultTab::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(false));
+
+        // Application can exit when no tab remains
+        assert!(!gui.can_exit);
+        for _ in 0..7 {
+            let _ = gui.close_tab(0);
+            assert!(!gui.can_exit);
+        }
+        assert_eq!(gui.tabs.len(), 1);
+        let _ = gui.close_tab(0);
+        assert!(gui.can_exit);
+    }
+
+    #[test]
+    fn update_vault_tab() {
+        let mut gui = default_pwduck_gui();
+
+        // WARNING: This is highly unsafe!
+        #[allow(deref_nullptr)]
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(VaultTab::update::<TestPlatform>.type_id(), 0);
+
+            VaultTab::update::<TestPlatform>.mock_raw(|_self, _m, _a, _s, _c| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&VaultTab::update::<TestPlatform>.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+
+            assert_eq!(
+                call_map.borrow()[&VaultTab::update::<TestPlatform>.type_id()],
+                0
+            );
+            let _ = gui.update_vault_tab(
+                0,
+                VaultTabMessage::Loader(crate::vault::loader::VaultLoaderMessage::Confirm),
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&VaultTab::update::<TestPlatform>.type_id()],
+                1
+            );
+        });
+    }
+
+    #[test]
+    fn open_settings() {
+        let mut gui = default_pwduck_gui();
+
+        assert_eq!(gui.tabs.len(), 1);
+
+        let _ = gui.open_settings();
+
+        assert_eq!(gui.tabs.len(), 2);
+
+        // TODO: check state of tab.
+    }
+
+    #[test]
+    fn new() {
+        let application_settings = ApplicationSettings::default();
+        let gui: PWDuckGui<TestPlatform> = PWDuckGui::new(application_settings).0;
+
+        if let crate::ModalState::None = gui.modal_state.inner() {
+        } else {
+            panic!("Modal state should be None");
+        }
+
+        assert_eq!(gui.tabs.len(), 1);
+
+        assert_eq!(gui.window_size.width, 0);
+        assert_eq!(gui.window_size.height, 0);
+
+        assert!(!gui.can_exit);
+    }
+
+    #[test]
+    fn update() {
+        use crate::{
+            pw_modal::{PasswordGeneratorMessage, PasswordGeneratorState},
+            vault::{
+                container::{ModifyEntryMessage, VaultContainerMessage},
+                loader::VaultLoaderMessage,
+            },
+        };
+
+        let mut gui = default_pwduck_gui();
+
+        // WARNING: This is highly unsafe!
+        #[allow(deref_nullptr)]
+        let mut clipboard: &mut iced::Clipboard = unsafe { &mut *(std::ptr::null_mut()) };
+
+        CALL_MAP.with(|call_map| unsafe {
+            call_map
+                .borrow_mut()
+                .insert(PasswordGeneratorState::show.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PWDuckGui::<TestPlatform>::close_error_dialog.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PasswordGeneratorState::cancel.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PasswordGeneratorState::submit.type_id(), 0);
+            call_map.borrow_mut().insert(
+                PWDuckGui::<TestPlatform>::update_password_generator.type_id(),
+                0,
+            );
+            call_map.borrow_mut().insert(
+                PWDuckGui::<TestPlatform>::catch_iced_event::<Message>.type_id(),
+                0,
+            );
+            call_map
+                .borrow_mut()
+                .insert(PWDuckGui::<TestPlatform>::update_vault_tab.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PWDuckGui::<TestPlatform>::select_tab.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PWDuckGui::<TestPlatform>::create_tab.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PWDuckGui::<TestPlatform>::close_tab.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(PWDuckGui::<TestPlatform>::open_settings.type_id(), 0);
+
+            PasswordGeneratorState::show.mock_raw(|_message, _modal_state| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordGeneratorState::show.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PWDuckGui::<TestPlatform>::close_error_dialog.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PWDuckGui::<TestPlatform>::close_error_dialog.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordGeneratorState::cancel.mock_raw(|_modal_state| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordGeneratorState::cancel.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PasswordGeneratorState::submit.mock_raw(|_self, _index| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PasswordGeneratorState::submit.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            PWDuckGui::<TestPlatform>::update_password_generator.mock_raw(|_self, _m, _c| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PWDuckGui::<TestPlatform>::update_password_generator.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            PWDuckGui::<TestPlatform>::catch_iced_event::<Message>.mock_raw(|_self, _event| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PWDuckGui::<TestPlatform>::catch_iced_event::<Message>.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            PWDuckGui::<TestPlatform>::update_vault_tab.mock_raw(|_self, _i, _m, _c| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PWDuckGui::<TestPlatform>::update_vault_tab.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            PWDuckGui::<TestPlatform>::select_tab.mock_raw(|_self, _index| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PWDuckGui::<TestPlatform>::select_tab.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PWDuckGui::<TestPlatform>::create_tab.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PWDuckGui::<TestPlatform>::create_tab.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            PWDuckGui::<TestPlatform>::close_tab.mock_raw(|_self, _index| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PWDuckGui::<TestPlatform>::close_tab.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Ok(Command::none()))
+            });
+            PWDuckGui::<TestPlatform>::open_settings.mock_raw(|_self| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&PWDuckGui::<TestPlatform>::open_settings.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+
+            // Show password generator
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::show.type_id()],
+                0
+            );
+            let _ = gui.update(
+                Message::VaultTab(
+                    0,
+                    VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(
+                        ModifyEntryMessage::PasswordGenerate,
+                    )),
+                ),
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::show.type_id()],
+                1
+            );
+
+            // Close error dialog
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::close_error_dialog.type_id()],
+                0
+            );
+            let _ = gui.update(Message::ErrorDialogClose, &mut clipboard);
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::close_error_dialog.type_id()],
+                1
+            );
+
+            // Cancel password generator
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::cancel.type_id()],
+                0
+            );
+            let _ = gui.update(
+                Message::PasswordGenerator(PasswordGeneratorMessage::Cancel),
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::cancel.type_id()],
+                1
+            );
+
+            // Submit password generator
+            if let ModalState::None = gui.modal_state.inner() {
+            } else {
+                panic!("Modal state should be None");
+            }
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::submit.type_id()],
+                0
+            );
+            let _ = gui.update(
+                Message::PasswordGenerator(PasswordGeneratorMessage::Submit),
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::submit.type_id()],
+                0
+            );
+
+            gui.modal_state = iced_aw::modal::State::new(ModalState::Password(Box::new(
+                PasswordGeneratorState::new(),
+            )));
+            if let ModalState::Password(..) = gui.modal_state.inner() {
+            } else {
+                panic!("Modal state should be a password generator");
+            }
+
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::submit.type_id()],
+                0
+            );
+            let _ = gui.update(
+                Message::PasswordGenerator(PasswordGeneratorMessage::Submit),
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&PasswordGeneratorState::submit.type_id()],
+                1
+            );
+            if let ModalState::None = gui.modal_state.inner() {
+            } else {
+                panic!("Modal state should be None");
+            }
+
+            // Update password generator
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::update_password_generator.type_id()],
+                0
+            );
+            let _ = gui.update(
+                Message::PasswordGenerator(PasswordGeneratorMessage::PasswordCopy),
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::update_password_generator.type_id()],
+                1
+            );
+
+            // TODO: Catch iced event
+
+            // Update vault tab
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::update_vault_tab.type_id()],
+                0
+            );
+            let _ = gui.update(
+                Message::VaultTab(0, VaultTabMessage::Loader(VaultLoaderMessage::Confirm)),
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::update_vault_tab.type_id()],
+                1
+            );
+
+            // Select tab
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::select_tab.type_id()],
+                0
+            );
+            let _ = gui.update(Message::TabSelected(2), &mut clipboard);
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::select_tab.type_id()],
+                1
+            );
+
+            // Create tab
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::create_tab.type_id()],
+                0
+            );
+            let _ = gui.update(Message::TabCreate, &mut clipboard);
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::create_tab.type_id()],
+                1
+            );
+
+            // Close tab
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::close_tab.type_id()],
+                0
+            );
+            let _ = gui.update(Message::TabClose(1), &mut clipboard);
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::close_tab.type_id()],
+                1
+            );
+
+            // Open settings
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::open_settings.type_id()],
+                0
+            );
+            let _ = gui.update(Message::OpenSettings, &mut clipboard);
+            assert_eq!(
+                call_map.borrow()[&PWDuckGui::<TestPlatform>::open_settings.type_id()],
+                1
+            );
+
+            // Focus
+            let _ = gui.update(
+                Message::Focus(iced_focus::Direction::Forwards),
+                &mut clipboard,
+            );
+
+            //assert!(call_map.borrow().values().all(|v| *v == 1))
+
+            // Check correct error handling.
+            PWDuckGui::<TestPlatform>::update_vault_tab.mock_raw(|_self, _i, _m, _c| {
+                MockResult::Return(Err(PWDuckGuiError::String("Error".into())))
+            });
+            if let ModalState::None = gui.modal_state.inner() {
+            } else {
+                panic!("Modal state should be None");
+            }
+
+            let _ = gui.update(
+                Message::VaultTab(0, VaultTabMessage::Loader(VaultLoaderMessage::Confirm)),
+                &mut clipboard,
+            );
+
+            if let ModalState::Error(..) = gui.modal_state.inner() {
+            } else {
+                panic!("Modal state should be an error message");
+            }
+        });
     }
 }

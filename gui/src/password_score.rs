@@ -259,3 +259,77 @@ impl std::fmt::Display for PasswordStrength {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::PasswordStrength;
+
+    #[test]
+    fn from_entropy() {
+        // Bad
+        if let PasswordStrength::Bad = PasswordStrength::from_entropy(0.0) {
+        } else {
+            panic!("Password strength should be bad");
+        }
+        if let PasswordStrength::Bad = PasswordStrength::from_entropy(42.0) {
+        } else {
+            panic!("Password strength should be bad");
+        }
+        if let PasswordStrength::Bad = PasswordStrength::from_entropy(50.0) {
+        } else {
+            panic!("Password strength should be bad");
+        }
+
+        // Weak
+        if let PasswordStrength::Weak = PasswordStrength::from_entropy(51.0) {
+        } else {
+            panic!("Password strength should be weak");
+        }
+        if let PasswordStrength::Weak = PasswordStrength::from_entropy(84.0) {
+        } else {
+            panic!("Password strength should be weak");
+        }
+        if let PasswordStrength::Weak = PasswordStrength::from_entropy(100.0) {
+        } else {
+            panic!("Password strength should be weak");
+        }
+
+        // Good
+        if let PasswordStrength::Good = PasswordStrength::from_entropy(101.0) {
+        } else {
+            panic!("Password strength should be good");
+        }
+        if let PasswordStrength::Good = PasswordStrength::from_entropy(142.0) {
+        } else {
+            panic!("Password strength should be good");
+        }
+        if let PasswordStrength::Good = PasswordStrength::from_entropy(200.0) {
+        } else {
+            panic!("Password strength should be good");
+        }
+
+        // Strong
+        if let PasswordStrength::Strong = PasswordStrength::from_entropy(201.0) {
+        } else {
+            panic!("Password strength should be strong");
+        }
+        if let PasswordStrength::Strong = PasswordStrength::from_entropy(242.0) {
+        } else {
+            panic!("Password strength should be strong");
+        }
+        if let PasswordStrength::Strong = PasswordStrength::from_entropy(300.0) {
+        } else {
+            panic!("Password strength should be strong");
+        }
+
+        // Awesome
+        if let PasswordStrength::Awesome = PasswordStrength::from_entropy(301.0) {
+        } else {
+            panic!("Password strength should be awesome");
+        }
+        if let PasswordStrength::Awesome = PasswordStrength::from_entropy(1000.0) {
+        } else {
+            panic!("Password strength should be awesome");
+        }
+    }
+}

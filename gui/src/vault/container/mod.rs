@@ -1154,9 +1154,20 @@ mod tests {
 
     #[test]
     fn select_entry() {
+        // From cache
+        select_entry_parameterized(false);
+        // From disk
+        select_entry_parameterized(true);
+    }
+
+    fn select_entry_parameterized(from_disk: bool) {
         let mem_key = MemKey::with_length(1);
-        let (_dir, vault) = default_vault(&mem_key);
+        let (_dir, mut vault) = default_vault(&mem_key);
         let root = vault.get_root_uuid().unwrap();
+
+        if from_disk {
+            vault.save(&mem_key).unwrap();
+        }
 
         let mut vault_container = VaultContainer::new(Box::new(vault));
 

@@ -10,7 +10,10 @@ pub struct PassphraseTabState {}
 
 /// TODO
 #[derive(Clone, Debug)]
-pub enum PassphraseTabMessage {}
+pub enum PassphraseTabMessage {
+    /// TODO
+    Todo,
+}
 
 impl PassphraseTabState {
     /// TODO

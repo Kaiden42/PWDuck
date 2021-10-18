@@ -1879,4 +1879,13 @@ mod tests {
             panic!("State should be a delete request");
         }
     }
+
+    #[test]
+    fn default_modify_entry_modal() {
+        let modal = ModifyEntryModal::default();
+        if let ModifyEntryModal::None = modal {
+        } else {
+            panic!("ModifyEntryModal should be None");
+        }
+    }
 }

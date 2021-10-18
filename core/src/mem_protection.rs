@@ -268,6 +268,14 @@ mod tests {
     }
 
     #[test]
+    fn default_key() {
+        let default_key = MemKey::default();
+
+        let guard = default_key.read();
+        assert_eq!(guard.len(), MIB_1);
+    }
+
+    #[test]
     fn new_secvec() {
         SecVec::<u8>::with_capacity.mock_safe(|cap| {
             assert_eq!(cap, 0);
@@ -285,6 +293,15 @@ mod tests {
         assert_eq!(sec_vec.len(), 0);
         assert_eq!(sec_vec.capacity(), 42);
         assert!(sec_vec.is_empty());
+    }
+
+    #[test]
+    fn default_secvec() {
+        let default_sec_vec: SecVec<u8> = SecVec::default();
+
+        assert_eq!(default_sec_vec.len(), 0);
+        assert_eq!(default_sec_vec.capacity(), 0);
+        assert!(default_sec_vec.is_empty());
     }
 
     #[test]

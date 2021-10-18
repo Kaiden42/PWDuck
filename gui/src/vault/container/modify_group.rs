@@ -1080,4 +1080,13 @@ mod tests {
             panic!("State should be a delete request");
         }
     }
+
+    #[test]
+    fn default_modify_group_modal() {
+        let modal = ModifyGroupModal::default();
+        if let ModifyGroupModal::None = modal {
+        } else {
+            panic!("ModifyGroupModal should be None");
+        }
+    }
 }
