@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use iced::{button, text_input, Column, Command, Container, Length, Row, Space, Text};
+use iced::{button, text_input, Column, Command, Container, Element, Length, Row, Space, Text};
 use iced_focus::Focus;
 use pwduck_core::{PWDuckCoreError, SecString, Vault};
 use zeroize::Zeroize;
@@ -24,6 +24,10 @@ use mocktopus::macros::*;
 pub struct VaultUnlocker {
     /// The location of the vault to unlock.
     path: PathBuf,
+
+    /// The path of the optional key file.
+    key_file: Option<PathBuf>,
+
     /// The password to unlock the vault.
     password: SecString,
     /// The state of the [`TextInput`](iced::TextInput) for the password.
@@ -33,6 +37,7 @@ pub struct VaultUnlocker {
     password_show: bool,
     /// The state of the [`Button`](iced::Button) to toggle the visibility.
     password_show_state: button::State,
+
     /// The state of the close [`Button`](iced::Button).
     close_state: button::State,
     /// The state of the submit [`Button`](iced::Button).
@@ -64,9 +69,10 @@ impl VaultUnlocker {
                 let password = self.password.clone();
                 self.password.zeroize();
                 let path = self.path.clone();
+                let key_file = self.key_file.clone();
                 async move {
                     let mem_key = crate::MEM_KEY.lock()?;
-                    let vault = pwduck_core::Vault::load(&password, &mem_key, path);
+                    let vault = pwduck_core::Vault::load(&password, key_file, &mem_key, path);
 
                     vault.map(Box::new)
                 }
@@ -92,15 +98,28 @@ pub enum VaultUnlockerMessage {
 }
 impl SomeIf for VaultUnlockerMessage {}
 
+/// The type of the constructor param of a [`VaultUnlocker`]
+/// This is necessary 'cause Mocktopus can't mock tuple types.
+#[derive(Debug)]
+pub struct ConstructorParam {
+    /// The path of the vault to load.
+    pub path: PathBuf,
+    /// The optional key file to unlock the vault.
+    pub key_file: Option<PathBuf>,
+}
+
 #[cfg_attr(test, mockable)]
 impl Component for VaultUnlocker {
     type Message = VaultUnlockerMessage;
-    type ConstructorParam = PathBuf;
+    //type ConstructorParam = (PathBuf, Option<PathBuf>);
+    type ConstructorParam = ConstructorParam;
 
-    fn new(path: Self::ConstructorParam) -> Self {
-        //Self { ..Self::default() }
+    fn new(param: Self::ConstructorParam) -> Self {
+        let ConstructorParam { path, key_file } = param;
+
         Self {
             path,
+            key_file,
             password_state: text_input::State::focused(),
             ..Self::default()
         }
@@ -147,6 +166,18 @@ impl Component for VaultUnlocker {
             .unwrap_or("Name of Vault");
 
         let path = Text::new(self.path.to_str().unwrap_or("Invalid path"));
+
+        let key_file: Element<_> = self.key_file.as_ref().map_or_else(
+            || Space::new(Length::Shrink, Length::Shrink).into(),
+            |key_file| {
+                Text::new(format!(
+                    "Key file: {}",
+                    key_file.as_os_str().to_str().unwrap_or("Invalid path")
+                ))
+                .size(12)
+                .into()
+            },
+        );
 
         let mut password = default_text_input(
             &mut self.password_state,
@@ -207,6 +238,7 @@ impl Component for VaultUnlocker {
                         .push(password)
                         .push(password_show),
                 )
+                .push(key_file)
                 .push(Space::with_height(Length::Units(DEFAULT_SPACE_HEIGHT)))
                 .push(
                     Row::new()
@@ -248,7 +280,10 @@ mod tests {
 
     #[test]
     fn update_password() {
-        let mut vault_unlocker = VaultUnlocker::new(".".into());
+        let mut vault_unlocker = VaultUnlocker::new(crate::vault::unlock::ConstructorParam {
+            path: ".".into(),
+            key_file: None,
+        });
         assert!(vault_unlocker.password.is_empty());
 
         let _cmd = vault_unlocker.update_password("password".into());
@@ -259,7 +294,10 @@ mod tests {
 
     #[test]
     fn toggle_password_visibility() {
-        let mut vault_unlocker = VaultUnlocker::new(".".into());
+        let mut vault_unlocker = VaultUnlocker::new(crate::vault::unlock::ConstructorParam {
+            path: ".".into(),
+            key_file: None,
+        });
         assert!(!vault_unlocker.password_show);
 
         let _cmd = vault_unlocker.toggle_password_visibility();
@@ -273,7 +311,10 @@ mod tests {
 
     #[test]
     fn submit() {
-        let mut vault_unlocker = VaultUnlocker::new(".".into());
+        let mut vault_unlocker = VaultUnlocker::new(crate::vault::unlock::ConstructorParam {
+            path: ".".into(),
+            key_file: None,
+        });
         assert!(vault_unlocker.password.is_empty());
 
         let cmd = vault_unlocker.submit();
@@ -287,7 +328,10 @@ mod tests {
 
     #[test]
     fn new() {
-        let vault_unlocker = VaultUnlocker::new("this/is/a/path".into());
+        let vault_unlocker = VaultUnlocker::new(crate::vault::unlock::ConstructorParam {
+            path: "this/is/a/path".into(),
+            key_file: None,
+        });
 
         assert_eq!(
             &vault_unlocker.path,
@@ -300,13 +344,19 @@ mod tests {
 
     #[test]
     fn title() {
-        let vault_unlocker = VaultUnlocker::new("this/is/a/path".into());
+        let vault_unlocker = VaultUnlocker::new(crate::vault::unlock::ConstructorParam {
+            path: "this/is/a/path".into(),
+            key_file: None,
+        });
         assert_eq!(vault_unlocker.title().as_str(), "Unlock vault: path");
     }
 
     #[test]
     fn update() {
-        let mut vault_unlocker = VaultUnlocker::new(".".into());
+        let mut vault_unlocker = VaultUnlocker::new(crate::vault::unlock::ConstructorParam {
+            path: ".".into(),
+            key_file: None,
+        });
         let mut application_settings = pwduck_core::ApplicationSettings::default();
         let mut modal_state = iced_aw::modal::State::new(crate::ModalState::default());
         // WARNING: This is highly unsafe!

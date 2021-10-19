@@ -671,7 +671,8 @@ mod tests {
     fn default_vault(mem_key: &MemKey) -> (TempDir, Vault) {
         let dir = tempdir().unwrap();
         let path = dir.path().join("TempVault");
-        let mut vault = pwduck_core::Vault::generate(PASSWORD, mem_key, &path).unwrap();
+        let mut vault =
+            pwduck_core::Vault::generate(PASSWORD, Option::<String>::None, mem_key, &path).unwrap();
         let master_key = vault
             .masterkey()
             .as_unprotected(mem_key, vault.salt(), vault.nonce())

@@ -89,18 +89,24 @@ impl Component for Settings {
             .spacing(DEFAULT_COLUMN_SPACING)
             .padding(DEFAULT_COLUMN_PADDING)
             .push(Text::new("Theme:").size(DEFAULT_HEADER_SIZE))
-            .push(Radio::new(
-                pwduck_core::theme::Theme::Light,
-                "Light",
-                Some(*application_settings.theme()),
-                SettingsMessage::ThemeChanged,
-            ))
-            .push(Radio::new(
-                pwduck_core::theme::Theme::Dark,
-                "Dark",
-                Some(*application_settings.theme()),
-                SettingsMessage::ThemeChanged,
-            ));
+            .push(
+                Radio::new(
+                    pwduck_core::theme::Theme::Light,
+                    "Light",
+                    Some(*application_settings.theme()),
+                    SettingsMessage::ThemeChanged,
+                )
+                .style(theme.radio()),
+            )
+            .push(
+                Radio::new(
+                    pwduck_core::theme::Theme::Dark,
+                    "Dark",
+                    Some(*application_settings.theme()),
+                    SettingsMessage::ThemeChanged,
+                )
+                .style(theme.radio()),
+            );
 
         centered_container_with_column(vec![theme_column.into()], theme).into()
     }

@@ -37,6 +37,10 @@ pub struct Vault {
     #[getset(get = "pub")]
     path: PathBuf,
 
+    /// The [`PathBuf`](PathBuf) of the location of the optional key file.
+    #[getset(get = "pub")]
+    key_file: Option<PathBuf>,
+
     /// The [`Group`](Group)s of this [`Vault`](Vault).
     #[getset(get = "pub", get_mut = "pub")]
     groups: HashMap<Uuid, Group>,
@@ -62,16 +66,24 @@ impl Vault {
     ///
     /// It expects:
     ///     - The password to encrypt the masterkey of the new [`Vault`](Vault)
+    ///     - The location of the optional key file.
     ///     - The memory key to protect the new generated masterkey of the new [`Vault`](Vault)
     ///     - The path as the location of the new [`Vault`](Vault)
-    pub fn generate<P>(password: &str, mem_key: &MemKey, path: P) -> Result<Self, PWDuckCoreError>
+    pub fn generate<P1, P2>(
+        password: &str,
+        key_file: Option<P1>,
+        mem_key: &MemKey,
+        path: P2,
+    ) -> Result<Self, PWDuckCoreError>
     where
-        P: Into<PathBuf>,
+        P1: Into<PathBuf>,
+        P2: Into<PathBuf>,
     {
         let path = path.into();
+        let key_file = key_file.map(std::convert::Into::into);
         create_new_vault_dir(&path)?;
 
-        let masterkey_dto = generate_masterkey(password)?;
+        let masterkey_dto = generate_masterkey(password, key_file.as_ref().map(|p| p.as_ref()))?;
 
         let salt = generate_argon2_salt();
         let nonce = generate_chacha20_nonce();
@@ -79,6 +91,7 @@ impl Vault {
         let masterkey = decrypt_masterkey(
             &masterkey_dto,
             password,
+            key_file.as_ref().map(|p| p.as_ref()),
             &derive_key_protection(mem_key, &salt)?,
             &nonce,
         )?;
@@ -88,6 +101,7 @@ impl Vault {
             salt,
             nonce,
             path,
+            key_file,
             groups: HashMap::new(),
             children: HashMap::new(),
             entries: HashMap::new(),
@@ -170,11 +184,18 @@ impl Vault {
     ///     - The password to decrypt the masterkey of the [`Vault`](Vault)
     ///     - The [`MemKey`] to re-encrypt the decrypted masterkey in memory
     ///     - The path as the location of the vault
-    pub fn load<P>(password: &str, mem_key: &MemKey, path: P) -> Result<Self, PWDuckCoreError>
+    pub fn load<P1, P2>(
+        password: &str,
+        key_file: Option<P1>,
+        mem_key: &MemKey,
+        path: P2,
+    ) -> Result<Self, PWDuckCoreError>
     where
-        P: Into<PathBuf>,
+        P1: Into<PathBuf>,
+        P2: Into<PathBuf>,
     {
         let path = path.into();
+        let key_file = key_file.map(std::convert::Into::into);
         let salt = generate_argon2_salt();
         let nonce = generate_chacha20_nonce();
 
@@ -182,6 +203,7 @@ impl Vault {
         let masterkey = MasterKey::load(
             &path,
             password,
+            key_file.as_ref().map(|p| p.as_ref()),
             &derive_key_protection(mem_key, &salt)?,
             &nonce,
         )?;
@@ -223,6 +245,7 @@ impl Vault {
             salt,
             nonce,
             path,
+            key_file,
             groups,
             children,
             entries,
@@ -467,7 +490,7 @@ mod tests {
 
     fn default_vault(path: &Path, mem_key: &MemKey) -> Vault {
         let path = path.join(VAULT_NAME);
-        Vault::generate(PASSWORD, &mem_key, path).unwrap()
+        Vault::generate(PASSWORD, Option::<String>::None, &mem_key, path).unwrap()
     }
 
     #[test]
@@ -481,7 +504,7 @@ mod tests {
         });
         let mem_key = default_mem_key();
 
-        let vault = Vault::generate(PASSWORD, &mem_key, &path)
+        let vault = Vault::generate(PASSWORD, Option::<String>::None, &mem_key, &path)
             .expect("Creating new vault should not fail.");
 
         assert!(path.exists());
@@ -555,8 +578,13 @@ mod tests {
         entries.sort_by(|(a, _), (b, _)| a.title().cmp(b.title()));
 
         // Check if the loaded vault contains all saved items.
-        let loaded_vault =
-            Vault::load(PASSWORD, &mem_key, &path.join(VAULT_NAME)).expect("Should not fail");
+        let loaded_vault = Vault::load(
+            PASSWORD,
+            Option::<String>::None,
+            &mem_key,
+            &path.join(VAULT_NAME),
+        )
+        .expect("Should not fail");
 
         let item_list_for_root = loaded_vault.get_item_list_for(&root, None);
         assert_eq!(item_list_for_root.groups.len(), groups.len());
@@ -592,8 +620,13 @@ mod tests {
             });
         vault.save(&mem_key).expect("Should not fail");
 
-        let loaded_vault =
-            Vault::load(PASSWORD, &mem_key, &path.join(VAULT_NAME)).expect("Should not fail");
+        let loaded_vault = Vault::load(
+            PASSWORD,
+            Option::<String>::None,
+            &mem_key,
+            &path.join(VAULT_NAME),
+        )
+        .expect("Should not fail");
 
         let item_list_for_root = loaded_vault.get_item_list_for(&root, None);
         assert_eq!(

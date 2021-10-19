@@ -20,7 +20,7 @@ pub fn save_masterkey(path: &Path, masterkey: MasterKey) -> Result<(), PWDuckCor
 /// Load the [`MasterKey`](MasterKey) from disk.
 ///
 /// It expects:
-///     - The [`Path`](Path) as the location of the _`Vault`](Vault)
+///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
 pub fn load_masterkey(path: &Path) -> Result<MasterKey, PWDuckCoreError> {
     let content = fs::read_to_string(path.join(MASTERKEY_NAME))?;
     Ok(ron::from_str(&content)?)

@@ -69,7 +69,7 @@ impl Platform for Desktop {
     }
 
     async fn nfd_choose_folder() -> Result<PathBuf, pwduck_gui::error::NfdError> {
-        let file = AsyncFileDialog::new()
+        let folder = AsyncFileDialog::new()
             .set_directory(
                 dirs::document_dir()
                     .unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| "".into())),
@@ -78,7 +78,27 @@ impl Platform for Desktop {
             .await
             .ok_or(NfdError::Null)?;
 
-        Ok(file.path().into())
+        Ok(folder.path().into())
+    }
+
+    async fn nfd_choose_key_file(
+        file_name: Option<String>,
+    ) -> Result<PathBuf, pwduck_gui::error::NfdError> {
+        let key_file = AsyncFileDialog::new()
+            .set_directory(
+                dirs::document_dir()
+                    .unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| "".into())),
+            )
+            .add_filter("PWDuck key file", &["pwdk"]);
+
+        let key_file = if let Some(file_name) = file_name {
+            key_file.set_file_name(&file_name).save_file().await
+        } else {
+            key_file.pick_file().await
+        }
+        .ok_or(NfdError::Null)?;
+
+        Ok(key_file.path().into())
     }
 
     fn is_open_in_browser_available() -> bool {

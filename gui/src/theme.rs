@@ -1,6 +1,6 @@
 //! TODO
 
-use iced::{button, container, slider, text_input, Background, Color, Vector};
+use iced::{button, checkbox, container, radio, slider, text_input, Background, Color, Vector};
 use iced_aw::{card, modal, number_input, split, tab_bar};
 
 // TODO: replace this with constant functions once floating-point arithmetic is const
@@ -79,6 +79,11 @@ pub trait Theme: std::fmt::Debug {
     fn text_input(&self) -> Box<dyn text_input::StyleSheet>;
     /// The style sheet if the password mismatch.
     fn password_missmatch(&self) -> Box<dyn text_input::StyleSheet>;
+
+    /// The style sheet of a [`CheckBox`](iced::CheckBox).
+    fn checkbox(&self) -> Box<dyn checkbox::StyleSheet>;
+    /// The style sheet of a [`Radio`](iced::Radio).
+    fn radio(&self) -> Box<dyn radio::StyleSheet>;
 
     /// The style sheet of a [`Container`](iced::Container).
     fn container(&self) -> Box<dyn container::StyleSheet>;
@@ -209,6 +214,53 @@ impl Theme for Light {
                 Color {
                     a: 0.87,
                     ..*WARNING_2
+                }
+            }
+        }
+        Style.into()
+    }
+
+    #[allow(clippy::missing_docs_in_private_items)]
+    fn checkbox(&self) -> Box<dyn checkbox::StyleSheet> {
+        struct Style;
+        impl checkbox::StyleSheet for Style {
+            fn active(&self, _is_checked: bool) -> checkbox::Style {
+                checkbox::Style {
+                    background: Background::Color(*BACKGROUND_LIGHT),
+                    checkmark_color: *TEXT_LIGHT,
+                    border_radius: 5.0,
+                    border_width: 1.0,
+                    border_color: *SECONDARY_1,
+                }
+            }
+
+            fn hovered(&self, is_checked: bool) -> checkbox::Style {
+                checkbox::Style {
+                    background: Background::Color(shade(*BACKGROUND_LIGHT, 0.9)),
+                    ..self.active(is_checked)
+                }
+            }
+        }
+        Style.into()
+    }
+
+    #[allow(clippy::missing_docs_in_private_items)]
+    fn radio(&self) -> Box<dyn radio::StyleSheet> {
+        struct Style;
+        impl radio::StyleSheet for Style {
+            fn active(&self) -> radio::Style {
+                radio::Style {
+                    background: Background::Color(*BACKGROUND_LIGHT),
+                    dot_color: *TEXT_LIGHT,
+                    border_width: 1.0,
+                    border_color: *SECONDARY_1,
+                }
+            }
+
+            fn hovered(&self) -> radio::Style {
+                radio::Style {
+                    background: Background::Color(shade(*BACKGROUND_LIGHT, 0.9)),
+                    ..self.active()
                 }
             }
         }
@@ -767,6 +819,53 @@ impl Theme for Dark {
                 Color {
                     a: 0.87,
                     ..*WARNING_5
+                }
+            }
+        }
+        Style.into()
+    }
+
+    #[allow(clippy::missing_docs_in_private_items)]
+    fn checkbox(&self) -> Box<dyn checkbox::StyleSheet> {
+        struct Style;
+        impl checkbox::StyleSheet for Style {
+            fn active(&self, _is_checked: bool) -> checkbox::Style {
+                checkbox::Style {
+                    background: Background::Color(*BACKGROUND_DARK),
+                    checkmark_color: *TEXT_DARK,
+                    border_radius: 5.0,
+                    border_width: 1.0,
+                    border_color: *SECONDARY_6,
+                }
+            }
+
+            fn hovered(&self, is_checked: bool) -> checkbox::Style {
+                checkbox::Style {
+                    background: Background::Color(tint(*BACKGROUND_DARK, 0.1)),
+                    ..self.active(is_checked)
+                }
+            }
+        }
+        Style.into()
+    }
+
+    #[allow(clippy::missing_docs_in_private_items)]
+    fn radio(&self) -> Box<dyn radio::StyleSheet> {
+        struct Style;
+        impl radio::StyleSheet for Style {
+            fn active(&self) -> radio::Style {
+                radio::Style {
+                    background: Background::Color(*BACKGROUND_DARK),
+                    dot_color: *TEXT_DARK,
+                    border_width: 1.0,
+                    border_color: *SECONDARY_6,
+                }
+            }
+
+            fn hovered(&self) -> radio::Style {
+                radio::Style {
+                    background: Background::Color(tint(*BACKGROUND_DARK, 0.1)),
+                    ..self.active()
                 }
             }
         }

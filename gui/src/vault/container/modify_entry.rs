@@ -1178,7 +1178,9 @@ mod tests {
         let password = "this_is_a_password";
         let mem_key = pwduck_core::MemKey::with_length(1);
 
-        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let mut vault =
+            pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+                .unwrap();
         let root = vault.get_root_uuid().unwrap();
 
         let mutex_mem_key = Mutex::new(mem_key);
@@ -1330,7 +1332,9 @@ mod tests {
         let password = "this_is_a_password";
         let mem_key = pwduck_core::MemKey::with_length(1);
 
-        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let mut vault =
+            pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+                .unwrap();
         let root = vault.get_root_uuid().unwrap();
 
         let mutex_mem_key = Mutex::new(mem_key);
@@ -1371,7 +1375,9 @@ mod tests {
         let password = "this_is_a_password";
         let mem_key = pwduck_core::MemKey::with_length(1);
 
-        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let mut vault =
+            pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+                .unwrap();
 
         CALL_MAP.with(|call_map| unsafe {
             call_map
@@ -1446,7 +1452,9 @@ mod tests {
         let password = "this_is_a_password";
         let mem_key = pwduck_core::MemKey::with_length(1);
 
-        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let mut vault =
+            pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+                .unwrap();
 
         // WARNING: This is highly unsafe!
         #[allow(deref_nullptr)]

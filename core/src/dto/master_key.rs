@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 /// The encrypted masterkey as a data-transfer-object (dto).
 #[derive(Clone, Debug, Deserialize, Serialize, Getters)]
 pub struct MasterKey {
-    /// The salt used to derive the encryption key from the user's password.
+    /// The salt used to derive the encryption key from the user's password
+    /// or from the keyfile.
     #[getset(get = "pub")]
     salt: String,
 

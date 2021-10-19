@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use iced::{button, text_input, Command, Container, Element, Row, Text};
+use iced::{button, text_input, Checkbox, Column, Command, Container, Element, Row, Text};
 use iced_focus::Focus;
 use pwduck_core::{PWDuckCoreError, PasswordInfo, SecString};
 use zeroize::Zeroize;
@@ -16,11 +16,14 @@ use crate::{
         centered_container_with_column, default_text_input, default_vertical_space,
         estimate_password_strength, icon_button, password_toggle, ButtonData, ButtonKind, SomeIf,
     },
-    Component, Platform, Viewport, DEFAULT_HEADER_SIZE, DEFAULT_ROW_SPACING,
+    Component, Platform, Viewport, DEFAULT_COLUMN_SPACING, DEFAULT_HEADER_SIZE,
+    DEFAULT_ROW_SPACING,
 };
 
 #[cfg(test)]
 use mocktopus::macros::*;
+
+use bitflags::bitflags;
 
 /// The state of the vault creator.
 #[derive(Debug, Default, Focus)]
@@ -30,6 +33,7 @@ pub struct VaultCreator {
     /// The state of the [`TextInput`](iced::TextInput) for the name.
     #[focus(enable)]
     name_state: text_input::State,
+
     /// The location of the new vault.
     path: String,
     /// The state of the [`TextInput`](iced::TextInput) for the location.
@@ -37,32 +41,40 @@ pub struct VaultCreator {
     path_state: text_input::State,
     /// The state of the [`Button`](iced::Button) to open the native file dialog.
     path_open_fd_state: button::State,
+
     /// The password of the new vault.
     password: SecString,
     /// The state of the [`TextInput`](iced::TextInput) for the password.
     #[focus(enable)]
     password_state: text_input::State,
-    /// The visibility of the password.
-    password_show: bool,
     /// The state of the [`Button`](iced::Button) to toggle the visibility of the password.
     password_show_state: button::State,
+
     /// The confirmation of the password.
     password_confirm: SecString,
     /// The state of the [`TextInput`](iced::TextInput) for the password confirmation.
     #[focus(enable)]
     password_confirm_state: text_input::State,
-    /// The visibility of the password confirmation.
-    password_confirm_show: bool,
     /// The state of the [`Button`](iced::Button) to toggle the visibility of the password confirmation.
     password_confirm_show_state: button::State,
-    /// If the password equals the password confirmation.
-    password_equal: bool,
+
     /// The estimated score of the password.
     password_score: Option<PasswordScore>,
+
+    /// The path of the key file.
+    key_file: String,
+    /// The state of the [`TextInput`](iced::TextInput) of the key file path.
+    key_file_state: text_input::State,
+    /// The state of the [`Button`](iced::Button) to open the native file dialog of the key file.
+    key_file_open_fd_state: button::State,
+
     /// The state of the cancel [`Button`](iced::Button).
     cancel_state: button::State,
     /// The state of the submit [`Button`](iced::Button).
     submit_state: button::State,
+
+    /// The boolean flags of this view.
+    flags: Flags,
 }
 
 #[cfg_attr(test, mockable)]
@@ -88,7 +100,7 @@ impl VaultCreator {
 
     /// Toggle the visibility of the password.
     fn toggle_password_visibility(&mut self) -> Command<VaultCreatorMessage> {
-        self.password_show = !self.password_show;
+        self.flags.toggle(Flags::SHOW_PASSWORD);
         Command::none()
     }
 
@@ -101,13 +113,16 @@ impl VaultCreator {
 
     /// Toggle the visibility of the password confirmation.
     fn toggle_password_confirm_visibility(&mut self) -> Command<VaultCreatorMessage> {
-        self.password_confirm_show = !self.password_confirm_show;
+        self.flags.toggle(Flags::SHOW_CONFIRM_PASSWORD);
         Command::none()
     }
 
     /// Check if the password equals the password confirmation.
     fn check_password_equality(&mut self) {
-        self.password_equal = !self.password.is_empty() && self.password == self.password_confirm;
+        self.flags.set(
+            Flags::PASSWORD_EQUAL,
+            !self.password.is_empty() && self.password == self.password_confirm,
+        );
     }
 
     /// Estimate the strength of the password.
@@ -127,13 +142,28 @@ impl VaultCreator {
         Command::none()
     }
 
+    /// Update the key file and replace it with the given value.
+    fn update_key_file(&mut self, key_file: String) -> Command<VaultCreatorMessage> {
+        self.key_file = key_file;
+        Command::none()
+    }
+
+    /// Toggle the usage of the key file.
+    fn toggle_use_key_file(&mut self, usage: bool) -> Command<VaultCreatorMessage> {
+        self.flags.set(Flags::USE_KEY_FILE, usage);
+        if usage {
+            self.key_file_state.focus();
+        }
+        Command::none()
+    }
+
     /// Submit the creation of the new vault.
     fn submit(&mut self) -> Command<VaultCreatorMessage> {
         if self.name.is_empty()
             || self.path.is_empty()
             || self.password.is_empty()
             || self.password_confirm.is_empty()
-            || !self.password_equal
+            || !self.flags.contains(Flags::PASSWORD_EQUAL)
         {
             return Command::none();
         }
@@ -144,26 +174,44 @@ impl VaultCreator {
                 self.password.zeroize();
                 self.password_confirm.zeroize();
 
-                //let path = self.path.clone();
                 let path: PathBuf = self.path.clone().into();
                 let path = path.join(self.name.clone());
+
+                let key_file = if self.flags.contains(Flags::USE_KEY_FILE) {
+                    Some(self.key_file.clone())
+                } else {
+                    None
+                };
                 async move {
-                    //let mem_key = crate::MEM_KEY.lock().await;
                     let mem_key = crate::MEM_KEY.lock().unwrap();
-                    let mut vault = pwduck_core::Vault::generate(&password, &mem_key, path)?;
+                    let mut vault =
+                        pwduck_core::Vault::generate(&password, key_file, &mem_key, path)?;
 
                     vault.save(&mem_key)?;
 
-                    Ok(vault.path().clone())
+                    Ok((vault.path().clone(), vault.key_file().clone()))
                 }
             },
             VaultCreatorMessage::VaultCreated,
         )
     }
 
-    /// Open the native file dialog of the [`Platform`](Platform).
-    fn open_file_dialog<P: Platform + 'static>() -> Command<VaultCreatorMessage> {
+    /// Open the native file dialog of the [`Platform`](Platform) to choose the path of the vault.
+    fn open_file_dialog_path<P: Platform + 'static>() -> Command<VaultCreatorMessage> {
         Command::perform(P::nfd_choose_folder(), VaultCreatorMessage::PathSelected)
+    }
+
+    /// Open the native file dialog of the [`Platform`](Platform) to choose the path of the key file.
+    fn open_file_dialog_key_file<P: Platform + 'static>(&self) -> Command<VaultCreatorMessage> {
+        let file_name: String = if self.name.is_empty() {
+            "key_file.pwdk".into()
+        } else {
+            format!("{}.pwdk", self.name)
+        };
+        Command::perform(
+            P::nfd_choose_key_file(Some(file_name)),
+            VaultCreatorMessage::KeyFileSelected,
+        )
     }
 }
 
@@ -172,28 +220,43 @@ impl VaultCreator {
 pub enum VaultCreatorMessage {
     /// Change the name to the new value.
     NameInput(String),
+
     /// Change the path to the new value.
     PathInput(String),
     /// Open the native file dialog.
     PathOpenFD,
+    /// The path was selected by the native file dialog.
+    PathSelected(Result<PathBuf, NfdError>),
+
     /// Change the password to the new value.
     PasswordInput(String),
     /// Toggle the visibility of the password.
     PasswordShow,
-    /// The path was selected by the native file dialog.
-    PathSelected(Result<PathBuf, NfdError>),
+
     /// Change the password confirmation to the new value.
     PasswordConfirmInput(String),
     /// Toggle the visibility of the password.
     PasswordConfirmShow,
+
     /// Set the password score to the new estimated value.
     PasswordScore(Result<PasswordInfo, PWDuckCoreError>),
+
+    /// Change the key file to the new value.
+    KeyFileInput(String),
+    /// Toggle the usage of a key file.
+    ToggleUseKeyFile(bool),
+    /// Open the native file dialog.
+    KeyFileOpenFD,
+    /// The path to the key file was selected by the native file dialog.
+    KeyFileSelected(Result<PathBuf, NfdError>),
+
     /// Cancel the creation of the new vault.
     Cancel,
     /// Submit the creation of the new vault.
     Submit,
     /// The vault was successfully created.
-    VaultCreated(Result<PathBuf, pwduck_core::PWDuckCoreError>),
+    /// It contains the path and the optional key file path of the vault.
+    VaultCreated(Result<(PathBuf, Option<PathBuf>), pwduck_core::PWDuckCoreError>),
 }
 impl SomeIf for VaultCreatorMessage {}
 
@@ -226,7 +289,7 @@ impl Component for VaultCreator {
 
             VaultCreatorMessage::PathInput(input) => self.update_path(input),
 
-            VaultCreatorMessage::PathOpenFD => Self::open_file_dialog::<P>(),
+            VaultCreatorMessage::PathOpenFD => Self::open_file_dialog_path::<P>(),
 
             VaultCreatorMessage::PathSelected(Ok(path)) => {
                 let cmd = self.update_path(path.to_str().ok_or(PWDuckGuiError::Option)?.to_owned());
@@ -244,6 +307,20 @@ impl Component for VaultCreator {
             VaultCreatorMessage::PasswordConfirmInput(input) => self.update_password_confirm(input),
 
             VaultCreatorMessage::PasswordConfirmShow => self.toggle_password_confirm_visibility(),
+
+            VaultCreatorMessage::KeyFileInput(input) => self.update_key_file(input),
+
+            VaultCreatorMessage::ToggleUseKeyFile(b) => self.toggle_use_key_file(b),
+
+            VaultCreatorMessage::KeyFileOpenFD => self.open_file_dialog_key_file::<P>(),
+
+            VaultCreatorMessage::KeyFileSelected(Ok(path)) => {
+                let cmd =
+                    self.update_key_file(path.to_str().ok_or(PWDuckGuiError::Option)?.to_owned());
+                cmd
+            }
+
+            VaultCreatorMessage::KeyFileSelected(Err(_err)) => Command::none(),
 
             VaultCreatorMessage::Submit => self.submit(),
 
@@ -284,7 +361,7 @@ impl Component for VaultCreator {
         let password_row = password_row(
             &mut self.password_state,
             &self.password,
-            self.password_show,
+            self.flags.contains(Flags::SHOW_PASSWORD),
             &mut self.password_show_state,
             theme,
         );
@@ -292,10 +369,10 @@ impl Component for VaultCreator {
         let password_confirm_row = password_confirm_row(
             &mut self.password_confirm_state,
             &self.password_confirm,
-            self.password_confirm_show,
+            self.flags.contains(Flags::SHOW_CONFIRM_PASSWORD),
             &mut self.password_confirm_show_state,
             self.password.is_empty(),
-            self.password_equal,
+            self.flags.contains(Flags::PASSWORD_EQUAL),
             theme,
         );
 
@@ -304,10 +381,18 @@ impl Component for VaultCreator {
             PasswordScore::view,
         );
 
+        let key_file_row = key_file_row::<P>(
+            &mut self.key_file_state,
+            &self.key_file,
+            &mut self.key_file_open_fd_state,
+            self.flags.contains(Flags::USE_KEY_FILE),
+            theme,
+        );
+
         let button_row = button_row(
             &mut self.cancel_state,
             &mut self.submit_state,
-            self.password_equal
+            self.flags.contains(Flags::PASSWORD_EQUAL)
                 && !self.password.is_empty()
                 && !self.name.is_empty()
                 && !self.path.is_empty(),
@@ -326,6 +411,8 @@ impl Component for VaultCreator {
                 password_row,
                 password_confirm_row,
                 password_score,
+                default_vertical_space().into(),
+                key_file_row,
                 default_vertical_space().into(),
                 button_row,
             ],
@@ -470,6 +557,71 @@ fn password_confirm_row<'a>(
         .into()
 }
 
+/// Create the view of the key file row.
+///
+/// It expects:
+///     - The state of the [`TextInput`](iced::TextInput)
+///     - The value of the key file path
+///     - The state of the [`Button`](iced::Button) to open the native file dialog
+///     - If a key file is used
+#[cfg_attr(coverage, no_coverage)]
+fn key_file_row<'a, P: Platform + 'static>(
+    key_file_state: &'a mut text_input::State,
+    key_file: &'a str,
+    key_file_open_fd_state: &'a mut button::State,
+    use_key_file: bool,
+    theme: &dyn Theme,
+) -> Element<'a, VaultCreatorMessage> {
+    let check_box = Checkbox::new(
+        use_key_file,
+        "Use a key file as 2nd factor",
+        VaultCreatorMessage::ToggleUseKeyFile,
+    )
+    .style(theme.checkbox());
+
+    if !use_key_file {
+        return Column::new()
+            .spacing(DEFAULT_COLUMN_SPACING)
+            .push(check_box)
+            .into();
+    }
+
+    let mut key_file = default_text_input(
+        key_file_state,
+        "Choose the location for your new key file",
+        key_file,
+        VaultCreatorMessage::KeyFileInput,
+    )
+    .style(theme.text_input());
+    if P::is_nfd_available() {
+        key_file = key_file.on_submit(VaultCreatorMessage::KeyFileOpenFD);
+    }
+
+    let key_file_fd_button = icon_button(
+        ButtonData {
+            state: key_file_open_fd_state,
+            icon: Icon::Folder,
+            text: "Open",
+            kind: ButtonKind::Normal,
+            on_press: VaultCreatorMessage::KeyFileOpenFD.some_if(P::is_nfd_available()),
+        },
+        "Choose the location to store your new key file",
+        true,
+        theme,
+    );
+
+    let row = Row::new()
+        .spacing(DEFAULT_ROW_SPACING)
+        .push(key_file)
+        .push(key_file_fd_button);
+
+    Column::new()
+        .spacing(DEFAULT_COLUMN_SPACING)
+        .push(check_box)
+        .push(row)
+        .into()
+}
+
 /// Create the view of the submit and cancel button.
 ///
 /// It expects:
@@ -516,6 +668,21 @@ fn button_row<'a>(
         .into()
 }
 
+bitflags! {
+    struct Flags: u8 {
+        const SHOW_PASSWORD         = 0b0000_0001;
+        const SHOW_CONFIRM_PASSWORD = 0b0000_0010;
+        const PASSWORD_EQUAL        = 0b0000_0100;
+        const USE_KEY_FILE          = 0b0000_1000;
+    }
+}
+
+impl Default for Flags {
+    fn default() -> Self {
+        Flags::empty()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -533,7 +700,7 @@ mod tests {
         Component, TestPlatform,
     };
 
-    use super::{VaultCreator, VaultCreatorMessage};
+    use super::{Flags, VaultCreator, VaultCreatorMessage};
 
     thread_local! {
         static CALL_MAP: RefCell<HashMap<TypeId, usize>> = RefCell::new(HashMap::new());
@@ -605,15 +772,15 @@ mod tests {
     #[test]
     fn toggle_password_visibility() {
         let mut vault_creator = VaultCreator::new(());
-        assert!(!vault_creator.password_show);
+        assert!(!vault_creator.flags.contains(Flags::SHOW_PASSWORD));
 
         let _cmd = vault_creator.toggle_password_visibility();
 
-        assert!(vault_creator.password_show);
+        assert!(vault_creator.flags.contains(Flags::SHOW_PASSWORD));
 
         let _cmd = vault_creator.toggle_password_visibility();
 
-        assert!(!vault_creator.password_show);
+        assert!(!vault_creator.flags.contains(Flags::SHOW_PASSWORD));
     }
 
     #[test]
@@ -646,36 +813,36 @@ mod tests {
     #[test]
     fn toggle_password_confirm_visibility() {
         let mut vault_creator = VaultCreator::new(());
-        assert!(!vault_creator.password_confirm_show);
+        assert!(!vault_creator.flags.contains(Flags::SHOW_CONFIRM_PASSWORD));
 
         let _cmd = vault_creator.toggle_password_confirm_visibility();
 
-        assert!(vault_creator.password_confirm_show);
+        assert!(vault_creator.flags.contains(Flags::SHOW_CONFIRM_PASSWORD));
 
         let _cmd = vault_creator.toggle_password_confirm_visibility();
 
-        assert!(!vault_creator.password_confirm_show);
+        assert!(!vault_creator.flags.contains(Flags::SHOW_CONFIRM_PASSWORD));
     }
 
     #[test]
     fn check_password_equality() {
         let mut vault_creator = VaultCreator::new(());
-        assert!(!vault_creator.password_equal);
+        assert!(!vault_creator.flags.contains(Flags::PASSWORD_EQUAL));
 
         vault_creator.check_password_equality();
-        assert!(!vault_creator.password_equal);
+        assert!(!vault_creator.flags.contains(Flags::PASSWORD_EQUAL));
 
         vault_creator.password = SecString::from("password");
         vault_creator.check_password_equality();
-        assert!(!vault_creator.password_equal);
+        assert!(!vault_creator.flags.contains(Flags::PASSWORD_EQUAL));
 
         vault_creator.password_confirm = SecString::from("password");
         vault_creator.check_password_equality();
-        assert!(vault_creator.password_equal);
+        assert!(vault_creator.flags.contains(Flags::PASSWORD_EQUAL));
 
         vault_creator.password = SecString::from("not password");
         vault_creator.check_password_equality();
-        assert!(!vault_creator.password_equal);
+        assert!(!vault_creator.flags.contains(Flags::PASSWORD_EQUAL));
     }
 
     #[test]
@@ -725,8 +892,8 @@ mod tests {
     }
 
     #[test]
-    fn open_file_dialog() {
-        let cmd = VaultCreator::open_file_dialog::<TestPlatform>();
+    fn open_file_dialog_path() {
+        let cmd = VaultCreator::open_file_dialog_path::<TestPlatform>();
         assert!(!cmd.futures().is_empty());
     }
 
@@ -740,11 +907,11 @@ mod tests {
         assert!(!vault_creator.path_state.is_focused());
         assert!(vault_creator.password.is_empty());
         assert!(!vault_creator.password_state.is_focused());
-        assert!(!vault_creator.password_show);
+        assert!(!vault_creator.flags.contains(Flags::SHOW_PASSWORD));
         assert!(vault_creator.password_confirm.is_empty());
         assert!(!vault_creator.password_confirm_state.is_focused());
-        assert!(!vault_creator.password_confirm_show);
-        assert!(!vault_creator.password_equal);
+        assert!(!vault_creator.flags.contains(Flags::SHOW_CONFIRM_PASSWORD));
+        assert!(!vault_creator.flags.contains(Flags::PASSWORD_EQUAL));
         assert!(vault_creator.password_score.is_none());
     }
 
@@ -783,9 +950,10 @@ mod tests {
             call_map
                 .borrow_mut()
                 .insert(VaultCreator::submit.type_id(), 0);
-            call_map
-                .borrow_mut()
-                .insert(VaultCreator::open_file_dialog::<TestPlatform>.type_id(), 0);
+            call_map.borrow_mut().insert(
+                VaultCreator::open_file_dialog_path::<TestPlatform>.type_id(),
+                0,
+            );
 
             VaultCreator::update_name.mock_raw(|_self, _name| {
                 call_map
@@ -843,10 +1011,10 @@ mod tests {
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
-            VaultCreator::open_file_dialog::<TestPlatform>.mock_raw(|| {
+            VaultCreator::open_file_dialog_path::<TestPlatform>.mock_raw(|| {
                 call_map
                     .borrow_mut()
-                    .get_mut(&VaultCreator::open_file_dialog::<TestPlatform>.type_id())
+                    .get_mut(&VaultCreator::open_file_dialog_path::<TestPlatform>.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
@@ -873,7 +1041,7 @@ mod tests {
 
             // Open File Dialog
             assert_eq!(
-                call_map.borrow()[&VaultCreator::open_file_dialog::<TestPlatform>.type_id()],
+                call_map.borrow()[&VaultCreator::open_file_dialog_path::<TestPlatform>.type_id()],
                 0
             );
             let _ = vault_creator.update::<TestPlatform>(
@@ -883,7 +1051,7 @@ mod tests {
                 &mut clipboard,
             );
             assert_eq!(
-                call_map.borrow()[&VaultCreator::open_file_dialog::<TestPlatform>.type_id()],
+                call_map.borrow()[&VaultCreator::open_file_dialog_path::<TestPlatform>.type_id()],
                 1
             );
 

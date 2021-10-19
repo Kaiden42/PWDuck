@@ -33,6 +33,9 @@ pub use entry::*;
 mod group;
 pub use group::*;
 
+mod key_file;
+pub use key_file::*;
+
 mod master_key;
 pub use master_key::*;
 

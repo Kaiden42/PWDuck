@@ -619,7 +619,9 @@ mod tests {
         let password = "this_is_a_password";
         let mem_key = pwduck_core::MemKey::with_length(1);
 
-        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let mut vault =
+            pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+                .unwrap();
         let root = vault.get_root_uuid().unwrap();
 
         assert!(vault
@@ -677,7 +679,9 @@ mod tests {
         let password = "this_is_a_password";
         let mem_key = pwduck_core::MemKey::with_length(1);
 
-        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let mut vault =
+            pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+                .unwrap();
         let root = vault.get_root_uuid().unwrap();
 
         let mut mgv = default_mgv_with_parent(root.clone());
@@ -724,7 +728,8 @@ mod tests {
         let password = "this_is_a_password";
         let mem_key = pwduck_core::MemKey::with_length(1);
 
-        let vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let vault = pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+            .unwrap();
 
         CALL_MAP.with(|call_map| unsafe {
             call_map
@@ -789,7 +794,9 @@ mod tests {
         let password = "this_is_a_password";
         let mem_key = pwduck_core::MemKey::with_length(1);
 
-        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let mut vault =
+            pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+                .unwrap();
         let root = vault.get_root_uuid().unwrap();
 
         let _ = mgv.submit(&mut vault);
@@ -824,7 +831,9 @@ mod tests {
         let password = "this_is_a_password";
         let mem_key = pwduck_core::MemKey::with_length(1);
 
-        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let mut vault =
+            pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+                .unwrap();
 
         let mut modal_state = iced_aw::modal::State::new(crate::ModalState::None);
 
@@ -904,7 +913,9 @@ mod tests {
         let password = "this_is_a_password";
         let mem_key = pwduck_core::MemKey::with_length(1);
 
-        let mut vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let mut vault =
+            pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+                .unwrap();
 
         let mut modal_state = iced_aw::modal::State::new(crate::ModalState::None);
 

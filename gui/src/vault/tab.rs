@@ -55,8 +55,16 @@ impl VaultTab {
     }
 
     /// Change the content of the tab to the [`VaultUnlocker`](VaultUnlocker).
-    fn change_to_unlock_state(&mut self, vault: PathBuf) -> Command<VaultTabMessage> {
-        self.state = VaultTabState::Unlock(VaultUnlocker::new(vault));
+    fn change_to_unlock_state(
+        &mut self,
+        path: PathBuf,
+        key_file: Option<PathBuf>,
+    ) -> Command<VaultTabMessage> {
+        self.state =
+            VaultTabState::Unlock(VaultUnlocker::new(crate::vault::unlock::ConstructorParam {
+                path,
+                key_file,
+            }));
         Command::none()
     }
 
@@ -223,8 +231,9 @@ impl Component for VaultTab {
                 _,
             ) => Ok(self.change_to_empty_state()),
 
-            (VaultTabMessage::Creator(VaultCreatorMessage::VaultCreated(vault)), _) => {
-                Ok(self.change_to_unlock_state(vault?))
+            (VaultTabMessage::Creator(VaultCreatorMessage::VaultCreated(vault_data)), _) => {
+                let (path, key_file) = vault_data?;
+                Ok(self.change_to_unlock_state(path, key_file))
             }
 
             (
@@ -240,7 +249,8 @@ impl Component for VaultTab {
                 VaultTabState::Open(container),
             ) => {
                 let path = container.vault().path().clone();
-                Ok(self.change_to_unlock_state(path))
+                let key_file = container.vault().key_file().clone();
+                Ok(self.change_to_unlock_state(path, key_file))
             }
 
             // Passing every other message to sub elements
@@ -320,7 +330,8 @@ mod tests {
         let password = "password";
         let dir = tempdir().unwrap();
         let path = dir.path().join("TempVault");
-        let vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let vault = pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+            .unwrap();
         let _ = vault_tab.change_to_open_state(Box::new(vault));
 
         VaultContainer::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(false));
@@ -329,7 +340,7 @@ mod tests {
         VaultContainer::contains_unsaved_changes.mock_safe(|_self| MockResult::Return(true));
         assert!(vault_tab.contains_unsaved_changes());
 
-        let _ = vault_tab.change_to_unlock_state(path.into());
+        let _ = vault_tab.change_to_unlock_state(path.into(), None);
         assert!(!vault_tab.contains_unsaved_changes());
 
         let _ = vault_tab.change_to_settings_state();
@@ -374,7 +385,7 @@ mod tests {
             panic!("VaultTab should be in the empty state");
         }
 
-        let _ = vault_tab.change_to_unlock_state("path".into());
+        let _ = vault_tab.change_to_unlock_state("path".into(), None);
 
         if let VaultTabState::Unlock(_) = vault_tab.state {
         } else {
@@ -393,7 +404,8 @@ mod tests {
         let password = "password";
         let dir = tempdir().unwrap();
         let path = dir.path().join("TempVault");
-        let vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let vault = pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+            .unwrap();
         let _ = vault_tab.change_to_open_state(Box::new(vault));
 
         if let VaultTabState::Open(_) = vault_tab.state {
@@ -451,7 +463,8 @@ mod tests {
         let password = "password";
         let dir = tempdir().unwrap();
         let path = dir.path().join("TempVault");
-        let vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+        let vault = pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+            .unwrap();
 
         vault_tab.change_to_open_state(Box::new(vault));
         if let VaultTabState::Open(ref open) = vault_tab.state {
@@ -461,7 +474,7 @@ mod tests {
         }
 
         // Unlock title
-        vault_tab.change_to_unlock_state(path);
+        vault_tab.change_to_unlock_state(path, None);
         if let VaultTabState::Unlock(ref unlock) = vault_tab.state {
             assert_eq!(unlock.title(), vault_tab.title());
         } else {
@@ -540,7 +553,7 @@ mod tests {
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
-            VaultTab::change_to_unlock_state.mock_raw(|_self, _path| {
+            VaultTab::change_to_unlock_state.mock_raw(|_self, _path, _key_file| {
                 call_map
                     .borrow_mut()
                     //.get_mut(CHANGE_TO_UNLOCK_STATE)
@@ -623,7 +636,10 @@ mod tests {
             let _ = vault_tab
                 .update::<TestPlatform>(
                     VaultTabMessage::Creator(
-                        crate::vault::creator::VaultCreatorMessage::VaultCreated(Ok("path".into())),
+                        crate::vault::creator::VaultCreatorMessage::VaultCreated(Ok((
+                            "path".into(),
+                            None,
+                        ))),
                     ),
                     &mut application_settings,
                     &mut modal_state,
@@ -655,7 +671,9 @@ mod tests {
             let password = "password";
             let dir = tempdir().unwrap();
             let path = dir.path().join("TempVault");
-            let vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+            let vault =
+                pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+                    .unwrap();
 
             // Change to open state
             assert_eq!(
@@ -877,7 +895,7 @@ mod tests {
             );
             let _ = vault_tab
                 .update_state::<TestPlatform>(
-                    VaultTabMessage::Loader(crate::vault::loader::VaultLoaderMessage::Confirm),
+                    VaultTabMessage::Loader(crate::vault::loader::VaultLoaderMessage::Submit),
                     &mut application_settings,
                     &mut modal_state,
                     &mut clipboard,
@@ -891,7 +909,7 @@ mod tests {
             vault_tab.change_to_create_state();
             let _ = vault_tab
                 .update_state::<TestPlatform>(
-                    VaultTabMessage::Loader(crate::vault::loader::VaultLoaderMessage::Confirm),
+                    VaultTabMessage::Loader(crate::vault::loader::VaultLoaderMessage::Submit),
                     &mut application_settings,
                     &mut modal_state,
                     &mut clipboard,
@@ -920,7 +938,7 @@ mod tests {
                 1
             );
             // Switch to unlock state
-            vault_tab.change_to_unlock_state("path".into());
+            vault_tab.change_to_unlock_state("path".into(), None);
             let _ = vault_tab
                 .update_state::<TestPlatform>(
                     VaultTabMessage::Creator(crate::vault::creator::VaultCreatorMessage::Submit),
@@ -938,7 +956,9 @@ mod tests {
             let password = "password";
             let dir = tempdir().unwrap();
             let path = dir.path().join("TempVault");
-            let vault = pwduck_core::Vault::generate(password, &mem_key, &path).unwrap();
+            let vault =
+                pwduck_core::Vault::generate(password, Option::<String>::None, &mem_key, &path)
+                    .unwrap();
 
             // Update unlocker
             assert_eq!(

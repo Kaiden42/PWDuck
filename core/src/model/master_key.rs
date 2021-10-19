@@ -25,14 +25,17 @@ impl MasterKey {
     /// It expects:
     ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault).
     ///     - The password to decrypt the [`MasterKey`](MasterKey).
+    ///     - The key protection to protect the [`MasterKey`](MasterKey) in memory.
+    ///     - The nonce used to encrypt the [`MasterKey`](MasterKey) in memory.
     pub fn load(
         path: &Path,
         password: &str,
+        key_file: Option<&Path>,
         key_protection: &[u8],
         nonce: &[u8],
     ) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_masterkey(path)?;
-        decrypt_masterkey(&dto, password, key_protection, nonce)
+        decrypt_masterkey(&dto, password, key_file, key_protection, nonce)
     }
 
     /// Decrypt the in-memory encrypted masterkey to receive the unprotected key data.
@@ -93,7 +96,7 @@ mod tests {
         });
 
         let password = "This is a totally secret password";
-        let master_key = generate_masterkey(&password).unwrap();
+        let master_key = generate_masterkey(&password, None).unwrap();
         crate::io::save_masterkey(&path, master_key.clone()).unwrap();
 
         MemKey::with_length.mock_safe(|len| {
@@ -105,7 +108,7 @@ mod tests {
 
         let key_protection = cryptography::derive_key_protection(&mem_key, &salt).unwrap();
 
-        let loaded = MasterKey::load(&path, &password, &key_protection, &nonce)
+        let loaded = MasterKey::load(&path, &password, None, &key_protection, &nonce)
             .expect("Loading master key should not fail.");
 
         let unprotected = loaded

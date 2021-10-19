@@ -1,4 +1,6 @@
 //! TODO
+use std::path::Path;
+
 use aes::Aes256;
 use argon2::{
     password_hash::{Ident, Salt, SaltString},
@@ -13,7 +15,7 @@ use rand_core::OsRng;
 use zeroize::Zeroize;
 
 use crate::{
-    dto::master_key::MasterKey,
+    dto::{key_file::KeyFile, master_key::MasterKey},
     error::PWDuckCoreError,
     mem_protection::{MemKey, SecVec},
 };
@@ -27,6 +29,8 @@ pub const AES_IV_LENGTH: usize = 16;
 pub const CHACHA20_NONCE_LENGTH: usize = 12;
 /// The default size of a master key.
 pub const MASTER_KEY_SIZE: usize = 32;
+/// The default size of a key file.
+pub const KEY_FILE_SIZE: usize = 32;
 
 /// Generate a new random initialization vector for the AES encryption.
 pub fn generate_aes_iv() -> Vec<u8> {
@@ -102,12 +106,22 @@ pub fn derive_key(data: &[u8], salt: &str) -> Result<SecVec<u8>, PWDuckCoreError
 
 /// Generate a new masterkey which will be encrypted with the given password after creation.
 #[cfg_attr(test, mockable)]
-pub fn generate_masterkey(password: &str) -> Result<MasterKey, PWDuckCoreError> {
+pub fn generate_masterkey(
+    password: &str,
+    key_file: Option<&Path>,
+) -> Result<MasterKey, PWDuckCoreError> {
     // Generate random salt
     let salt = generate_salt();
 
-    // Hash password with KDF
-    let password_hash = hash_password(password, salt.as_str())?;
+    // Hash password with KDF or derive key from key file with KDF
+    //let password_hash = hash_password(password, salt.as_str())?;
+    let hash = key_file.map_or_else(
+        || hash_password(password, salt.as_str()),
+        |path| {
+            let key_file = generate_key_file(password, path)?;
+            derive_key(&key_file, salt.as_str())
+        },
+    )?;
 
     // Generate random initialization vector
     //let mut iv = [0u8; 16];
@@ -124,7 +138,7 @@ pub fn generate_masterkey(password: &str) -> Result<MasterKey, PWDuckCoreError> 
     //    .enumerate()
     //    .for_each(|(i, x)| *x = (i % 16) as u8);
 
-    let encrypted_key = aes_cbc_encrypt(&master_key, password_hash.as_slice(), &iv)?;
+    let encrypted_key = aes_cbc_encrypt(&master_key, hash.as_slice(), &iv)?;
     master_key.zeroize();
 
     Ok(MasterKey::new(
@@ -140,10 +154,17 @@ pub fn generate_masterkey(password: &str) -> Result<MasterKey, PWDuckCoreError> 
 pub fn decrypt_masterkey(
     masterkey: &MasterKey,
     password: &str,
+    key_file: Option<&Path>,
     key_protection: &[u8],
     nonce: &[u8],
 ) -> Result<crate::model::master_key::MasterKey, PWDuckCoreError> {
-    let mut hash = hash_password(password, masterkey.salt())?;
+    let mut hash = key_file.map_or_else(
+        || hash_password(password, masterkey.salt()),
+        |path| {
+            let key_file = crate::model::key_file::KeyFile::load(path, password)?;
+            derive_key(&key_file, masterkey.salt())
+        },
+    )?;
 
     let encrypted_key = base64::decode(masterkey.encrypted_key())?;
     let mut iv = base64::decode(masterkey.iv())?;
@@ -178,6 +199,52 @@ pub fn unprotect_masterkey(
     nonce: &[u8],
 ) -> Result<SecVec<u8>, PWDuckCoreError> {
     chacha20_decrypt(master_key, key_protection, nonce)
+}
+
+/// Generate a new key file as a 2nd factor authentification. It will be stored on the given path.
+pub fn generate_key_file(
+    password: &str,
+    path: &Path,
+) -> Result<crate::model::key_file::KeyFile, PWDuckCoreError> {
+    // Genrate random salt
+    let salt = generate_salt();
+
+    // Hash password with KDF
+    let password_hash = hash_password(password, salt.as_str())?;
+
+    // Generate random initialization vector
+    let iv = generate_aes_iv();
+
+    // Generate random key file and encrypt it with password hash
+    let mut key_file: SecVec<u8> = vec![0_u8; KEY_FILE_SIZE].into();
+    fill_random_bytes(&mut key_file);
+
+    let encrypted_key = aes_cbc_encrypt(&key_file, password_hash.as_slice(), &iv)?;
+
+    let dto = KeyFile::new(
+        salt.as_str().to_owned(),
+        base64::encode(iv),
+        base64::encode(encrypted_key),
+    );
+    crate::io::save_key_file(path, dto)?;
+
+    Ok(key_file.into())
+}
+
+/// Decrypt the key file with the given password.
+pub fn decrypt_key_file(
+    key_file: &KeyFile,
+    password: &str,
+) -> Result<crate::model::key_file::KeyFile, PWDuckCoreError> {
+    let mut hash = hash_password(password, key_file.salt())?;
+
+    let encrypted_key = base64::decode(key_file.encrypted_key())?;
+    let mut iv = base64::decode(key_file.iv())?;
+
+    let key = aes_cbc_decrypt(&encrypted_key, &hash, &iv)?;
+    hash.zeroize();
+    iv.zeroize();
+    Ok(key.into())
 }
 
 /// Encrypt the data with the AES block cipher in CBC mode.
@@ -384,8 +451,10 @@ mod tests {
 
     #[test]
     fn test_generate_masterkey() {
-        let key1 = generate_masterkey(PASSWORD).expect("Generating masterkey should not fail");
-        let key2 = generate_masterkey(PASSWORD).expect("Generating masterkey should not fail");
+        let key1 =
+            generate_masterkey(PASSWORD, None).expect("Generating masterkey should not fail");
+        let key2 =
+            generate_masterkey(PASSWORD, None).expect("Generating masterkey should not fail");
 
         assert_ne!(key1.salt(), key2.salt());
         assert_ne!(key1.iv(), key2.iv());
@@ -420,7 +489,7 @@ mod tests {
         });
 
         let master_key =
-            generate_masterkey(PASSWORD).expect("Generating masterkey should not fail");
+            generate_masterkey(PASSWORD, None).expect("Generating masterkey should not fail");
 
         let dercypted_key = aes_cbc_decrypt(
             &base64::decode(master_key.encrypted_key()).unwrap(),
@@ -448,7 +517,7 @@ mod tests {
             MockResult::Return(())
         });
 
-        let masterkey = generate_masterkey(PASSWORD).unwrap();
+        let masterkey = generate_masterkey(PASSWORD, None).unwrap();
 
         MemKey::with_length.mock_safe(|length| {
             MockResult::Return(SecBytes::with(length, |buf| buf.fill(21_u8)).into())
@@ -490,7 +559,7 @@ mod tests {
             });
         }
 
-        let decrypted_key = decrypt_masterkey(&masterkey, PASSWORD, &key_protection, &nonce)
+        let decrypted_key = decrypt_masterkey(&masterkey, PASSWORD, None, &key_protection, &nonce)
             .expect("Decrypting masterkey should not fail.");
 
         let unprotected_key =

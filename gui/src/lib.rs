@@ -600,6 +600,10 @@ pub trait Platform {
     /// Open the choose folder dialog of the native file dialog on this [`Platform`](Platform).
     async fn nfd_choose_folder() -> Result<PathBuf, NfdError>;
 
+    /// Open the choose file dialog of the native file dialog on this [`Platform`](Platform).
+    /// If file name is some a file save dialoge is used, else a file open dialog.
+    async fn nfd_choose_key_file(file_name: Option<String>) -> Result<PathBuf, NfdError>;
+
     /// True, if the system supports to open an URL in the default browser.
     fn is_open_in_browser_available() -> bool;
 
@@ -627,6 +631,11 @@ impl Platform for TestPlatform {
 
     #[cfg_attr(coverage, no_coverage)]
     async fn nfd_choose_folder() -> Result<PathBuf, NfdError> {
+        Ok(PathBuf::from("this/is/a/path"))
+    }
+
+    #[cfg_attr(coverage, no_coverage)]
+    async fn nfd_choose_key_file(file_name: Option<String>) -> Result<PathBuf, NfdError> {
         Ok(PathBuf::from("this/is/a/path"))
     }
 
@@ -914,7 +923,7 @@ mod tests {
             );
             let _ = gui.update_vault_tab(
                 0,
-                VaultTabMessage::Loader(crate::vault::loader::VaultLoaderMessage::Confirm),
+                VaultTabMessage::Loader(crate::vault::loader::VaultLoaderMessage::Submit),
                 &mut clipboard,
             );
             assert_eq!(
@@ -1195,7 +1204,7 @@ mod tests {
                 0
             );
             let _ = gui.update(
-                Message::VaultTab(0, VaultTabMessage::Loader(VaultLoaderMessage::Confirm)),
+                Message::VaultTab(0, VaultTabMessage::Loader(VaultLoaderMessage::Submit)),
                 &mut clipboard,
             );
             assert_eq!(
@@ -1265,7 +1274,7 @@ mod tests {
             }
 
             let _ = gui.update(
-                Message::VaultTab(0, VaultTabMessage::Loader(VaultLoaderMessage::Confirm)),
+                Message::VaultTab(0, VaultTabMessage::Loader(VaultLoaderMessage::Submit)),
                 &mut clipboard,
             );
 
