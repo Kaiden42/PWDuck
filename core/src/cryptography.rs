@@ -318,8 +318,8 @@ mod tests {
     use argon2::password_hash::SaltString;
     use rand_core::OsRng;
     use seckey::SecBytes;
+    use tempfile::tempdir;
 
-    use crate::cryptography::{protect_masterkey, unprotect_masterkey, MASTER_KEY_SIZE};
     use crate::mem_protection::MemKey;
     use crate::{PWDuckCoreError, SecVec};
 
@@ -327,13 +327,12 @@ mod tests {
     use super::generate_masterkey;
     use super::hash_password;
     use super::{
-        aes_cbc_decrypt, aes_cbc_encrypt, chacha20_decrypt, chacha20_encrypt, decrypt_masterkey,
-        derive_key_protection, fill_random_bytes, generate_aes_iv, generate_chacha20_nonce,
-        generate_iv, generate_salt,
+        aes_cbc_decrypt, aes_cbc_encrypt, chacha20_decrypt, chacha20_encrypt, decrypt_key_file,
+        decrypt_masterkey, derive_key_protection, fill_random_bytes, generate_aes_iv,
+        generate_chacha20_nonce, generate_iv, generate_key_file, generate_salt, protect_masterkey,
+        unprotect_masterkey, AES_IV_LENGTH, CHACHA20_NONCE_LENGTH, KEY_FILE_SIZE, MASTER_KEY_SIZE,
     };
-    use super::{AES_IV_LENGTH, CHACHA20_NONCE_LENGTH};
 
-    // TODO: mocking
     use mocktopus::mocking::*;
 
     const PASSWORD: &'static str = "This is a totally secret password";
@@ -450,11 +449,11 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_masterkey() {
+    fn test_generate_masterkey_without_key() {
         let key1 =
-            generate_masterkey(PASSWORD, None).expect("Generating masterkey should not fail");
+            generate_masterkey(PASSWORD, None).expect("Generating masterkey should not fail.");
         let key2 =
-            generate_masterkey(PASSWORD, None).expect("Generating masterkey should not fail");
+            generate_masterkey(PASSWORD, None).expect("Generating masterkey should not fail.");
 
         assert_ne!(key1.salt(), key2.salt());
         assert_ne!(key1.iv(), key2.iv());
@@ -489,7 +488,7 @@ mod tests {
         });
 
         let master_key =
-            generate_masterkey(PASSWORD, None).expect("Generating masterkey should not fail");
+            generate_masterkey(PASSWORD, None).expect("Generating masterkey should not fail.");
 
         let dercypted_key = aes_cbc_decrypt(
             &base64::decode(master_key.encrypted_key()).unwrap(),
@@ -504,7 +503,29 @@ mod tests {
     }
 
     #[test]
-    fn test_decrypt_masterkey() {
+    fn test_generate_masterkey_with_key() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("KeyFile.pwdk");
+
+        assert!(!path.exists());
+
+        let key = generate_masterkey(PASSWORD, Some(&path))
+            .expect("Generating master key should not fail.");
+
+        assert!(path.exists());
+
+        let key_file = crate::model::key_file::KeyFile::load(&path, PASSWORD).unwrap();
+
+        let _ = aes_cbc_decrypt(
+            &base64::decode(key.encrypted_key()).unwrap(),
+            &derive_key(&key_file, key.salt()).unwrap(),
+            &base64::decode(key.iv()).unwrap(),
+        )
+        .expect("Decoding master key should not fail");
+    }
+
+    #[test]
+    fn test_decrypt_masterkey_without_key() {
         generate_salt.mock_safe(|| MockResult::Return(SaltString::new(SALT).unwrap()));
         hash_password.mock_safe(|password, salt| {
             assert_eq!(password, PASSWORD);
@@ -578,6 +599,57 @@ mod tests {
     }
 
     #[test]
+    fn test_decrypt_masterkey_with_key() {
+        generate_salt.mock_safe(|| MockResult::Return(SaltString::new(SALT).unwrap()));
+        hash_password.mock_safe(|password, salt| {
+            assert_eq!(password, PASSWORD);
+            assert_eq!(salt, SALT);
+            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_SIZE].into()))
+        });
+        generate_iv.mock_safe(|len| MockResult::Return(vec![21_u8; len]));
+        fill_random_bytes.mock_safe(|buf| {
+            buf.fill(255_u8);
+            MockResult::Return(())
+        });
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("KeyFile.pwdk");
+
+        let masterkey = generate_masterkey(PASSWORD, Some(&path)).unwrap();
+
+        MemKey::with_length.mock_safe(|length| {
+            MockResult::Return(SecBytes::with(length, |buf| buf.fill(21_u8)).into())
+        });
+
+        let mem_key = MemKey::new();
+
+        let salt = generate_salt();
+        let nonce = generate_chacha20_nonce();
+
+        let key_protection = derive_key_protection(&mem_key, salt.as_str()).unwrap();
+
+        let decrypted_key =
+            decrypt_masterkey(&masterkey, PASSWORD, Some(&path), &key_protection, &nonce)
+                .expect("Decrypting masterkey should not fail.");
+
+        let unprotected_key =
+            unprotect_masterkey(decrypted_key.as_slice(), &key_protection, &nonce)
+                .expect("Unprotecting masterkey should not fail");
+
+        let key_file = crate::model::key_file::KeyFile::load(&path, PASSWORD).unwrap();
+
+        assert_eq!(
+            unprotected_key,
+            aes_cbc_decrypt(
+                &base64::decode(masterkey.encrypted_key()).unwrap(),
+                &derive_key(&key_file, masterkey.salt()).unwrap(),
+                &base64::decode(masterkey.iv()).unwrap(),
+            )
+            .unwrap(),
+        );
+    }
+
+    #[test]
     fn test_protect_masterkey() {
         let master_key = [255_u8; MASTER_KEY_SIZE];
         let key_protection = [42u8; argon2::Params::DEFAULT_OUTPUT_SIZE];
@@ -615,6 +687,70 @@ mod tests {
         let unprotected_key = unprotect_masterkey(&master_key, &key_protection, &nonce)
             .expect("Unprotecting masterkey should not fail");
         assert_eq!(unprotected_key, vec![255_u8; MASTER_KEY_SIZE].into())
+    }
+
+    #[test]
+    fn test_generate_key_file() {
+        generate_salt.mock_safe(|| MockResult::Return(SaltString::new(SALT).unwrap()));
+        hash_password.mock_safe(|password, salt| {
+            assert_eq!(password, PASSWORD);
+            assert_eq!(salt, SALT);
+            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_SIZE].into()))
+        });
+        generate_iv.mock_safe(|len| MockResult::Return(vec![21_u8; len]));
+        fill_random_bytes.mock_safe(|buf| {
+            buf.fill(255_u8);
+            MockResult::Return(())
+        });
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("KeyFile.pwdk");
+
+        assert!(!path.exists());
+
+        let key_file = generate_key_file(PASSWORD, &path).expect("Should not fail");
+
+        assert!(path.exists());
+        assert_eq!(
+            key_file.key().as_slice(),
+            vec![255u8; KEY_FILE_SIZE].as_slice()
+        );
+
+        let key_file_dto = crate::io::load_key_file(&path).unwrap();
+        assert_eq!(key_file_dto.salt().as_str(), SALT);
+        assert_eq!(
+            base64::decode(key_file_dto.iv()).unwrap(),
+            vec![21_u8; AES_IV_LENGTH]
+        );
+    }
+
+    #[test]
+    fn test_decrypt_key_file() {
+        generate_salt.mock_safe(|| MockResult::Return(SaltString::new(SALT).unwrap()));
+        hash_password.mock_safe(|password, salt| {
+            assert_eq!(password, PASSWORD);
+            assert_eq!(salt, SALT);
+            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_SIZE].into()))
+        });
+        generate_iv.mock_safe(|len| MockResult::Return(vec![21_u8; len]));
+        fill_random_bytes.mock_safe(|buf| {
+            buf.fill(255_u8);
+            MockResult::Return(())
+        });
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("KeyFile.pwdk");
+
+        let key_file = generate_key_file(PASSWORD, &path).expect("Should not fail");
+
+        let key_file_dto = crate::io::load_key_file(&path).unwrap();
+        let decrypted_key_file =
+            decrypt_key_file(&key_file_dto, PASSWORD).expect("Decrypting key file should not fail");
+
+        assert_eq!(
+            key_file.key().as_slice(),
+            decrypted_key_file.key().as_slice()
+        );
     }
 
     #[test]

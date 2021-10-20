@@ -635,7 +635,7 @@ impl Platform for TestPlatform {
     }
 
     #[cfg_attr(coverage, no_coverage)]
-    async fn nfd_choose_key_file(file_name: Option<String>) -> Result<PathBuf, NfdError> {
+    async fn nfd_choose_key_file(_file_name: Option<String>) -> Result<PathBuf, NfdError> {
         Ok(PathBuf::from("this/is/a/path"))
     }
 

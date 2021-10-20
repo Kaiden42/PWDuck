@@ -4,7 +4,7 @@ use getset::Getters;
 use serde::{Deserialize, Serialize};
 
 /// The encrypted key file as a data-transfer-object (dto).
-#[derive(Debug, Deserialize, Serialize, Getters)]
+#[derive(Clone, Debug, Deserialize, Serialize, Getters)]
 pub struct KeyFile {
     /// The salt used to derive the encryption key from the user's password.
     #[getset(get = "pub")]
@@ -27,5 +27,18 @@ impl KeyFile {
             iv,
             encrypted_key,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::KeyFile;
+
+    #[test]
+    fn new_key_file() {
+        let key_file = KeyFile::new("SALT".into(), "IV".into(), "ENCRYPTED_KEY".into());
+        assert_eq!(key_file.salt(), "SALT");
+        assert_eq!(key_file.iv(), "IV");
+        assert_eq!(key_file.encrypted_key(), "ENCRYPTED_KEY");
     }
 }

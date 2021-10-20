@@ -562,7 +562,31 @@ mod tests {
     }
 
     #[test]
-    fn confirm() {
+    fn update_key_file() {
+        let mut vault_loader = VaultLoader::new(());
+        assert!(vault_loader.key_file.is_empty());
+
+        let _ = vault_loader.update_key_file("key_file".into());
+        assert_eq!(vault_loader.key_file.as_str(), "key_file");
+    }
+
+    #[test]
+    fn toggle_use_key_file() {
+        let mut vault_loader = VaultLoader::new(());
+
+        assert!(!vault_loader.use_key_file);
+
+        let _ = vault_loader.toggle_use_key_file(true);
+
+        assert!(vault_loader.use_key_file);
+
+        let _ = vault_loader.toggle_use_key_file(false);
+
+        assert!(!vault_loader.use_key_file);
+    }
+
+    #[test]
+    fn submit() {
         let mut vault_loader = VaultLoader::new(());
         assert!(vault_loader.path.is_empty());
         assert!(vault_loader.password.is_empty());
@@ -586,6 +610,12 @@ mod tests {
     #[test]
     fn open_file_dialog() {
         let cmd = VaultLoader::open_file_dialog_path::<TestPlatform>();
+        assert!(!cmd.futures().is_empty());
+    }
+
+    #[test]
+    fn open_file_dialog_key_file() {
+        let cmd = VaultLoader::open_file_dialog_key_file::<TestPlatform>();
         assert!(!cmd.futures().is_empty());
     }
 
@@ -621,9 +651,19 @@ mod tests {
                 .insert(VaultLoader::toggle_password_visibility.type_id(), 0);
             call_map
                 .borrow_mut()
+                .insert(VaultLoader::update_key_file.type_id(), 0);
+            call_map
+                .borrow_mut()
+                .insert(VaultLoader::toggle_use_key_file.type_id(), 0);
+            call_map
+                .borrow_mut()
                 .insert(VaultLoader::submit.type_id(), 0);
             call_map.borrow_mut().insert(
                 VaultLoader::open_file_dialog_path::<TestPlatform>.type_id(),
+                0,
+            );
+            call_map.borrow_mut().insert(
+                VaultLoader::open_file_dialog_key_file::<TestPlatform>.type_id(),
                 0,
             );
 
@@ -648,6 +688,20 @@ mod tests {
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
+            VaultLoader::update_key_file.mock_raw(|_self, _value| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&VaultLoader::update_key_file.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultLoader::toggle_use_key_file.mock_raw(|_self, _value| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&VaultLoader::toggle_use_key_file.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
             VaultLoader::submit.mock_raw(|_self| {
                 call_map
                     .borrow_mut()
@@ -659,6 +713,13 @@ mod tests {
                 call_map
                     .borrow_mut()
                     .get_mut(&VaultLoader::open_file_dialog_path::<TestPlatform>.type_id())
+                    .map(|c| *c += 1);
+                MockResult::Return(Command::none())
+            });
+            VaultLoader::open_file_dialog_key_file::<TestPlatform>.mock_raw(|| {
+                call_map
+                    .borrow_mut()
+                    .get_mut(&VaultLoader::open_file_dialog_key_file::<TestPlatform>.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
@@ -705,6 +766,38 @@ mod tests {
                 1
             );
 
+            // Update key file
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::update_key_file.type_id()],
+                0
+            );
+            let _ = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::KeyFileInput("key".into()),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::update_key_file.type_id()],
+                1
+            );
+
+            // Toggle the usage of the key file
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::toggle_use_key_file.type_id()],
+                0
+            );
+            let _ = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::ToggleUseKeyFile(true),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::toggle_use_key_file.type_id()],
+                1
+            );
+
             // Confirm
             assert_eq!(call_map.borrow()[&VaultLoader::submit.type_id()], 0);
             let _ = vault_loader.update::<TestPlatform>(
@@ -748,6 +841,50 @@ mod tests {
             );
             assert_eq!(call_map.borrow()[&VaultLoader::update_path.type_id()], 2);
 
+            // Open key file dialog
+            assert_eq!(
+                call_map.borrow()
+                    [&VaultLoader::open_file_dialog_key_file::<TestPlatform>.type_id()],
+                0
+            );
+            let _ = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::KeyFileOpenFD,
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()
+                    [&VaultLoader::open_file_dialog_key_file::<TestPlatform>.type_id()],
+                1
+            );
+
+            // Key file selected
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::update_key_file.type_id()],
+                1
+            );
+            let _ = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::KeyFileSelected(Ok("path".into())),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::update_key_file.type_id()],
+                2
+            );
+            let _ = vault_loader.update::<TestPlatform>(
+                VaultLoaderMessage::KeyFileSelected(Err(error::NfdError::Null)),
+                &mut application_settings,
+                &mut modal_state,
+                &mut clipboard,
+            );
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::update_key_file.type_id()],
+                2
+            );
+
             // Create
             let res = vault_loader
                 .update::<TestPlatform>(
@@ -779,9 +916,14 @@ mod tests {
             assert!(call_map
                 .borrow()
                 .iter()
-                .filter(|(k, _)| *k != &VaultLoader::update_path.type_id())
+                .filter(|(k, _)| *k != &VaultLoader::update_path.type_id()
+                    && *k != &VaultLoader::update_key_file.type_id())
                 .all(|(_, v)| *v == 1));
             assert_eq!(call_map.borrow()[&VaultLoader::update_path.type_id()], 2);
+            assert_eq!(
+                call_map.borrow()[&VaultLoader::update_key_file.type_id()],
+                2
+            );
         });
     }
 }

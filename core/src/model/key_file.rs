@@ -38,13 +38,44 @@ impl std::fmt::Debug for KeyFile {
 impl std::ops::Deref for KeyFile {
     type Target = Vec<u8>;
 
+    #[cfg_attr(coverage, no_coverage)]
     fn deref(&self) -> &Self::Target {
         &self.key
     }
 }
 
 impl From<SecVec<u8>> for KeyFile {
+    #[cfg_attr(coverage, no_coverage)]
     fn from(key: SecVec<u8>) -> Self {
         Self { key }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use mocktopus::mocking::*;
+    use tempfile::tempdir;
+
+    use crate::cryptography::{self, generate_key_file};
+
+    use super::KeyFile;
+
+    #[test]
+    fn load_key_file() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("KeyFile.pwdk");
+
+        cryptography::fill_random_bytes.mock_safe(|buf| {
+            buf.fill(42_u8);
+            MockResult::Return(())
+        });
+
+        let password = "This is a totally secret password";
+        let key_file = generate_key_file(&password, &path).unwrap();
+
+        let loaded = KeyFile::load(&path, &password)
+            .expect("Loading and decrypting key file should not fail.");
+
+        assert_eq!(loaded.key().as_slice(), key_file.key().as_slice());
     }
 }
