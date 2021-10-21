@@ -1,5 +1,4 @@
-//! TODO
-
+//! The state of the password generator.
 use std::ops::RangeInclusive;
 
 use iced::{

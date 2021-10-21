@@ -1,5 +1,4 @@
-//! TODO
-
+//! The functions to save, load and delete entries.
 use std::{fs, path::Path};
 
 use crate::{
@@ -12,9 +11,9 @@ use super::{BODY, ENTRIES_DIR, HEAD};
 /// Save the [`EntryHead`](EntryHead) to disk.
 ///
 /// It expects:
-///     - The [`Path`](Path) as the location of the [Vault](Vault)
-///     - The UUID as the identifier of the [`EntryHead`](EntryHead)
-///     - The [`EntryHead`](EntryHead) to save
+///  - The [`Path`](Path) as the location of the [Vault](Vault)
+///  - The UUID as the identifier of the [`EntryHead`](EntryHead)
+///  - The [`EntryHead`](EntryHead) to save
 pub fn save_entry_head(
     path: &Path,
     uuid: &Uuid,
@@ -30,8 +29,8 @@ pub fn save_entry_head(
 /// Load the [`EntryHead`](EntryHead) from disk.
 ///
 /// It expects:
-///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
-///     - The UUID as the identifier of the [`EntryHead`](EntryHead)
+///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///  - The UUID as the identifier of the [`EntryHead`](EntryHead)
 pub fn load_entry_head(path: &Path, uuid: &Uuid) -> Result<EntryHead, PWDuckCoreError> {
     let file_name = uuid.base64hash();
     let content = fs::read_to_string(path.join(ENTRIES_DIR).join(HEAD).join(file_name))?;
@@ -59,9 +58,9 @@ pub fn load_all_entry_heads(path: &Path) -> Result<Vec<EntryHead>, PWDuckCoreErr
 /// Save the [`EntryBody`](EntryBody) to disk.
 ///
 /// It expects:
-///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
-///     - The UUID as the identifier of the [`EntryBody`](EntryBody)
-///     - The [`EntryBody`](EntryBody) to save
+///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///  - The UUID as the identifier of the [`EntryBody`](EntryBody)
+///  - The [`EntryBody`](EntryBody) to save
 pub fn save_entry_body(
     path: &Path,
     uuid: &Uuid,
@@ -77,8 +76,8 @@ pub fn save_entry_body(
 /// Load the [`EntryBody`](EntryBody) from disk.
 ///
 /// It expects:
-///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
-///     - The UUID as the identifier of the [`EntryBody`](EntryBody)
+///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///  - The UUID as the identifier of the [`EntryBody`](EntryBody)
 pub fn load_entry_body(path: &Path, uuid: &Uuid) -> Result<EntryBody, PWDuckCoreError> {
     let file_name = uuid.base64hash();
     let content = fs::read_to_string(path.join(ENTRIES_DIR).join(BODY).join(file_name))?;
@@ -88,16 +87,21 @@ pub fn load_entry_body(path: &Path, uuid: &Uuid) -> Result<EntryBody, PWDuckCore
 /// Save the entry to disk.
 ///
 /// It expects:
-///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
-///     - The UUID as the identifier of the entry
-///     - The content of the entry
+///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///  - The UUID as the identifier of the entry
+///  - The content of the entry
 fn save_entry(path: &Path, uuid: &Uuid, content: String) -> Result<(), PWDuckCoreError> {
     let file_name = uuid.base64hash();
     fs::write(path.join(file_name), content)?;
     Ok(())
 }
 
-/// TODO
+/// Delete the entry from disk.
+///
+/// It expects:
+///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///  - The UUID as the identifier of the entry head
+///  - The UUID as the identifier of the entry body
 pub fn delete_entry(
     path: &Path,
     head_uuid: &Uuid,

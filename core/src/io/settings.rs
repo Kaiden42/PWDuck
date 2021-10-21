@@ -1,5 +1,4 @@
-//! TODO
-
+//! The functions to save and load settings.
 use std::{fs, path::PathBuf};
 
 use crate::{ApplicationSettings, PWDuckCoreError};
@@ -13,17 +12,6 @@ use mocktopus::macros::*;
 pub fn save_application_settings(
     application_settings: &ApplicationSettings,
 ) -> Result<(), PWDuckCoreError> {
-    //let path = dirs::config_dir().ok_or_else(|| {
-    //    PWDuckCoreError::Error("Could not find the config directory of the user.".into())
-    //})?;
-
-    //let path = get_system_config_dir()?;
-    //let path = path
-    //    .join(APPLICATION_SETTINGS_DIR);
-    //if !path.exists() {
-    //    fs::create_dir_all(&path)?;
-    //}
-    //let path = path.join(APPLICATION_SETTINGS_NAME);
     let path = get_settings_dir()?.join(APPLICATION_SETTINGS_NAME);
 
     let content = ron::to_string(application_settings)?;
@@ -33,16 +21,6 @@ pub fn save_application_settings(
 
 /// Load the [`ApplicationSettings`](ApplicationSettings) from disk.
 pub fn load_application_settings() -> Result<ApplicationSettings, PWDuckCoreError> {
-    //let path = dirs::config_dir().ok_or_else(|| {
-    //    PWDuckCoreError::Error("Could not find the config directory of the user.".into())
-    //})?;
-
-    //let path = get_system_config_dir()?;
-    //let path = path.join(APPLICATION_SETTINGS_DIR);
-    //if !path.exists() {
-    //    fs::create_dir_all(&path)?;
-    //}
-    //let path = path.join(APPLICATION_SETTINGS_NAME);
     let path = get_settings_dir()?.join(APPLICATION_SETTINGS_NAME);
 
     let content = fs::read_to_string(path)?;
@@ -99,9 +77,6 @@ mod tests {
 
     #[test]
     fn save_and_load_application_settings() {
-        //let dir = tempdir().unwrap();
-        //let path = dir.path();
-        //create_new_vault_dir(&path).unwrap();
         let dir = tempdir().unwrap();
         unsafe {
             get_system_config_dir.mock_raw(|| MockResult::Return(Ok(dir.path().to_path_buf())));

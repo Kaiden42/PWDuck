@@ -1,5 +1,4 @@
-//! TODO
-
+//! The vault in memory.
 use std::{collections::HashMap, path::PathBuf};
 
 use zeroize::Zeroize;
@@ -55,9 +54,9 @@ pub struct Vault {
     #[getset(get = "pub")]
     unsaved_entry_bodies: HashMap<Uuid, crate::dto::entry::EntryBody>,
 
-    /// TODO
+    /// A list of containing all the groups that will be deleted from disk when the [`Vault`](Vault) is saved.
     deleted_groups: Vec<Uuid>,
-    /// TODO: (head, body)
+    /// A list of containing all the entries (head, body) that will be deleted from disk when the [`Vault`](Vault) is saved.
     deleted_entries: Vec<(Uuid, Uuid)>,
 }
 
@@ -65,10 +64,10 @@ impl Vault {
     /// Generate a new [`Vault`](Vault).
     ///
     /// It expects:
-    ///     - The password to encrypt the masterkey of the new [`Vault`](Vault)
-    ///     - The location of the optional key file.
-    ///     - The memory key to protect the new generated masterkey of the new [`Vault`](Vault)
-    ///     - The path as the location of the new [`Vault`](Vault)
+    ///  - The password to encrypt the masterkey of the new [`Vault`](Vault)
+    ///  - The location of the optional key file.
+    ///  - The memory key to protect the new generated masterkey of the new [`Vault`](Vault)
+    ///  - The path as the location of the new [`Vault`](Vault)
     pub fn generate<P1, P2>(
         password: &str,
         key_file: Option<P1>,
@@ -127,7 +126,7 @@ impl Vault {
     /// Save the vault to disk.
     ///
     /// It expects:
-    ///     - The [`MemKey`](MemKey) to decrypt the in-memory encrypted masterkey of the [`Vault`](Vault).
+    ///  - The [`MemKey`](MemKey) to decrypt the in-memory encrypted masterkey of the [`Vault`](Vault).
     pub fn save(&mut self, mem_key: &MemKey) -> Result<(), PWDuckCoreError> {
         let path = self.path.clone();
         let mut masterkey = unprotect_masterkey(
@@ -181,9 +180,9 @@ impl Vault {
     /// Load a [`Vault`](Vault) from disk.
     ///
     /// It expects:
-    ///     - The password to decrypt the masterkey of the [`Vault`](Vault)
-    ///     - The [`MemKey`] to re-encrypt the decrypted masterkey in memory
-    ///     - The path as the location of the vault
+    ///  - The password to decrypt the masterkey of the [`Vault`](Vault)
+    ///  - The [`MemKey`] to re-encrypt the decrypted masterkey in memory
+    ///  - The path as the location of the vault
     pub fn load<P1, P2>(
         password: &str,
         key_file: Option<P1>,
@@ -292,7 +291,7 @@ impl Vault {
         drop(self.groups.insert(group.uuid().clone(), group));
     }
 
-    /// TODO
+    /// Delete a [`Group`](Group) from this [`Vault`](Vault).
     pub fn delete_group(&mut self, uuid: &Uuid) {
         if let Some(group) = self.groups.remove(uuid) {
             // Remove from parent's children.
@@ -310,9 +309,9 @@ impl Vault {
     /// Insert a new entry into this [`Vault`](Vault).
     ///
     /// It expects:
-    ///     - The [`EntryHead`] of the new entry
-    ///     - The [`EntryBody`] of the new entry
-    ///     - The masterkey to decrypt the [`EntryBody`](EntryBody)
+    ///  - The [`EntryHead`] of the new entry
+    ///  - The [`EntryBody`] of the new entry
+    ///  - The masterkey to decrypt the [`EntryBody`](EntryBody)
     pub fn insert_entry(
         &mut self,
         entry_head: EntryHead,
@@ -335,7 +334,7 @@ impl Vault {
         Ok(())
     }
 
-    /// TODO
+    /// Delete an entry from this [`Vault`](Vault).
     pub fn delete_entry(&mut self, uuid: &Uuid) {
         if let Some(entry_head) = self.entries.remove(uuid) {
             // Remove from parent's children.
@@ -396,8 +395,8 @@ impl Vault {
     /// Returns the [`ItemList`](ItemList) containing [`Group`](Group)s and [`EntryHead`](EntryHead) based on the given filters.
     ///
     /// It expects:
-    ///     - The UUID of the current selected [`Group`](Group)
-    ///     - The optional search filter
+    ///  - The UUID of the current selected [`Group`](Group)
+    ///  - The optional search filter
     #[must_use]
     pub fn get_item_list_for<'a>(
         &'a self,

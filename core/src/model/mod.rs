@@ -1,4 +1,4 @@
-//! TODO
+//! This module contains all in memory representations that a vault is made of.
 
 pub mod entry;
 

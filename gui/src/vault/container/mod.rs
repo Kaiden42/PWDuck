@@ -1,5 +1,4 @@
-//! TODO
-
+//! The view of the content of a vault.
 use std::sync::MutexGuard;
 
 use iced::{Column, Command, Container, Length};
@@ -77,17 +76,17 @@ impl VaultContainer {
                 .map_or(false, |view| view.contains_unsaved_changes())
     }
 
-    /// TODO
+    /// If the [`Focus`](iced_focus::Focus) of the [`ListView`](ListView) is enabled.
     const fn enable_list_view_focus(&self) -> bool {
         self.modify_group_view.is_none() && self.modify_entry_view.is_none()
     }
 
-    /// TODO
+    /// If the [`Focus`](iced_focus::Focus) of the [`ModifyGroupView`](ModifyGroupView) is enabled.
     const fn enable_modify_group_view_focus(&self) -> bool {
         self.modify_group_view.is_some()
     }
 
-    /// TODO
+    /// If the [`Focus`](iced_focus::Focus) of the [`ModifyEntryView`](ModifyEntryView) is enabled.
     const fn enable_modify_entry_view_focus(&self) -> bool {
         self.modify_entry_view.is_some()
     }

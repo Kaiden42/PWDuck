@@ -1,5 +1,4 @@
-//! TODO
-
+//! The settings of the application.
 use getset::{Getters, Setters};
 use serde::{Deserialize, Serialize};
 
@@ -19,7 +18,7 @@ impl Default for ApplicationSettings {
     }
 }
 
-/// TODO
+/// The theme settings to specify the user selected theme.
 pub mod theme {
     use serde::{Deserialize, Serialize};
 

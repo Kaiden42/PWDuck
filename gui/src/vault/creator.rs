@@ -1,5 +1,4 @@
-//! TODO
-
+//! The view of the vault creator.
 use std::path::PathBuf;
 
 use iced::{button, text_input, Checkbox, Column, Command, Container, Element, Row, Text};
@@ -425,9 +424,9 @@ impl Component for VaultCreator {
 /// Create the view of the path selection.
 ///
 /// It expects:
-///     - The state of the [`TextInput`](iced::TextInput)
-///     - The value of the path
-///     - The state of the [`Button`](iced::Button) to open the native file dialog
+///  - The state of the [`TextInput`](iced::TextInput)
+///  - The value of the path
+///  - The state of the [`Button`](iced::Button) to open the native file dialog
 #[cfg_attr(coverage, no_coverage)]
 fn path_row<'a, P: Platform + 'static>(
     path_state: &'a mut text_input::State,
@@ -469,10 +468,10 @@ fn path_row<'a, P: Platform + 'static>(
 /// Create the view of the password selection.
 ///
 /// It expects:
-///     - The state of the [`TextInput`](iced::TextInput)
-///     - The value of the password
-///     - The visibility of the password
-///     - The state of the [`Button`](iced::Button) to toggle the visibility
+///  - The state of the [`TextInput`](iced::TextInput)
+///  - The value of the password
+///  - The visibility of the password
+///  - The state of the [`Button`](iced::Button) to toggle the visibility
 #[cfg_attr(coverage, no_coverage)]
 fn password_row<'a>(
     password_state: &'a mut text_input::State,
@@ -510,12 +509,12 @@ fn password_row<'a>(
 /// Create the view of the password confirmation selection.
 ///
 /// It expects:
-///     - The state of the [`TextInput`](TextInput)
-///     - The value of the password confirmation
-///     - The visibility of the password confirmation
-///     - The state of the [`Button`] to toggle the visibility
-///     - True, if the password is empty
-///     - True, if the password equals the password confirmation
+///  - The state of the [`TextInput`](TextInput)
+///  - The value of the password confirmation
+///  - The visibility of the password confirmation
+///  - The state of the [`Button`] to toggle the visibility
+///  - True, if the password is empty
+///  - True, if the password equals the password confirmation
 #[cfg_attr(coverage, no_coverage)]
 fn password_confirm_row<'a>(
     password_confirm_state: &'a mut text_input::State,
@@ -560,10 +559,10 @@ fn password_confirm_row<'a>(
 /// Create the view of the key file row.
 ///
 /// It expects:
-///     - The state of the [`TextInput`](iced::TextInput)
-///     - The value of the key file path
-///     - The state of the [`Button`](iced::Button) to open the native file dialog
-///     - If a key file is used
+///  - The state of the [`TextInput`](iced::TextInput)
+///  - The value of the key file path
+///  - The state of the [`Button`](iced::Button) to open the native file dialog
+///  - If a key file is used
 #[cfg_attr(coverage, no_coverage)]
 fn key_file_row<'a, P: Platform + 'static>(
     key_file_state: &'a mut text_input::State,
@@ -625,9 +624,9 @@ fn key_file_row<'a, P: Platform + 'static>(
 /// Create the view of the submit and cancel button.
 ///
 /// It expects:
-///     - The state of the cancel [`Button`](iced::Button)
-///     - The state of the submit [`Button`](iced::Button)
-///     - True, if the creation can be submitted.
+///  - The state of the cancel [`Button`](iced::Button)
+///  - The state of the submit [`Button`](iced::Button)
+///  - True, if the creation can be submitted.
 #[cfg_attr(coverage, no_coverage)]
 fn button_row<'a>(
     cancel_state: &'a mut button::State,

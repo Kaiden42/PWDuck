@@ -1,5 +1,4 @@
-//! TODO
-
+//! The view of the vault unlocker.
 use std::path::PathBuf;
 
 use iced::{button, text_input, Column, Command, Container, Element, Length, Row, Space, Text};

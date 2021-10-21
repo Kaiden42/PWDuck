@@ -1,4 +1,7 @@
-//! TODO
+//! The data-transfer-objects of the entries.
+//!
+//! They represent the encrypted [`EntryHead`](crate::model::entry::EntryHead)
+//! and [`EntryBody`](crate::model::entry::EntryBody) that are stored on disk.
 use getset::Getters;
 use serde::{Deserialize, Serialize};
 

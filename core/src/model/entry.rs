@@ -1,4 +1,4 @@
-//! TODO
+//! Decrypted entries stored in memory.
 use std::{collections::HashMap, convert::TryInto, ops::Deref, path::Path};
 
 use crate::{
@@ -33,7 +33,7 @@ pub struct EntryHead {
     #[serde(default)]
     web_address: String,
 
-    /// TODO
+    /// The sequence of the auto type.
     #[getset(get = "pub", set = "pub")]
     #[serde(default)]
     auto_type_sequence: AutoTypeSequence,
@@ -65,8 +65,8 @@ impl EntryHead {
     /// Save the [`EntryHead`] to disk.
     ///
     /// It expects:
-    ///     - The [`Path`](Path) as the location of the [`Vault](crate::Vault).
-    ///     - The masterkey to encrypt the head.
+    ///  - The [`Path`](Path) as the location of the [`Vault](crate::Vault).
+    ///  - The masterkey to encrypt the head.
     pub fn save(&mut self, path: &Path, masterkey: &[u8]) -> Result<(), PWDuckCoreError> {
         let entry_head = self.encrypt(masterkey)?;
         crate::io::save_entry_head(path, &self.uuid, &entry_head)?;
@@ -89,9 +89,9 @@ impl EntryHead {
     /// Load an [`EntryHead`](EntryHead) from disk.
     ///
     /// It expects:
-    ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
-    ///     - The UUID as the identifier of the [`EntryHead`](EntryHead)
-    ///     - The masterkey to decrypt the [`EntryHead`](EntryHead)
+    ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
+    ///  - The UUID as the identifier of the [`EntryHead`](EntryHead)
+    ///  - The masterkey to decrypt the [`EntryHead`](EntryHead)
     pub fn load(path: &Path, uuid: &Uuid, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_entry_head(path, uuid)?;
         Self::decrypt(&dto, masterkey)
@@ -100,8 +100,8 @@ impl EntryHead {
     /// Load all [`EntryHead`](EntryHead)s from disk.
     ///
     /// It expects:
-    ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
-    ///     - The masterkey to decrypt the [`EntryHead`](EntryHead)s
+    ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
+    ///  - The masterkey to decrypt the [`EntryHead`](EntryHead)s
     pub fn load_all(path: &Path, masterkey: &[u8]) -> Result<HashMap<Uuid, Self>, PWDuckCoreError> {
         let dtos = crate::io::load_all_entry_heads(path)?;
 
@@ -215,9 +215,9 @@ impl EntryBody {
     /// Load an [`EntryBody`](EntryBody) from disk.
     ///
     /// It expects:
-    ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
-    ///     - The UUID as the identifier of the [`EntryBody`](EntryBody)
-    ///     - The masterkey to decrypt the [`EntryBody`](EntryBody)
+    ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
+    ///  - The UUID as the identifier of the [`EntryBody`](EntryBody)
+    ///  - The masterkey to decrypt the [`EntryBody`](EntryBody)
     pub fn load(path: &Path, uuid: &Uuid, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_entry_body(path, uuid)?;
         let body = Self::decrypt(&dto, masterkey)?;

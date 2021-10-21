@@ -1,5 +1,4 @@
-//! TODO
-
+//! The view of the toolbar.
 use iced::{button, Element, Length, Row};
 
 use crate::{

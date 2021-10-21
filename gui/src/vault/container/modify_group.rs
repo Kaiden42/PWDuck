@@ -1,4 +1,4 @@
-//! TODO
+//! The view of a group creator / modifier.
 use getset::{CopyGetters, Getters, MutGetters, Setters};
 
 use iced::{
@@ -45,12 +45,12 @@ pub struct ModifyGroupView {
     /// Whether the group was modified or not.
     is_modified: bool,
 
-    /// TODO
+    /// If the advanced area is shown.
     #[getset(get_copy)]
     show_advanced: bool,
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to toggle the visibility of the advanced area.
     advanced_button_state: button::State,
-    /// TODO
+    /// The state of the advanced area.
     #[focus(enable = "self.show_advanced")]
     advanced_state: AdvancedState,
 
@@ -58,7 +58,7 @@ pub struct ModifyGroupView {
     scrollable_state: scrollable::State,
 }
 
-/// The message that is send by the [`ModifyGroupView`](ModifyGroupView).
+/// The message that is send by the `ModifyGroupView`.
 #[derive(Clone, Debug)]
 pub enum ModifyGroupMessage {
     /// Change the title to the new value.
@@ -73,7 +73,7 @@ pub enum ModifyGroupMessage {
     /// The messages produced by the advanced area.
     Advanced(AdvancedStateMessage),
 
-    /// TODO
+    /// The messages produced by the modal.
     Modal(ModifyGroupModalMessage),
 }
 impl SomeIf for ModifyGroupMessage {}
@@ -83,7 +83,7 @@ impl ModifyGroupView {
     /// Create a new [`ModifyGroupView`](ModifyGroupView).
     ///
     /// It expects:
-    ///     - The group to modify.
+    ///  - The group to modify.
     pub fn with(state: State, group: Group) -> Self {
         Self {
             state,

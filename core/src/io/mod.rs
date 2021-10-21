@@ -1,5 +1,4 @@
-//! TODO
-
+//! This module contains everything related to IO.
 use std::path::Path;
 
 use crate::{
@@ -22,9 +21,9 @@ pub const BODY: &str = "body";
 /// The file name of the master key
 pub const MASTERKEY_NAME: &str = "masterkey.pwduck";
 
-/// TODO
+/// The directory name of the application settings.
 pub const APPLICATION_SETTINGS_DIR: &str = "PWDuck";
-/// TODO
+/// The file name of the application settings.
 pub const APPLICATION_SETTINGS_NAME: &str = "settings.ron";
 
 mod entry;

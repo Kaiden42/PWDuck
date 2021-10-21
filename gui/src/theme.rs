@@ -1,4 +1,4 @@
-//! TODO
+//! The color themes of the GUI.
 
 use iced::{button, checkbox, container, radio, slider, text_input, Background, Color, Vector};
 use iced_aw::{card, modal, number_input, split, tab_bar};
@@ -19,8 +19,8 @@ lazy_static! {
     static ref PRIMARY_5: Color = shade(*PRIMARY_1, 0.6);
     /// The primary color with a shade of 50%.
     static ref PRIMARY_6: Color = shade(*PRIMARY_1, 0.5);
+    
     /// The secondary color (#797979).
-    //static ref SECONDARY_1: Color = Color::from_rgb(0.475, 0.475, 0.475);
     static ref SECONDARY_1: Color = Color::from_rgb(0.835, 0.835, 0.835); // D5
     /// The secondary color with a shade of 10%.
     static ref SECONDARY_2: Color = shade(*SECONDARY_1, 0.9);
@@ -32,6 +32,7 @@ lazy_static! {
     static ref SECONDARY_5: Color = shade(*SECONDARY_1, 0.6);
     /// The secondary color with a shade of 50%.
     static ref SECONDARY_6: Color = shade(*SECONDARY_1, 0.5);
+    
     /// The warning color (#ff0000)
     static ref WARNING_1: Color = Color::from_rgb(1.0, 0.0, 0.0);
     /// The warning color with a shade of 10%.
@@ -44,17 +45,18 @@ lazy_static! {
     static ref WARNING_5: Color = shade(*WARNING_1, 0.6);
     /// The warning color with a shade of 50%.
     static ref WARNING_6: Color = shade(*WARNING_1, 0.5);
+    
     /// The text color of the light theme (#000000).
-    //static ref TEXT_LIGHT: Color = Color::from_rgb(0.0, 0.0, 0.0);
     static ref TEXT_LIGHT: Color = Color::from_rgb(0.173, 0.173, 0.173);
     /// The text color of the dark theme (#ffffff).
-    //static ref TEXT_DARK: Color = Color::from_rgb(1.0, 1.0, 1.0);
     static ref TEXT_DARK: Color = Color::from_rgb(0.98, 0.98, 0.98);
+
     /// The background color of the light theme (#fafafa).
     static ref BACKGROUND_LIGHT: Color = Color::from_rgb(0.98, 0.98, 0.98);
     /// The background color of the dark theme (#2c2c2c).
     static ref BACKGROUND_DARK: Color = Color::from_rgb(0.173, 0.173, 0.173);
 }
+
 /// Calculates the tint of the given color based on the specified tint-factor.
 /// Thanks to: <https://maketintsandshades.com/about>
 fn tint(mut color: Color, factor: f32) -> Color {
@@ -291,17 +293,8 @@ impl Theme for Light {
             fn style(&self) -> container::Style {
                 container::Style {
                     text_color: Some(*TEXT_LIGHT),
-                    //background: Some(Color::from_rgb(0.97, 0.97, 0.97).into()),
                     background: Some(
-                        //Color {
-                        //    r: BACKGROUND_LIGHT.r + 0.03,
-                        //    g: BACKGROUND_LIGHT.g + 0.03,
-                        //    b: BACKGROUND_LIGHT.b + 0.03,
-                        //    a: BACKGROUND_LIGHT.a,
-                        //}
-                        //.into(),
-                        // TODO
-                        tint(*BACKGROUND_LIGHT, 0.1).into(), //shade(*BACKGROUND_LIGHT, 0.99).into()
+                        tint(*BACKGROUND_LIGHT, 0.1).into(),
                     ),
                     border_radius: 0.0,
                     border_width: 0.0,
@@ -897,14 +890,6 @@ impl Theme for Dark {
                 container::Style {
                     text_color: Some(*TEXT_DARK),
                     background: Some(
-                        //Color {
-                        //    r: BACKGROUND_DARK.r + 0.03,
-                        //    g: BACKGROUND_DARK.g + 0.03,
-                        //    b: BACKGROUND_DARK.b + 0.03,
-                        //    a: BACKGROUND_DARK.a,
-                        //}
-                        //.into(),
-                        // TODO
                         tint(*BACKGROUND_DARK, 0.03).into(),
                     ),
                     border_radius: 0.0,

@@ -1,5 +1,6 @@
-//! TODO
-
+//! The state of the password / passphrase generator.
+//!
+//! The passphrase generator is currently not implemented.
 use getset::{Getters, Setters};
 use iced::{button, text_input, Column, Command, Container, Element, Length, Row, Text, TextInput};
 use iced_aw::{Card, TabBar, TabLabel};
@@ -31,7 +32,7 @@ use password_tab::{PasswordTabMessage, PasswordTabState};
 #[cfg(test)]
 use mocktopus::macros::*;
 
-/// The state of the password generator.
+/// The state of the password / passphrase generator.
 #[derive(Debug, Default, Getters, Setters)]
 pub struct PasswordGeneratorState {
     /// The generated password.

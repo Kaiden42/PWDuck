@@ -1,4 +1,5 @@
-//! TODO
+//! This module contains the memory protecting structures and structures
+//! that erase their critical information when they will be dropped.
 
 use std::{
     fmt::Debug,
@@ -17,7 +18,7 @@ use mocktopus::macros::*;
 /// The size of a 1 MiB block.
 const MIB_1: usize = 0x0010_0000;
 
-/// Memory key used for in memory encryption. It is protected and locked in memory.
+/// Memory key used for in memory encryption. It contains protected and locked memory.
 #[derive(Debug)]
 pub struct MemKey {
     /// The bytes of the memory key.

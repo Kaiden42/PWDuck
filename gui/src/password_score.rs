@@ -79,10 +79,10 @@ where
 /// Fill the strength bar.
 ///
 /// It expects:
-///     - A mutable reference on the strength bar to fill
-///     - The amount of colored parts contained in this bar
-///     - The amount of uncolored parts contained in this bar
-///     - The style to color the colored parts with
+///  - A mutable reference on the strength bar to fill
+///  - The amount of colored parts contained in this bar
+///  - The amount of uncolored parts contained in this bar
+///  - The style to color the colored parts with
 #[cfg_attr(coverage, no_coverage)]
 fn fill_strength_bar<'a, Style: 'static, Message>(
     mut strength_bar: Row<'a, Message>,

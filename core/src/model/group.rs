@@ -1,4 +1,4 @@
-//! TODO
+//! Decrypted groups stored in memory.
 use std::{collections::HashMap, path::Path};
 
 use getset::{Getters, Setters};
@@ -50,8 +50,8 @@ impl Group {
     /// Save the [`Group`](Group) to disk.
     ///
     /// It expects:
-    ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
-    ///     - The masterkey to encrypt the group
+    ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
+    ///  - The masterkey to encrypt the group
     pub fn save(&mut self, path: &Path, masterkey: &[u8]) -> Result<(), PWDuckCoreError> {
         let group = self.encrypt(masterkey)?;
         crate::io::save_group(path, &self.uuid, &group)?;
@@ -74,9 +74,9 @@ impl Group {
     /// Load a [`Group`](Group) from disk.
     ///
     /// It expects:
-    ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
-    ///     - The UUID as the identifier of the [`Group`](Group)
-    ///     - The masterkey to decrypt the [`Group`](Group)
+    ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
+    ///  - The UUID as the identifier of the [`Group`](Group)
+    ///  - The masterkey to decrypt the [`Group`](Group)
     pub fn load(path: &Path, uuid: &Uuid, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_group(path, uuid)?;
         Self::decrypt(&dto, masterkey)
@@ -85,8 +85,8 @@ impl Group {
     /// Load all [`Group`](Group)s from disk.
     ///
     /// It expects:
-    ///     - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
-    ///     - The masterkey to decrypt the [`Group`](Group)s
+    ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
+    ///  - The masterkey to decrypt the [`Group`](Group)s
     pub fn load_all(path: &Path, masterkey: &[u8]) -> Result<HashMap<Uuid, Self>, PWDuckCoreError> {
         let dtos = crate::io::load_all_groups(path)?;
 

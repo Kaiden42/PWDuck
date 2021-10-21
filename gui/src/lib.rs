@@ -1,4 +1,6 @@
-//! TODO
+//! The graphical user interface (GUI) of the password manager.
+//!
+//! It uses the [core](pwduck_core) module internally to manage the passwords of the user.
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 //#![deny(unused_results)]

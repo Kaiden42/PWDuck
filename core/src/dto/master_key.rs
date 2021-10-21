@@ -1,4 +1,7 @@
-//! TODO
+//! The data-transfer-objects of the master keys.
+//!
+//! It represents the encrypted [`MasterKey`](crate::model::master_key::MasterKey)
+//! that is stored on disk.
 use getset::Getters;
 use serde::{Deserialize, Serialize};
 /// The encrypted masterkey as a data-transfer-object (dto).

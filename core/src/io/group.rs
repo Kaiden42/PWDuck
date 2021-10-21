@@ -1,5 +1,4 @@
-//! TODO
-
+//! The functions to save, load and delete groups.
 use std::{fs, path::Path};
 
 use crate::{dto::group::Group, PWDuckCoreError, Uuid};
@@ -9,9 +8,9 @@ use super::GROUPS_DIR;
 /// Save the [`Group`](Group) to disk.
 ///
 /// It expects:
-///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
-///     - The UUID as the identifier of the [`Group`](Group)
-///     - The [`Group`](Group) to save
+///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///  - The UUID as the identifier of the [`Group`](Group)
+///  - The [`Group`](Group) to save
 pub fn save_group(path: &Path, uuid: &Uuid, group: &Group) -> Result<(), PWDuckCoreError> {
     let file_name = uuid.base64hash();
     fs::write(
@@ -21,7 +20,11 @@ pub fn save_group(path: &Path, uuid: &Uuid, group: &Group) -> Result<(), PWDuckC
     Ok(())
 }
 
-/// TODO
+/// Delete the [`Group`](Group) from disk.
+///
+/// It expects:
+///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///  - The UUID as the identifier of the [`Group`](Group)
 pub fn delete_group(path: &Path, uuid: &Uuid) -> Result<(), PWDuckCoreError> {
     let group_path = path.join(GROUPS_DIR).join(uuid.base64hash());
     if group_path.exists() {
@@ -33,8 +36,8 @@ pub fn delete_group(path: &Path, uuid: &Uuid) -> Result<(), PWDuckCoreError> {
 /// Load the [`Group`](Group) from disk.
 ///
 /// It expects:
-///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
-///     - The UUID as the identifier of the [`Group`](Group)
+///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///  - The UUID as the identifier of the [`Group`](Group)
 pub fn load_group(path: &Path, uuid: &Uuid) -> Result<Group, PWDuckCoreError> {
     let file_name = uuid.base64hash();
     let content = fs::read_to_string(path.join(GROUPS_DIR).join(file_name))?;
@@ -44,7 +47,7 @@ pub fn load_group(path: &Path, uuid: &Uuid) -> Result<Group, PWDuckCoreError> {
 /// Load all [`Group`](Group)s of a vault.
 ///
 /// It expects:
-///     - The [`Path`](Path) as the location of the [`Vault`](Vault)
+///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
 pub fn load_all_groups(path: &Path) -> Result<Vec<Group>, PWDuckCoreError> {
     let directory = path.join(GROUPS_DIR);
 

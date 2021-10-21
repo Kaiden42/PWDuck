@@ -70,10 +70,10 @@ impl ButtonKind {
 /// Create a [`Button`] with an [`Icon`](Icon) and a [`Text`](iced::Text).
 ///
 /// It expects:
-///     - The data of the [`Button`](Button).
-///     - The tooltip of the [`Button`](Button).
-///     - If only the [`Icon`](Icon) of the [`Button`](Button) should be visible.
-///     - The theme of the application.
+///  - The data of the [`Button`](Button).
+///  - The tooltip of the [`Button`](Button).
+///  - If only the [`Icon`](Icon) of the [`Button`](Button) should be visible.
+///  - The theme of the application.
 #[cfg_attr(coverage, no_coverage)]
 pub fn icon_button<'a, Message: 'a + Clone>(
     button_data: ButtonData<'a, Message>,
@@ -110,10 +110,10 @@ pub fn icon_button<'a, Message: 'a + Clone>(
 /// Create a [`Button`](Button) with an [`Icon`](Icon), a [`Text`](iced::Text) and a specified width.
 ///
 /// It expects:
-///     - The data o fteh [`Button`](Button).
-///     - The tooltip of the [`Button`](Button).
-///     - The width of the [`Button`](Button).
-///     - The theme of the application.
+///  - The data of the [`Button`](Button).
+///  - The tooltip of the [`Button`](Button).
+///  - The width of the [`Button`](Button).
+///  - The theme of the application.
 #[cfg_attr(coverage, no_coverage)]
 pub fn icon_button_with_width<'a, Message: 'a + Clone>(
     button_data: ButtonData<'a, Message>,
@@ -148,10 +148,10 @@ pub fn icon_text(icon: Icon) -> Text {
 /// Create a toggle button to toggle the password visibility.
 ///
 /// It expects:
-///     - The [`State`](button::State) of the [`Button`](Button)
-///     - The state of the password visibility
-///     - The message that the [`Button`](Button) sends if the user presses on it
-///     - The theme of the application.
+///  - The [`State`](button::State) of the [`Button`](Button)
+///  - The state of the password visibility
+///  - The message that the [`Button`](Button) sends if the user presses on it
+///  - The theme of the application.
 #[cfg_attr(coverage, no_coverage)]
 pub fn password_toggle<'a, Message: 'a + Clone>(
     state: &'a mut button::State,
@@ -191,10 +191,10 @@ pub fn password_toggle<'a, Message: 'a + Clone>(
 /// Create a default [`TextInput`](TextInput).
 ///
 /// It expects:
-///     - The [`State`](text_input::State) of the [`TextInput`](TextInput)
-///     - The placeholder of the [`TextInput`](TextInput)
-///     - The value of the [`TextInput`](TextInput)
-///     - The message that the [`TextInput`](TextInput) sends if the value is changed
+///  - The [`State`](text_input::State) of the [`TextInput`](TextInput)
+///  - The placeholder of the [`TextInput`](TextInput)
+///  - The value of the [`TextInput`](TextInput)
+///  - The message that the [`TextInput`](TextInput) sends if the value is changed
 #[cfg_attr(coverage, no_coverage)]
 pub fn default_text_input<'a, F, Message: Clone>(
     state: &'a mut text_input::State,

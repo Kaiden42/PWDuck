@@ -1,6 +1,9 @@
+//! A password manager written in Rust using Iced as a graphical user interface.
+//!
+//! This module is the starting point of the application. It uses the [gui](pwduck_gui) module
+//! to open up a graphical user interface.
 #![windows_subsystem = "windows"]
 #![cfg_attr(coverage, feature(no_coverage))]
-//! TODO
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 #![deny(unused_results)]

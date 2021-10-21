@@ -1,5 +1,4 @@
-//! TODO
-
+//! The function to create a new vault directory.
 use std::{fs, path::Path};
 
 use crate::PWDuckCoreError;

@@ -1,4 +1,4 @@
-//! TODO
+//! The core library of the password manager.
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 #![deny(unused_results)]

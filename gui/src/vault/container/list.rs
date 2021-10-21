@@ -1,4 +1,4 @@
-//! TODO
+//! The list view of the content of a vault.
 use std::mem::swap;
 
 use iced::{
@@ -91,9 +91,9 @@ impl ListView {
     /// Create a new [`ListView`](ListView).
     ///
     /// It expects:
-    ///     - The UUID of the root group of the vault
-    ///     - The number of sub-groups in the root group.
-    ///     - The number of entries in the root group.
+    ///  - The UUID of the root group of the vault
+    ///  - The number of sub-groups in the root group.
+    ///  - The number of entries in the root group.
     pub fn new(root_uuid: Uuid, vault: &Vault) -> Self {
         let (group_count, entry_count) = (
             vault.get_groups_of(&root_uuid).len(),
@@ -509,8 +509,8 @@ impl GroupTree {
     /// Create a new [`GroupTree`](GroupTree).
     ///
     /// It expects:
-    ///     - The UUID of the group to display.
-    ///     - The vault to extract the group information from.
+    ///  - The UUID of the group to display.
+    ///  - The vault to extract the group information from.
     pub fn new(group_uuid: Uuid, vault: &Vault) -> Self {
         let title = vault
             .groups()

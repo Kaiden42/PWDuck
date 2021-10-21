@@ -1,5 +1,4 @@
-//! TODO
-
+//! Password generation.
 use rand::prelude::{Distribution, SliceRandom};
 
 use crate::PWDuckCoreError;

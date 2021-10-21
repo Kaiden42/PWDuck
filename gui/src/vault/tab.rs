@@ -1,5 +1,4 @@
-//! TODO
-
+//! The view and management of a tab.
 use std::path::PathBuf;
 
 use iced::Command;
@@ -109,24 +108,24 @@ impl VaultTab {
     }
 }
 
-/// TODO
+/// A vector containing all tabs and the index of the selected one.
 #[derive(Debug)]
 pub struct VaultTabVec(usize, Vec<VaultTab>);
 
 impl VaultTabVec {
-    /// TODO
+    /// Create a new [`VaultTabVec`](VaultTabVec) for the given list of tabs.
     #[must_use]
     pub fn new(index: usize, tabs: Vec<VaultTab>) -> Self {
         Self(index, tabs)
     }
 
-    /// TODO
+    /// Get the currently selected tab index.
     #[must_use]
     pub const fn selected(&self) -> usize {
         self.0
     }
 
-    /// TODO
+    /// Select a tab with the given index.
     pub fn select(&mut self, index: usize) {
         self.0 = index;
     }

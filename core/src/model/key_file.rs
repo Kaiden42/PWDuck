@@ -1,5 +1,4 @@
-//! TODO
-
+//! Decrypted key files stored in memory.
 use std::path::Path;
 use zeroize::Zeroize;
 
@@ -20,8 +19,8 @@ impl KeyFile {
     /// Load a [`KeyFile`](KeyFile) from disk.
     ///
     /// It expects:
-    ///     - The [`Path`](Path) as the location of the [`KeyFile`](KeyFile).
-    ///     - The password to decrypt the [`KeyFile`](KeyFile).
+    ///  - The [`Path`](Path) as the location of the [`KeyFile`](KeyFile).
+    ///  - The password to decrypt the [`KeyFile`](KeyFile).
     pub fn load(path: &Path, password: &str) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_key_file(path)?;
         decrypt_key_file(&dto, password)

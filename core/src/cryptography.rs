@@ -1,4 +1,4 @@
-//! TODO
+//! A collection of all cryptographic functions.
 use std::path::Path;
 
 use aes::Aes256;
@@ -250,9 +250,9 @@ pub fn decrypt_key_file(
 /// Encrypt the data with the AES block cipher in CBC mode.
 ///
 /// It expects:
-///     - The data to encrypt
-///     - The key for the encryption
-///     - The iv for the CBC mode
+///  - The data to encrypt
+///  - The key for the encryption
+///  - The iv for the CBC mode
 #[cfg_attr(test, mockable)]
 pub fn aes_cbc_encrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>, PWDuckCoreError> {
     let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(key, iv)?;
@@ -262,9 +262,9 @@ pub fn aes_cbc_encrypt(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>, PW
 /// Decrypt the data with the AES block cipher in CBC mode.
 ///
 /// It expects:
-///     - The data to decrypt
-///     - The key for the decryption
-///     - The iv for the CBC mode
+///  - The data to decrypt
+///  - The key for the decryption
+///  - The iv for the CBC mode
 #[cfg_attr(test, mockable)]
 pub fn aes_cbc_decrypt(
     encrypted_data: &[u8],
@@ -278,9 +278,9 @@ pub fn aes_cbc_decrypt(
 /// Encrypt the data with the `ChaCHa20` stream cipher.
 ///
 /// It expects:
-///     - The data to encrypt
-///     - The key for the encryption
-///     - A nonce (number-used-once)
+///  - The data to encrypt
+///  - The key for the encryption
+///  - A nonce (number-used-once)
 #[allow(clippy::unnecessary_wraps)]
 #[cfg_attr(test, mockable)]
 pub fn chacha20_encrypt(data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>, PWDuckCoreError> {
@@ -295,9 +295,9 @@ pub fn chacha20_encrypt(data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>
 /// Decrypt the data with the `ChaCha20` stream cipher.
 ///
 /// It expects:
-///     - The data to decrypt
-///     - The key for the decryption
-///     - A nonce (number-used-once)
+///  - The data to decrypt
+///  - The key for the decryption
+///  - A nonce (number-used-once)
 #[allow(clippy::unnecessary_wraps)]
 #[cfg_attr(test, mockable)]
 pub fn chacha20_decrypt(

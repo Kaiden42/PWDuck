@@ -1,5 +1,4 @@
-//! TODO
-
+//! The unique identifiers of each data in a vault.
 use std::{convert::TryFrom, ops::Deref, path::Path};
 
 use serde::{Deserialize, Serialize};

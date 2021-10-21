@@ -1,5 +1,4 @@
-//! TODO
-
+//! The view of the settings tab.
 use iced::{Column, Command, Radio, Text};
 use iced_focus::Focus;
 use pwduck_core::ApplicationSettings;

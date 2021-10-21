@@ -1,4 +1,7 @@
-//! TODO
+//! The data-transfer-objects of the groups.
+//!
+//! It represents the encrypted [`Group`](crate::model::group::Group) that
+//! is stored on disk.
 use getset::Getters;
 use serde::{Deserialize, Serialize};
 /// An encrypted [`Group`] of passwords and sub-groups as a data-transfer-object (dto).

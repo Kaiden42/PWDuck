@@ -1,5 +1,7 @@
-//! TODO
-
+//! The data-transfer-objects of the key files.
+//!
+//! It represents the encrypted [`KeyFile`](crate::model::key_file::KeyFile) that
+//! is stored on disk.
 use getset::Getters;
 use serde::{Deserialize, Serialize};
 

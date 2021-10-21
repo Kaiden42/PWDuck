@@ -1,5 +1,4 @@
-//! TODO
-
+//! The view of the entry creator / modifier.
 use std::sync::MutexGuard;
 
 use getset::{CopyGetters, Getters, MutGetters, Setters};
@@ -81,12 +80,12 @@ pub struct ModifyEntryView {
     /// The state of the submit [`Button`](iced::Button).
     submit_state: button::State,
 
-    /// TODO
+    /// If the advanced area is shown.
     #[getset(get_copy)]
     show_advanced: bool,
-    /// TODO
+    /// The state of the [`Button`](iced::Button) to toggle the visibility of the advanced area.
     advanced_button_state: button::State,
-    /// TODO
+    /// The state of the advanced area.
     #[focus(enable = "self.show_advanced")]
     advanced_state: AdvancedState,
 
@@ -134,7 +133,7 @@ pub enum ModifyEntryMessage {
     /// The messages produced by the advanced area.
     Advanced(AdvancedStateMessage),
 
-    /// TODO
+    /// The messages produced by the modal.
     Modal(ModifyEntryModalMessage),
 }
 impl SomeIf for ModifyEntryMessage {}
@@ -144,9 +143,9 @@ impl ModifyEntryView {
     /// Create a new [`ModifyEntryView`](ModifyEntryView).
     ///
     /// It expects:
-    ///     - A new entry was created or an existing will be modified.
-    ///     - The head of the entry to modify.
-    ///     - The body of teh entry to modify.
+    ///  - A new entry was created or an existing will be modified.
+    ///  - The head of the entry to modify.
+    ///  - The body of teh entry to modify.
     pub fn with(state: State, entry_head: EntryHead, entry_body: EntryBody) -> Self {
         Self {
             state,
