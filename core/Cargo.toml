@@ -14,7 +14,7 @@ rand_core = "0.6.2"
 argon2 = { version = "0.3.1", features = ["zeroize"] }
 base64 = "0.13.0"
 serde = { version = "1.0.125", features = ["derive"] }
-ron = "0.6.4"
+ron = "0.7.0"
 sha256 = "1.0.2"
 getset = "0.1.1"
 pw_entropy = { git = "https://github.com/Kaiden42/pw_entropy", rev = "d8d8305db936a94cc50bb770b8898f18f67faf71" }
