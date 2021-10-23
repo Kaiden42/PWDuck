@@ -4,8 +4,6 @@ version = "0.1.0"
 authors = ["Kaiden42 <gitlab@tinysn.com>"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 pwduck_core = {path = "../core"}
 iced = "0.3.0"
@@ -20,7 +18,6 @@ bitflags = "1.2.1"
 
 [dependencies.iced_aw]
 git = "https://github.com/iced-rs/iced_aw"
-#rev = "c92a393d1bfedc4e3dd8c99cc58920a81ce1eb35"
 rev = "c1d18aedcca94e989281e728576a40a583db97f6"
 default-features = false
 features = ["card", "modal", "tab_bar", "number_input", "split"]
