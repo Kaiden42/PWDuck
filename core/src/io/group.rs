@@ -12,7 +12,7 @@ use super::GROUPS_DIR;
 ///  - The UUID as the identifier of the [`Group`](Group)
 ///  - The [`Group`](Group) to save
 pub fn save_group(path: &Path, uuid: &Uuid, group: &Group) -> Result<(), PWDuckCoreError> {
-    let file_name = uuid.base64hash();
+    let file_name = uuid.base64_hash();
     fs::write(
         path.join(GROUPS_DIR).join(file_name),
         ron::to_string(&group)?,
@@ -26,7 +26,7 @@ pub fn save_group(path: &Path, uuid: &Uuid, group: &Group) -> Result<(), PWDuckC
 ///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
 ///  - The UUID as the identifier of the [`Group`](Group)
 pub fn delete_group(path: &Path, uuid: &Uuid) -> Result<(), PWDuckCoreError> {
-    let group_path = path.join(GROUPS_DIR).join(uuid.base64hash());
+    let group_path = path.join(GROUPS_DIR).join(uuid.base64_hash());
     if group_path.exists() {
         fs::remove_file(group_path)?;
     }
@@ -39,7 +39,7 @@ pub fn delete_group(path: &Path, uuid: &Uuid) -> Result<(), PWDuckCoreError> {
 ///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
 ///  - The UUID as the identifier of the [`Group`](Group)
 pub fn load_group(path: &Path, uuid: &Uuid) -> Result<Group, PWDuckCoreError> {
-    let file_name = uuid.base64hash();
+    let file_name = uuid.base64_hash();
     let content = fs::read_to_string(path.join(GROUPS_DIR).join(file_name))?;
     Ok(ron::from_str(&content)?)
 }
@@ -133,7 +133,7 @@ mod tests {
 
         save_group(&path, &uuid, &group).unwrap();
 
-        let group_path = path.join(GROUPS_DIR).join(uuid.base64hash());
+        let group_path = path.join(GROUPS_DIR).join(uuid.base64_hash());
 
         assert!(group_path.exists());
 

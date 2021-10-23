@@ -50,7 +50,6 @@ pub fn generate_uuid(path: &Path) -> Uuid {
 
     loop {
         fill_random_bytes(&mut uuid);
-        // TODO: remove code duplication
         let file_name = base64::encode(sha256::digest_bytes(&uuid));
 
         if !path.join(GROUPS_DIR).join(&file_name).exists()

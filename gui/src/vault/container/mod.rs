@@ -199,17 +199,10 @@ impl VaultContainer {
             ToolBarMessage::Save => self.save(&crate::MEM_KEY.lock()?),
             ToolBarMessage::NewGroup => Ok(self.create_group()),
             ToolBarMessage::NewEntry => Ok(self.create_entry()),
-            ToolBarMessage::AutoFill => {
-                //if let Some(modify_entry_view) = self.modify_entry_view.as_ref() {
-                //    self.auto_fill::<P>(&modify_entry_view.entry_head().uuid().as_string())
-                //} else {
-                //    Ok(Command::none())
-                //}
-                self.modify_entry_view.as_ref().map_or_else(
-                    || Ok(Command::none()),
-                    |view| self.auto_fill::<P>(view.entry_head().uuid(), &crate::MEM_KEY.lock()?),
-                )
-            }
+            ToolBarMessage::AutoFill => self.modify_entry_view.as_ref().map_or_else(
+                || Ok(Command::none()),
+                |view| self.auto_fill::<P>(view.entry_head().uuid(), &crate::MEM_KEY.lock()?),
+            ),
             ToolBarMessage::LockVault => {
                 PWDuckGuiError::Unreachable("ToolBarMessage".into()).into()
             }
@@ -320,7 +313,6 @@ impl VaultContainer {
             .get(uuid)
             .ok_or(PWDuckGuiError::Option)?;
 
-        // TODO: clean up
         let masterkey = self.vault.masterkey().as_unprotected(
             mem_key,
             self.vault.salt(),

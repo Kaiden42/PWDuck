@@ -38,7 +38,6 @@ impl AutoTypeSequenceParser {
         sequence: Pairs<Rule>,
         entry_head: &'a EntryHead,
         entry_body: &'a EntryBody,
-        //key_sequence: &mut Vec<SecString>,
         parts: &mut Vec<Part>,
     ) -> Result<(), PWDuckCoreError> {
         for pair in sequence {

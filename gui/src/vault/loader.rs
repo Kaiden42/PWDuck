@@ -110,12 +110,11 @@ impl VaultLoader {
                 } else {
                     None
                 };
-                // TODO: remove duplicate
+
                 async move {
                     let mem_key = crate::MEM_KEY.lock()?;
                     let vault = pwduck_core::Vault::load(&password, key_file, &mem_key, path);
 
-                    //Box::new(vault)
                     vault.map(Box::new)
                 }
             },
@@ -256,7 +255,6 @@ impl Component for VaultLoader {
         _application_settings: &pwduck_core::ApplicationSettings,
         theme: &dyn Theme,
         _viewport: &Viewport,
-        //platform: &dyn Platform
     ) -> iced::Element<'_, Self::Message> {
         let path_row = path_row::<P>(
             &mut self.path_state,

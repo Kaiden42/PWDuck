@@ -1,5 +1,5 @@
 //! A collection of all cryptographic functions.
-use std::path::Path;
+use std::{collections::HashSet, path::Path, sync::Mutex};
 
 use aes::Aes256;
 use argon2::{
@@ -9,6 +9,7 @@ use argon2::{
 use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
 use chacha20::cipher::{NewCipher, StreamCipher};
 use chacha20::{ChaCha20, Key, Nonce};
+use lazy_static::lazy_static;
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use rand_core::OsRng;
@@ -32,20 +33,39 @@ pub const MASTER_KEY_SIZE: usize = 32;
 /// The default size of a key file.
 pub const KEY_FILE_SIZE: usize = 32;
 
+lazy_static! {
+    static ref USED_NONCE: Mutex<HashSet<Vec<u8>>> = Mutex::new(HashSet::new());
+}
+
 /// Generate a new random initialization vector for the AES encryption.
 pub fn generate_aes_iv() -> Vec<u8> {
     generate_iv(AES_IV_LENGTH)
 }
 
 /// Generate a new random nonce (number-used-once) for the `ChaCha20` encryption.
-pub fn generate_chacha20_nonce() -> Vec<u8> {
-    // TODO: nonce must be unique!
-    generate_iv(CHACHA20_NONCE_LENGTH)
+pub fn generate_chacha20_nonce() -> Result<Vec<u8>, PWDuckCoreError> {
+    #[allow(unused_mut)]
+    let mut nonce;
+    loop {
+        nonce = generate_iv(CHACHA20_NONCE_LENGTH);
+
+        // Retry if nonce is already in use
+        #[cfg(not(test))]
+        {
+            let mut nonce_set = USED_NONCE.lock()?;
+            if nonce_set.insert(nonce.clone()) {
+                break;
+            }
+        }
+        // Do not test if nonce is already in use in test environment
+        #[cfg(test)]
+        break;
+    }
+    Ok(nonce)
 }
 
 /// Generate a new random salt for the Argon2 key derivation.
 pub fn generate_argon2_salt() -> String {
-    // TODO
     SaltString::generate(&mut OsRng).as_str().to_owned()
 }
 
@@ -53,7 +73,6 @@ pub fn generate_argon2_salt() -> String {
 #[cfg_attr(test, mockable)]
 pub fn generate_iv(length: usize) -> Vec<u8> {
     let mut iv: Vec<u8> = vec![0_u8; length];
-    //OsRng.fill_bytes(&mut iv);
     fill_random_bytes(&mut iv);
     iv
 }
@@ -68,7 +87,6 @@ fn generate_salt() -> SaltString {
 /// Fill the given slice of bytes with random values.
 #[cfg_attr(test, mockable)]
 pub fn fill_random_bytes(buf: &mut [u8]) {
-    //let mut iv = vec![0u8; length];
     let mut rng = ChaCha20Rng::from_entropy();
     rng.fill_bytes(buf);
 }
@@ -114,7 +132,6 @@ pub fn generate_masterkey(
     let salt = generate_salt();
 
     // Hash password with KDF or derive key from key file with KDF
-    //let password_hash = hash_password(password, salt.as_str())?;
     let hash = key_file.map_or_else(
         || hash_password(password, salt.as_str()),
         |path| {
@@ -124,8 +141,6 @@ pub fn generate_masterkey(
     )?;
 
     // Generate random initialization vector
-    //let mut iv = [0u8; 16];
-    //OsRng.fill_bytes(&mut iv);
     let iv = generate_aes_iv();
 
     // Generate random master key and encrypt it with password hash
@@ -142,7 +157,6 @@ pub fn generate_masterkey(
     master_key.zeroize();
 
     Ok(MasterKey::new(
-        //salt: base64::encode(salt.as_bytes()),
         salt.as_str().to_owned(),
         base64::encode(iv),
         base64::encode(encrypted_key),
@@ -373,7 +387,7 @@ mod tests {
             MockResult::Return(())
         });
 
-        let nonce = generate_chacha20_nonce();
+        let nonce = generate_chacha20_nonce().expect("Should not fail.");
 
         assert!(!nonce.is_empty());
         assert_eq!(nonce.len(), CHACHA20_NONCE_LENGTH);
@@ -547,7 +561,7 @@ mod tests {
         let mem_key = MemKey::new();
 
         let salt = generate_salt();
-        let nonce = generate_chacha20_nonce();
+        let nonce = generate_chacha20_nonce().unwrap();
 
         let key_protection = derive_key_protection(&mem_key, salt.as_str()).unwrap();
         unsafe {
@@ -624,7 +638,7 @@ mod tests {
         let mem_key = MemKey::new();
 
         let salt = generate_salt();
-        let nonce = generate_chacha20_nonce();
+        let nonce = generate_chacha20_nonce().unwrap();
 
         let key_protection = derive_key_protection(&mem_key, salt.as_str()).unwrap();
 

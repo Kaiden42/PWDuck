@@ -197,7 +197,6 @@ impl Component for VaultTab {
     fn new(_: Self::ConstructorParam) -> Self {
         Self {
             state: VaultTabState::Empty(VaultLoader::new(())),
-            //state: VaultTabState::Unlock(VaultUnlocker::with_path("/home/robert/Schreibtisch/TestVault".into())),
         }
     }
 
@@ -263,7 +262,6 @@ impl Component for VaultTab {
         application_settings: &pwduck_core::ApplicationSettings,
         theme: &dyn Theme,
         viewport: &Viewport,
-        //platform: &dyn Platform
     ) -> iced::Element<'_, Self::Message> {
         match &mut self.state {
             VaultTabState::Empty(loader) => loader
@@ -501,29 +499,22 @@ mod tests {
         CALL_MAP.with(|call_map| unsafe {
             call_map
                 .borrow_mut()
-                //.insert(CONTAINS_UNSAVED_CHANGES.to_owned(), 0);
                 .insert(VaultTab::contains_unsaved_changes.type_id(), 0);
             call_map
                 .borrow_mut()
-                //.insert(CHANGE_TO_CREATE_STATE.type_id(), 0);
                 .insert(VaultTab::change_to_create_state.type_id(), 0);
             call_map
                 .borrow_mut()
-                //.insert(CHANGE_TO_EMPTY_STATE.type_id(), 0);
                 .insert(VaultTab::change_to_empty_state.type_id(), 0);
             call_map
                 .borrow_mut()
-                //.insert(CHANGE_TO_UNLOCK_STATE.type_id(), 0);
                 .insert(VaultTab::change_to_unlock_state.type_id(), 0);
             call_map
                 .borrow_mut()
-                //.insert(CHANGE_TO_OPEN_STATE.type_id(), 0);
                 .insert(VaultTab::change_to_open_state.type_id(), 0);
             call_map
                 .borrow_mut()
-                //.insert(CHANGE_TO_SETTINGS_STATE.type_id(), 0);
                 .insert(VaultTab::change_to_settings_state.type_id(), 0);
-            //call_map.borrow_mut().insert(UPDATE_STATE.type_id(), 0);
             call_map
                 .borrow_mut()
                 .insert(VaultTab::update_state::<TestPlatform>.type_id(), 0);
@@ -531,7 +522,6 @@ mod tests {
             VaultTab::contains_unsaved_changes.mock_raw(|_self| {
                 call_map
                     .borrow_mut()
-                    //.get_mut(CONTAINS_UNSAVED_CHANGES)
                     .get_mut(&VaultTab::contains_unsaved_changes.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(false)
@@ -539,7 +529,6 @@ mod tests {
             VaultTab::change_to_create_state.mock_raw(|_self| {
                 call_map
                     .borrow_mut()
-                    //.get_mut(CHANGE_TO_CREATE_STATE)
                     .get_mut(&VaultTab::change_to_create_state.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
@@ -547,7 +536,6 @@ mod tests {
             VaultTab::change_to_empty_state.mock_raw(|_self| {
                 call_map
                     .borrow_mut()
-                    //.get_mut(CHANGE_TO_EMPTY_STATE)
                     .get_mut(&VaultTab::change_to_empty_state.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
@@ -555,7 +543,6 @@ mod tests {
             VaultTab::change_to_unlock_state.mock_raw(|_self, _path, _key_file| {
                 call_map
                     .borrow_mut()
-                    //.get_mut(CHANGE_TO_UNLOCK_STATE)
                     .get_mut(&VaultTab::change_to_unlock_state.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
@@ -563,7 +550,6 @@ mod tests {
             VaultTab::change_to_open_state.mock_raw(|_self, _vault| {
                 call_map
                     .borrow_mut()
-                    //.get_mut(CHANGE_TO_OPEN_STATE)
                     .get_mut(&VaultTab::change_to_open_state.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
@@ -571,13 +557,11 @@ mod tests {
             VaultTab::change_to_settings_state.mock_raw(|_self| {
                 call_map
                     .borrow_mut()
-                    //.get_mut(CHANGE_TO_SETTINGS_STATE)
                     .get_mut(&VaultTab::change_to_settings_state.type_id())
                     .map(|c| *c += 1);
                 MockResult::Return(Command::none())
             });
             VaultTab::update_state::<TestPlatform>.mock_raw(|_self, _m, _a, _mod, _c| {
-                //call_map.borrow_mut().get_mut(UPDATE_STATE).map(|c| *c += 1);
                 call_map
                     .borrow_mut()
                     .get_mut(&VaultTab::update_state::<TestPlatform>.type_id())

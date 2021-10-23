@@ -395,11 +395,6 @@ impl ModifyEntryView {
             ModifyEntryMessage::Modal(message) => {
                 Ok(self.update_modal(&message, vault, modal_state))
             }
-            //ModifyEntryMessage::PasswordGenerate
-            //| ModifyEntryMessage::Cancel
-            //| ModifyEntryMessage::Submit => {
-            //    PWDuckGuiError::Unreachable("ModifyEntryMessage".into()).into()
-            //}
             ModifyEntryMessage::Cancel => Ok(Command::none()),
             ModifyEntryMessage::Submit => self.submit(vault, &crate::MEM_KEY.lock()?),
             ModifyEntryMessage::PasswordGenerate => {
@@ -439,11 +434,6 @@ impl ModifyEntryView {
             theme,
         );
         let email = email_text_input(&mut self.email_state, self.entry_body.email(), theme);
-
-        //let password_score: Element<_> = self.password_score.as_mut().map_or_else(
-        //    || Container::new(default_vertical_space()).into(),
-        //    PasswordScore::view,
-        //);
 
         let control_row = control_button_row(
             &mut self.cancel_state,
@@ -600,16 +590,6 @@ fn password_row<'a>(
         .push(password_show)
         .push(password_generate)
         .push(password_copy);
-
-    //if let Some(password_score) = password_score.as_mut() {
-    //    Column::new()
-    //        .spacing(DEFAULT_COLUMN_SPACING)
-    //        .push(row)
-    //        .push(password_score.view())
-    //        .into()
-    //} else {
-    //    row.into()
-    //}
 
     match password_score.as_mut() {
         Some(password_score) => Column::new()

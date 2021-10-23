@@ -124,7 +124,6 @@ impl ListView {
 
     /// Resize the number of sub-groups and entries to the current configuration.
     pub fn resize(&mut self, vault: &Vault) {
-        // TODO: remove
         let search = if self.search().is_empty() {
             None
         } else {

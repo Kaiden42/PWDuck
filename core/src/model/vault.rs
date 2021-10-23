@@ -85,7 +85,7 @@ impl Vault {
         let masterkey_dto = generate_masterkey(password, key_file.as_ref().map(|p| p.as_ref()))?;
 
         let salt = generate_argon2_salt();
-        let nonce = generate_chacha20_nonce();
+        let nonce = generate_chacha20_nonce()?;
 
         let masterkey = decrypt_masterkey(
             &masterkey_dto,
@@ -196,9 +196,8 @@ impl Vault {
         let path = path.into();
         let key_file = key_file.map(std::convert::Into::into);
         let salt = generate_argon2_salt();
-        let nonce = generate_chacha20_nonce();
+        let nonce = generate_chacha20_nonce()?;
 
-        //let masterkey = decrypt_masterkey(&masterkey_dto, password, &derive_key_protection(mem_key, salt.as_str())?, &nonce)?;
         let masterkey = MasterKey::load(
             &path,
             password,

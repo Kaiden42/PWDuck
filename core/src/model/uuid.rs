@@ -26,8 +26,8 @@ impl Uuid {
     }
 
     /// Returns the Base64 encoded SHA256 hash of this [`Uuid`](Uuid).
-    #[must_use] // TODO: Snakecase!
-    pub fn base64hash(&self) -> String {
+    #[must_use]
+    pub fn base64_hash(&self) -> String {
         base64::encode(sha256::digest_bytes(&self.id))
     }
 }
@@ -96,7 +96,7 @@ mod tests {
 
         let hash = "ZDkyMTBjZmUyNzljYzIxZGM2ODdlNmJkODAyMmZlOWY1YWU0NjA3Y2MyZDg3OWNmMGMwNGY5OGRiMmFkOGJhYw==";
 
-        assert_eq!(hash, uuid.base64hash().as_str());
+        assert_eq!(hash, uuid.base64_hash().as_str());
     }
 
     #[test]

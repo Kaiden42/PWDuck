@@ -19,7 +19,7 @@ lazy_static! {
     static ref PRIMARY_5: Color = shade(*PRIMARY_1, 0.6);
     /// The primary color with a shade of 50%.
     static ref PRIMARY_6: Color = shade(*PRIMARY_1, 0.5);
-    
+
     /// The secondary color (#797979).
     static ref SECONDARY_1: Color = Color::from_rgb(0.835, 0.835, 0.835); // D5
     /// The secondary color with a shade of 10%.
@@ -32,7 +32,7 @@ lazy_static! {
     static ref SECONDARY_5: Color = shade(*SECONDARY_1, 0.6);
     /// The secondary color with a shade of 50%.
     static ref SECONDARY_6: Color = shade(*SECONDARY_1, 0.5);
-    
+
     /// The warning color (#ff0000)
     static ref WARNING_1: Color = Color::from_rgb(1.0, 0.0, 0.0);
     /// The warning color with a shade of 10%.
@@ -45,7 +45,7 @@ lazy_static! {
     static ref WARNING_5: Color = shade(*WARNING_1, 0.6);
     /// The warning color with a shade of 50%.
     static ref WARNING_6: Color = shade(*WARNING_1, 0.5);
-    
+
     /// The text color of the light theme (#000000).
     static ref TEXT_LIGHT: Color = Color::from_rgb(0.173, 0.173, 0.173);
     /// The text color of the dark theme (#ffffff).
@@ -293,9 +293,7 @@ impl Theme for Light {
             fn style(&self) -> container::Style {
                 container::Style {
                     text_color: Some(*TEXT_LIGHT),
-                    background: Some(
-                        tint(*BACKGROUND_LIGHT, 0.1).into(),
-                    ),
+                    background: Some(tint(*BACKGROUND_LIGHT, 0.1).into()),
                     border_radius: 0.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,
@@ -889,9 +887,7 @@ impl Theme for Dark {
             fn style(&self) -> container::Style {
                 container::Style {
                     text_color: Some(*TEXT_DARK),
-                    background: Some(
-                        tint(*BACKGROUND_DARK, 0.03).into(),
-                    ),
+                    background: Some(tint(*BACKGROUND_DARK, 0.03).into()),
                     border_radius: 0.0,
                     border_width: 0.0,
                     border_color: Color::TRANSPARENT,

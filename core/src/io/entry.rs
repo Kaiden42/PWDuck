@@ -32,7 +32,7 @@ pub fn save_entry_head(
 ///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
 ///  - The UUID as the identifier of the [`EntryHead`](EntryHead)
 pub fn load_entry_head(path: &Path, uuid: &Uuid) -> Result<EntryHead, PWDuckCoreError> {
-    let file_name = uuid.base64hash();
+    let file_name = uuid.base64_hash();
     let content = fs::read_to_string(path.join(ENTRIES_DIR).join(HEAD).join(file_name))?;
     Ok(ron::from_str(&content)?)
 }
@@ -79,7 +79,7 @@ pub fn save_entry_body(
 ///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
 ///  - The UUID as the identifier of the [`EntryBody`](EntryBody)
 pub fn load_entry_body(path: &Path, uuid: &Uuid) -> Result<EntryBody, PWDuckCoreError> {
-    let file_name = uuid.base64hash();
+    let file_name = uuid.base64_hash();
     let content = fs::read_to_string(path.join(ENTRIES_DIR).join(BODY).join(file_name))?;
     Ok(ron::from_str(&content)?)
 }
@@ -91,7 +91,7 @@ pub fn load_entry_body(path: &Path, uuid: &Uuid) -> Result<EntryBody, PWDuckCore
 ///  - The UUID as the identifier of the entry
 ///  - The content of the entry
 fn save_entry(path: &Path, uuid: &Uuid, content: String) -> Result<(), PWDuckCoreError> {
-    let file_name = uuid.base64hash();
+    let file_name = uuid.base64_hash();
     fs::write(path.join(file_name), content)?;
     Ok(())
 }
@@ -110,7 +110,7 @@ pub fn delete_entry(
     let head_path = path
         .join(ENTRIES_DIR)
         .join(HEAD)
-        .join(head_uuid.base64hash());
+        .join(head_uuid.base64_hash());
 
     if head_path.exists() {
         fs::remove_file(head_path)?;
@@ -119,7 +119,7 @@ pub fn delete_entry(
     let body_path = path
         .join(ENTRIES_DIR)
         .join(BODY)
-        .join(body_uuid.base64hash());
+        .join(body_uuid.base64_hash());
 
     if body_path.exists() {
         fs::remove_file(body_path)?;
@@ -226,11 +226,11 @@ mod tests {
         let head_path = path
             .join(ENTRIES_DIR)
             .join(HEAD)
-            .join(head_uuid.base64hash());
+            .join(head_uuid.base64_hash());
         let body_path = path
             .join(ENTRIES_DIR)
             .join(BODY)
-            .join(body_uuid.base64hash());
+            .join(body_uuid.base64_hash());
 
         assert!(head_path.exists());
         assert!(body_path.exists());

@@ -1,5 +1,6 @@
 //! Password generation.
 use rand::prelude::{Distribution, SliceRandom};
+use rand_core::SeedableRng;
 
 use crate::PWDuckCoreError;
 
@@ -57,9 +58,11 @@ impl Distribution<char> for Symbols {
 
 /// Generate a new password based on the given character pool of symbols with the specified length.
 pub fn generate_password(length: u8, symbols: &Symbols) -> Result<String, PWDuckCoreError> {
-    use rand::{thread_rng, Rng};
-    // TODO: Better random!
-    let mut rng = thread_rng();
+    use rand::Rng;
+    use rand_chacha::ChaCha20Rng;
+
+    let mut rng = ChaCha20Rng::from_entropy();
+
     let password: String = std::iter::repeat(())
         .map(|_| rng.sample(&symbols))
         .map(char::from)
