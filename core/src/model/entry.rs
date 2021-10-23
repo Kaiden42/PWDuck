@@ -65,7 +65,7 @@ impl EntryHead {
     /// Save the [`EntryHead`] to disk.
     ///
     /// It expects:
-    ///  - The [`Path`](Path) as the location of the [`Vault](crate::Vault).
+    ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault).
     ///  - The masterkey to encrypt the head.
     pub fn save(&mut self, path: &Path, masterkey: &[u8]) -> Result<(), PWDuckCoreError> {
         let entry_head = self.encrypt(masterkey)?;
