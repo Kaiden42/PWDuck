@@ -14,7 +14,7 @@ members = [
 pwduck_gui = { path = "./gui" }
 async-trait = "0.1.50"
 rfd = "0.5.1"
-dirs = "3.0.2"
+dirs = "4.0.0"
 opener = "0.5.0"
 enigo = "0.0.14"
 async-std = "1.9.0"
