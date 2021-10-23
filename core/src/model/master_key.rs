@@ -46,7 +46,7 @@ impl MasterKey {
     pub fn as_unprotected(
         &self,
         mem_key: &MemKey,
-        salt: &str,
+        salt: &[u8],
         nonce: &[u8],
     ) -> Result<SecVec<u8>, PWDuckCoreError> {
         let key_protection = derive_key_protection(mem_key, salt)?;
@@ -103,7 +103,7 @@ mod tests {
         });
         let mem_key = MemKey::new();
         let nonce = [42_u8; cryptography::CHACHA20_NONCE_LENGTH];
-        let salt = cryptography::generate_argon2_salt();
+        let salt = cryptography::generate_salt();
 
         let key_protection = cryptography::derive_key_protection(&mem_key, &salt).unwrap();
 

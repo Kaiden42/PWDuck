@@ -2,17 +2,13 @@
 use std::{collections::HashSet, path::Path, sync::Mutex};
 
 use aes::Aes256;
-use argon2::{
-    password_hash::{Ident, Salt, SaltString},
-    Argon2, PasswordHasher,
-};
+use argon2::Argon2;
 use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
 use chacha20::cipher::{NewCipher, StreamCipher};
 use chacha20::{ChaCha20, Key, Nonce};
 use lazy_static::lazy_static;
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
-use rand_core::OsRng;
 use zeroize::Zeroize;
 
 use crate::{
@@ -28,6 +24,8 @@ use mocktopus::macros::*;
 pub const AES_IV_LENGTH: usize = 16;
 /// The length of the nonce for the `ChaCha20` encryption.
 pub const CHACHA20_NONCE_LENGTH: usize = 12;
+/// The length of the salt used for Argon2.
+pub const SALT_LENGTH: usize = 16;
 /// The default size of a master key.
 pub const MASTER_KEY_SIZE: usize = 32;
 /// The default size of a key file.
@@ -64,11 +62,6 @@ pub fn generate_chacha20_nonce() -> Result<Vec<u8>, PWDuckCoreError> {
     Ok(nonce)
 }
 
-/// Generate a new random salt for the Argon2 key derivation.
-pub fn generate_argon2_salt() -> String {
-    SaltString::generate(&mut OsRng).as_str().to_owned()
-}
-
 /// Generate a new random iv with the given length.
 #[cfg_attr(test, mockable)]
 pub fn generate_iv(length: usize) -> Vec<u8> {
@@ -80,8 +73,10 @@ pub fn generate_iv(length: usize) -> Vec<u8> {
 /// Generate a new random salt.
 #[cfg_attr(test, mockable)]
 #[cfg_attr(coverage, no_coverage)]
-fn generate_salt() -> SaltString {
-    SaltString::generate(&mut OsRng)
+pub fn generate_salt() -> Vec<u8> {
+    let mut iv: Vec<u8> = vec![0_u8; SALT_LENGTH];
+    fill_random_bytes(&mut iv);
+    iv
 }
 
 /// Fill the given slice of bytes with random values.
@@ -93,33 +88,27 @@ pub fn fill_random_bytes(buf: &mut [u8]) {
 
 /// Hash the password.
 #[cfg_attr(test, mockable)]
-pub fn hash_password(password: &str, salt: &str) -> Result<SecVec<u8>, PWDuckCoreError> {
+pub fn hash_password(password: &str, salt: &[u8]) -> Result<SecVec<u8>, PWDuckCoreError> {
     derive_key(password.as_bytes(), salt)
 }
 
 /// Derive a memory key.
 #[cfg_attr(test, mockable)]
-pub fn derive_key_protection(mem_key: &MemKey, salt: &str) -> Result<SecVec<u8>, PWDuckCoreError> {
+pub fn derive_key_protection(mem_key: &MemKey, salt: &[u8]) -> Result<SecVec<u8>, PWDuckCoreError> {
     derive_key(&mem_key.read(), salt)
 }
 
 /// Derive a key from date based on the given salt.
 #[cfg_attr(test, mockable)]
-pub fn derive_key(data: &[u8], salt: &str) -> Result<SecVec<u8>, PWDuckCoreError> {
-    let password_hash = Argon2::default().hash_password(
-        data,
-        Some(Ident::new("argon2id")),
+pub fn derive_key(data: &[u8], salt: &[u8]) -> Result<SecVec<u8>, PWDuckCoreError> {
+    let hasher = Argon2::new(
+        argon2::Algorithm::Argon2id,
+        argon2::Version::V0x13,
         argon2::Params::default(),
-        Salt::new(salt)?,
-    )?;
-    // TODO: find a way to zeroize this...
-    let password_hash = password_hash.hash.expect("There should be a hash");
-    Ok(password_hash
-        .as_bytes()
-        .iter()
-        .copied()
-        .collect::<Vec<u8>>()
-        .into())
+    );
+    let mut password_hash: SecVec<u8> = vec![0_u8; argon2::Params::DEFAULT_OUTPUT_LEN].into();
+    hasher.hash_password_into(data, salt, &mut password_hash)?;
+    Ok(password_hash)
 }
 
 /// Generate a new masterkey which will be encrypted with the given password after creation.
@@ -133,10 +122,10 @@ pub fn generate_masterkey(
 
     // Hash password with KDF or derive key from key file with KDF
     let hash = key_file.map_or_else(
-        || hash_password(password, salt.as_str()),
+        || hash_password(password, &salt),
         |path| {
             let key_file = generate_key_file(password, path)?;
-            derive_key(&key_file, salt.as_str())
+            derive_key(&key_file, &salt)
         },
     )?;
 
@@ -157,7 +146,7 @@ pub fn generate_masterkey(
     master_key.zeroize();
 
     Ok(MasterKey::new(
-        salt.as_str().to_owned(),
+        base64::encode(salt),
         base64::encode(iv),
         base64::encode(encrypted_key),
     ))
@@ -172,11 +161,12 @@ pub fn decrypt_masterkey(
     key_protection: &[u8],
     nonce: &[u8],
 ) -> Result<crate::model::master_key::MasterKey, PWDuckCoreError> {
+    let salt = base64::decode(masterkey.salt())?;
     let mut hash = key_file.map_or_else(
-        || hash_password(password, masterkey.salt()),
+        || hash_password(password, &salt),
         |path| {
             let key_file = crate::model::key_file::KeyFile::load(path, password)?;
-            derive_key(&key_file, masterkey.salt())
+            derive_key(&key_file, &salt)
         },
     )?;
 
@@ -224,7 +214,7 @@ pub fn generate_key_file(
     let salt = generate_salt();
 
     // Hash password with KDF
-    let password_hash = hash_password(password, salt.as_str())?;
+    let password_hash = hash_password(password, &salt)?;
 
     // Generate random initialization vector
     let iv = generate_aes_iv();
@@ -236,7 +226,7 @@ pub fn generate_key_file(
     let encrypted_key = aes_cbc_encrypt(&key_file, password_hash.as_slice(), &iv)?;
 
     let dto = KeyFile::new(
-        salt.as_str().to_owned(),
+        base64::encode(salt),
         base64::encode(iv),
         base64::encode(encrypted_key),
     );
@@ -250,7 +240,8 @@ pub fn decrypt_key_file(
     key_file: &KeyFile,
     password: &str,
 ) -> Result<crate::model::key_file::KeyFile, PWDuckCoreError> {
-    let mut hash = hash_password(password, key_file.salt())?;
+    let salt = base64::decode(key_file.salt())?;
+    let mut hash = hash_password(password, &salt)?;
 
     let encrypted_key = base64::decode(key_file.encrypted_key())?;
     let mut iv = base64::decode(key_file.iv())?;
@@ -329,28 +320,28 @@ pub fn chacha20_decrypt(
 
 #[cfg(test)]
 mod tests {
-    use argon2::password_hash::SaltString;
-    use rand_core::OsRng;
     use seckey::SecBytes;
     use tempfile::tempdir;
 
     use crate::mem_protection::MemKey;
     use crate::{PWDuckCoreError, SecVec};
 
-    use super::derive_key;
-    use super::generate_masterkey;
-    use super::hash_password;
     use super::{
         aes_cbc_decrypt, aes_cbc_encrypt, chacha20_decrypt, chacha20_encrypt, decrypt_key_file,
-        decrypt_masterkey, derive_key_protection, fill_random_bytes, generate_aes_iv,
-        generate_chacha20_nonce, generate_iv, generate_key_file, generate_salt, protect_masterkey,
-        unprotect_masterkey, AES_IV_LENGTH, CHACHA20_NONCE_LENGTH, KEY_FILE_SIZE, MASTER_KEY_SIZE,
+        decrypt_masterkey, derive_key, derive_key_protection, fill_random_bytes, generate_aes_iv,
+        generate_chacha20_nonce, generate_iv, generate_key_file, generate_masterkey, generate_salt,
+        hash_password, protect_masterkey, unprotect_masterkey, AES_IV_LENGTH,
+        CHACHA20_NONCE_LENGTH, KEY_FILE_SIZE, MASTER_KEY_SIZE, SALT_LENGTH,
     };
 
     use mocktopus::mocking::*;
 
     const PASSWORD: &'static str = "This is a totally secret password";
-    const SALT: &'static str = "pa7lMD/slzor2CVNHZWNyA";
+    // const SALT: &'static str = "pa7lMD/slzor2CVNHZWNyA";
+    const SALT: [u8; SALT_LENGTH] = [
+        0xa5, 0xae, 0xe5, 0x30, 0x3f, 0xec, 0x97, 0x3a, 0x2b, 0xd8, 0x25, 0x4d, 0x1d, 0x95, 0x8d,
+        0xc8,
+    ];
 
     #[test]
     fn test_generate_iv() {
@@ -409,19 +400,17 @@ mod tests {
 
     #[test]
     fn test_hash_password() {
-        let salt1 = SaltString::generate(&mut OsRng);
-        let salt2 = SaltString::generate(&mut OsRng);
+        let salt1 = super::generate_salt();
+        let salt2 = super::generate_salt();
 
-        let hash1 =
-            hash_password(PASSWORD, salt1.as_str()).expect("Hashing passwords should not fail");
+        let hash1 = hash_password(PASSWORD, &salt1).expect("Hashing passwords should not fail");
         assert_ne!(hash1.as_slice(), PASSWORD.as_bytes());
 
-        let hash2 =
-            hash_password(PASSWORD, salt2.as_str()).expect("Hashing passwords should not fail");
+        let hash2 = hash_password(PASSWORD, &salt2).expect("Hashing passwords should not fail");
         assert_ne!(hash1, hash2);
 
         let hash1_again =
-            hash_password(PASSWORD, salt1.as_str()).expect("Hashing passwords should not fail");
+            hash_password(PASSWORD, &salt1).expect("Hashing passwords should not fail");
         assert_eq!(hash1, hash1_again);
     }
 
@@ -433,7 +422,7 @@ mod tests {
         derive_key.mock_safe(|data, salt| {
             assert_eq!(salt, SALT);
             if data.iter().all(|b| *b == 21u8) {
-                MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_SIZE].into()))
+                MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_LEN].into()))
             } else {
                 MockResult::Return(Err(PWDuckCoreError::Error(
                     "Not the expected MemKey".into(),
@@ -443,15 +432,15 @@ mod tests {
 
         let mem_key = MemKey::new();
 
-        let key = derive_key_protection(&mem_key, SALT).expect("Deriving key should not fail");
-        let expected: SecVec<u8> = vec![42_u8; argon2::Params::DEFAULT_OUTPUT_SIZE].into();
+        let key = derive_key_protection(&mem_key, &SALT).expect("Deriving key should not fail");
+        let expected: SecVec<u8> = vec![42_u8; argon2::Params::DEFAULT_OUTPUT_LEN].into();
 
         assert_eq!(key, expected);
     }
 
     #[test]
     fn test_derive_key() {
-        let key = derive_key(PASSWORD.as_bytes(), SALT).expect("Foo");
+        let key = derive_key(PASSWORD.as_bytes(), &SALT).expect("Foo");
 
         let expected: SecVec<u8> = vec![
             72, 219, 9, 132, 177, 130, 185, 39, 90, 221, 173, 231, 171, 35, 7, 161, 205, 33, 148,
@@ -475,25 +464,25 @@ mod tests {
 
         let decrypted_key1 = aes_cbc_decrypt(
             &base64::decode(key1.encrypted_key()).unwrap(),
-            &hash_password(PASSWORD, key1.salt()).unwrap(),
+            &hash_password(PASSWORD, &base64::decode(key1.salt()).unwrap()).unwrap(),
             &base64::decode(key1.iv()).unwrap(),
         )
         .unwrap();
 
         let decrypted_key2 = aes_cbc_decrypt(
             &base64::decode(key2.encrypted_key()).unwrap(),
-            &hash_password(PASSWORD, key2.salt()).unwrap(),
+            &hash_password(PASSWORD, &base64::decode(key2.salt()).unwrap()).unwrap(),
             &base64::decode(key2.iv()).unwrap(),
         )
         .unwrap();
 
         assert_ne!(decrypted_key1, decrypted_key2);
 
-        generate_salt.mock_safe(|| MockResult::Return(SaltString::new(SALT).unwrap()));
+        generate_salt.mock_safe(|| MockResult::Return(Vec::from(SALT)));
         hash_password.mock_safe(|pwd, salt| {
             assert_eq!(pwd, PASSWORD);
-            assert_eq!(salt, SALT);
-            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_SIZE].into()))
+            assert_eq!(salt, &SALT);
+            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_LEN].into()))
         });
         generate_iv.mock_safe(|len| MockResult::Return(vec![21_u8; len]));
         fill_random_bytes.mock_safe(|buf| {
@@ -506,7 +495,7 @@ mod tests {
 
         let dercypted_key = aes_cbc_decrypt(
             &base64::decode(master_key.encrypted_key()).unwrap(),
-            &hash_password(PASSWORD, master_key.salt()).unwrap(),
+            &hash_password(PASSWORD, &base64::decode(master_key.salt()).unwrap()).unwrap(),
             &base64::decode(master_key.iv()).unwrap(),
         )
         .unwrap();
@@ -532,7 +521,7 @@ mod tests {
 
         let _ = aes_cbc_decrypt(
             &base64::decode(key.encrypted_key()).unwrap(),
-            &derive_key(&key_file, key.salt()).unwrap(),
+            &derive_key(&key_file, &base64::decode(key.salt()).unwrap()).unwrap(),
             &base64::decode(key.iv()).unwrap(),
         )
         .expect("Decoding master key should not fail");
@@ -540,11 +529,11 @@ mod tests {
 
     #[test]
     fn test_decrypt_masterkey_without_key() {
-        generate_salt.mock_safe(|| MockResult::Return(SaltString::new(SALT).unwrap()));
+        generate_salt.mock_safe(|| MockResult::Return(Vec::from(SALT)));
         hash_password.mock_safe(|password, salt| {
             assert_eq!(password, PASSWORD);
             assert_eq!(salt, SALT);
-            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_SIZE].into()))
+            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_LEN].into()))
         });
         generate_iv.mock_safe(|len| MockResult::Return(vec![21_u8; len]));
         fill_random_bytes.mock_safe(|buf| {
@@ -563,14 +552,14 @@ mod tests {
         let salt = generate_salt();
         let nonce = generate_chacha20_nonce().unwrap();
 
-        let key_protection = derive_key_protection(&mem_key, salt.as_str()).unwrap();
+        let key_protection = derive_key_protection(&mem_key, &salt).unwrap();
         unsafe {
             aes_cbc_decrypt.mock_raw(|encrypted_key, hash, iv| {
                 assert_eq!(
                     encrypted_key,
                     base64::decode(masterkey.encrypted_key()).unwrap()
                 );
-                assert_eq!(hash, &[42_u8; argon2::Params::DEFAULT_OUTPUT_SIZE]);
+                assert_eq!(hash, &[42_u8; argon2::Params::DEFAULT_OUTPUT_LEN]);
                 assert_eq!(iv, vec![21_u8; AES_IV_LENGTH]);
                 MockResult::Continue((encrypted_key, hash, iv))
             });
@@ -582,7 +571,8 @@ mod tests {
                     key,
                     aes_cbc_decrypt(
                         &base64::decode(masterkey.encrypted_key()).unwrap(),
-                        &hash_password(PASSWORD, masterkey.salt()).unwrap(),
+                        &hash_password(PASSWORD, &base64::decode(masterkey.salt()).unwrap())
+                            .unwrap(),
                         &base64::decode(masterkey.iv()).unwrap(),
                     )
                     .unwrap()
@@ -605,7 +595,7 @@ mod tests {
             unprotected_key,
             aes_cbc_decrypt(
                 &base64::decode(masterkey.encrypted_key()).unwrap(),
-                &hash_password(PASSWORD, masterkey.salt()).unwrap(),
+                &hash_password(PASSWORD, &base64::decode(masterkey.salt()).unwrap()).unwrap(),
                 &base64::decode(masterkey.iv()).unwrap(),
             )
             .unwrap(),
@@ -614,11 +604,11 @@ mod tests {
 
     #[test]
     fn test_decrypt_masterkey_with_key() {
-        generate_salt.mock_safe(|| MockResult::Return(SaltString::new(SALT).unwrap()));
+        generate_salt.mock_safe(|| MockResult::Return(Vec::from(SALT)));
         hash_password.mock_safe(|password, salt| {
             assert_eq!(password, PASSWORD);
             assert_eq!(salt, SALT);
-            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_SIZE].into()))
+            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_LEN].into()))
         });
         generate_iv.mock_safe(|len| MockResult::Return(vec![21_u8; len]));
         fill_random_bytes.mock_safe(|buf| {
@@ -640,7 +630,7 @@ mod tests {
         let salt = generate_salt();
         let nonce = generate_chacha20_nonce().unwrap();
 
-        let key_protection = derive_key_protection(&mem_key, salt.as_str()).unwrap();
+        let key_protection = derive_key_protection(&mem_key, &salt).unwrap();
 
         let decrypted_key =
             decrypt_masterkey(&masterkey, PASSWORD, Some(&path), &key_protection, &nonce)
@@ -656,7 +646,7 @@ mod tests {
             unprotected_key,
             aes_cbc_decrypt(
                 &base64::decode(masterkey.encrypted_key()).unwrap(),
-                &derive_key(&key_file, masterkey.salt()).unwrap(),
+                &derive_key(&key_file, &base64::decode(masterkey.salt()).unwrap()).unwrap(),
                 &base64::decode(masterkey.iv()).unwrap(),
             )
             .unwrap(),
@@ -666,7 +656,7 @@ mod tests {
     #[test]
     fn test_protect_masterkey() {
         let master_key = [255_u8; MASTER_KEY_SIZE];
-        let key_protection = [42u8; argon2::Params::DEFAULT_OUTPUT_SIZE];
+        let key_protection = [42u8; argon2::Params::DEFAULT_OUTPUT_LEN];
         let nonce = [21_u8; CHACHA20_NONCE_LENGTH];
 
         unsafe {
@@ -686,7 +676,7 @@ mod tests {
     #[test]
     fn test_unprotect_masterkey() {
         let master_key = [84_u8; MASTER_KEY_SIZE];
-        let key_protection = [42_u8; argon2::Params::DEFAULT_OUTPUT_SIZE];
+        let key_protection = [42_u8; argon2::Params::DEFAULT_OUTPUT_LEN];
         let nonce = [21_u8; CHACHA20_NONCE_LENGTH];
 
         unsafe {
@@ -705,11 +695,11 @@ mod tests {
 
     #[test]
     fn test_generate_key_file() {
-        generate_salt.mock_safe(|| MockResult::Return(SaltString::new(SALT).unwrap()));
+        generate_salt.mock_safe(|| MockResult::Return(Vec::from(SALT)));
         hash_password.mock_safe(|password, salt| {
             assert_eq!(password, PASSWORD);
             assert_eq!(salt, SALT);
-            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_SIZE].into()))
+            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_LEN].into()))
         });
         generate_iv.mock_safe(|len| MockResult::Return(vec![21_u8; len]));
         fill_random_bytes.mock_safe(|buf| {
@@ -731,7 +721,10 @@ mod tests {
         );
 
         let key_file_dto = crate::io::load_key_file(&path).unwrap();
-        assert_eq!(key_file_dto.salt().as_str(), SALT);
+        assert_eq!(
+            base64::decode(key_file_dto.salt()).unwrap().as_slice(),
+            &SALT
+        );
         assert_eq!(
             base64::decode(key_file_dto.iv()).unwrap(),
             vec![21_u8; AES_IV_LENGTH]
@@ -740,11 +733,11 @@ mod tests {
 
     #[test]
     fn test_decrypt_key_file() {
-        generate_salt.mock_safe(|| MockResult::Return(SaltString::new(SALT).unwrap()));
+        generate_salt.mock_safe(|| MockResult::Return(Vec::from(SALT)));
         hash_password.mock_safe(|password, salt| {
             assert_eq!(password, PASSWORD);
             assert_eq!(salt, SALT);
-            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_SIZE].into()))
+            MockResult::Return(Ok(vec![42_u8; argon2::Params::DEFAULT_OUTPUT_LEN].into()))
         });
         generate_iv.mock_safe(|len| MockResult::Return(vec![21_u8; len]));
         fill_random_bytes.mock_safe(|buf| {

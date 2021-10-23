@@ -5,7 +5,7 @@ use std::{fmt::Display, sync::PoisonError};
 #[derive(Debug)]
 pub enum PWDuckCoreError {
     /// Key derivation with Argon2 failed.
-    Argon2(argon2::password_hash::Error),
+    Argon2(Argon2Error),
     /// Encoding or decoding with Base64 failed.
     Base64(base64::DecodeError),
     /// Encrypting or Decrypting with AES failed.
@@ -26,6 +26,15 @@ pub enum PWDuckCoreError {
     Utf8(std::string::FromUtf8Error),
 }
 
+/// An error from Argon2.
+#[derive(Copy, Clone, Debug)]
+pub enum Argon2Error {
+    /// An error from Argon2.
+    Error(argon2::Error),
+    /// An error from hashing.
+    PasswordHash(argon2::password_hash::Error),
+}
+
 impl Clone for PWDuckCoreError {
     #[cfg_attr(coverage, no_coverage)]
     fn clone(&self) -> Self {
@@ -44,10 +53,17 @@ impl Clone for PWDuckCoreError {
     }
 }
 
+impl From<argon2::Error> for PWDuckCoreError {
+    #[cfg_attr(coverage, no_coverage)]
+    fn from(error: argon2::Error) -> Self {
+        Self::Argon2(Argon2Error::Error(error))
+    }
+}
+
 impl From<argon2::password_hash::Error> for PWDuckCoreError {
     #[cfg_attr(coverage, no_coverage)]
     fn from(error: argon2::password_hash::Error) -> Self {
-        Self::Argon2(error)
+        Self::Argon2(Argon2Error::PasswordHash(error))
     }
 }
 
@@ -142,6 +158,16 @@ impl Display for PWDuckCoreError {
             PWDuckCoreError::Utf8(error) => {
                 write!(f, "The given data was no valid UTF-8 ({})", error)
             }
+        }
+    }
+}
+
+impl Display for Argon2Error {
+    #[cfg_attr(coverage, no_coverage)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Argon2Error::Error(error) => error.fmt(f),
+            Argon2Error::PasswordHash(error) => error.fmt(f),
         }
     }
 }

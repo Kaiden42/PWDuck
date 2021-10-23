@@ -5,8 +5,8 @@ use zeroize::Zeroize;
 
 use crate::{
     cryptography::{
-        decrypt_masterkey, derive_key_protection, generate_argon2_salt, generate_chacha20_nonce,
-        generate_masterkey, unprotect_masterkey,
+        decrypt_masterkey, derive_key_protection, generate_chacha20_nonce, generate_masterkey,
+        generate_salt, unprotect_masterkey,
     },
     error::PWDuckCoreError,
     io::{create_new_vault_dir, save_masterkey},
@@ -26,7 +26,7 @@ pub struct Vault {
 
     /// The salt to derive the key to decrypt the in-memory encrypted masterkey.
     #[getset(get = "pub")]
-    salt: String,
+    salt: Vec<u8>,
 
     /// The nonce used to decrypt the in-memory encrypted masterkey.
     #[getset(get = "pub")]
@@ -84,7 +84,7 @@ impl Vault {
 
         let masterkey_dto = generate_masterkey(password, key_file.as_ref().map(|p| p.as_ref()))?;
 
-        let salt = generate_argon2_salt();
+        let salt = generate_salt();
         let nonce = generate_chacha20_nonce()?;
 
         let masterkey = decrypt_masterkey(
@@ -195,7 +195,7 @@ impl Vault {
     {
         let path = path.into();
         let key_file = key_file.map(std::convert::Into::into);
-        let salt = generate_argon2_salt();
+        let salt = generate_salt();
         let nonce = generate_chacha20_nonce()?;
 
         let masterkey = MasterKey::load(
