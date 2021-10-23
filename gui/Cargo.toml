@@ -8,8 +8,8 @@ edition = "2021"
 pwduck_core = {path = "../core"}
 iced = "0.3.0"
 iced_native = "0.4.0"
-#iced_focus = { version = "0.1.0", features = ["derive"] }
-iced_focus = { path = "../../iced_focus", features = ["derive"] }
+iced_focus = { version = "0.1.1", features = ["derive"] }
+#iced_focus = { path = "../../iced_focus", features = ["derive"] }
 async-trait = "0.1.50"
 zeroize = "1.3.0"
 lazy_static = "1.4.0"
