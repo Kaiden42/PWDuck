@@ -231,11 +231,7 @@ impl From<SecString> for String {
 #[cfg_attr(coverage, no_coverage)]
 pub fn try_to_prevent_core_dump() -> Result<(), PWDuckCoreError> {
     #[cfg(not(windows))]
-    rlimit::setrlimit(
-        rlimit::Resource::CORE,
-        rlimit::Rlim::from_usize(0),
-        rlimit::Rlim::from_usize(0),
-    )?;
+    rlimit::setrlimit(rlimit::Resource::CORE, 0, 0)?;
 
     Ok(())
 }

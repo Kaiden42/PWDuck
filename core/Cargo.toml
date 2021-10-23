@@ -27,7 +27,7 @@ dirs = "4.0.0"
 lazy_static = "1.4.0"
 
 [target.'cfg(not(windows))'.dependencies]
-rlimit = "0.5.4"
+rlimit = "0.6.2"
 
 [dev-dependencies]
 mocktopus = "0.7.11"
