@@ -20,15 +20,15 @@ use getset::{Getters, MutGetters};
 /// The in-memory representation of a vault.
 #[derive(Clone, Debug, Getters, MutGetters)]
 pub struct Vault {
-    /// The masterkey used to encrypt the data of this [`Vault`](Vault)
+    /// The master key used to encrypt the data of this [`Vault`](Vault)
     #[getset(get = "pub")]
     master_key: MasterKey,
 
-    /// The salt to derive the key to decrypt the in-memory encrypted masterkey.
+    /// The salt to derive the key to decrypt the in-memory encrypted master key.
     #[getset(get = "pub")]
     salt: Vec<u8>,
 
-    /// The nonce used to decrypt the in-memory encrypted masterkey.
+    /// The nonce used to decrypt the in-memory encrypted master key.
     #[getset(get = "pub")]
     nonce: Vec<u8>,
 
@@ -64,9 +64,9 @@ impl Vault {
     /// Generate a new [`Vault`](Vault).
     ///
     /// It expects:
-    ///  - The password to encrypt the masterkey of the new [`Vault`](Vault)
+    ///  - The password to encrypt the master key of the new [`Vault`](Vault)
     ///  - The location of the optional key file.
-    ///  - The memory key to protect the new generated masterkey of the new [`Vault`](Vault)
+    ///  - The memory key to protect the new generated master key of the new [`Vault`](Vault)
     ///  - The path as the location of the new [`Vault`](Vault)
     pub fn generate<P1, P2>(
         password: &str,
@@ -126,7 +126,7 @@ impl Vault {
     /// Save the vault to disk.
     ///
     /// It expects:
-    ///  - The [`MemKey`](MemKey) to decrypt the in-memory encrypted masterkey of the [`Vault`](Vault).
+    ///  - The [`MemKey`](MemKey) to decrypt the in-memory encrypted master key of the [`Vault`](Vault).
     pub fn save(&mut self, mem_key: &MemKey) -> Result<(), PWDuckCoreError> {
         let path = self.path.clone();
         let mut master_key = unprotect_master_key(
@@ -180,8 +180,8 @@ impl Vault {
     /// Load a [`Vault`](Vault) from disk.
     ///
     /// It expects:
-    ///  - The password to decrypt the masterkey of the [`Vault`](Vault)
-    ///  - The [`MemKey`] to re-encrypt the decrypted masterkey in memory
+    ///  - The password to decrypt the master key of the [`Vault`](Vault)
+    ///  - The [`MemKey`] to re-encrypt the decrypted master key in memory
     ///  - The path as the location of the vault
     pub fn load<P1, P2>(
         password: &str,
@@ -310,7 +310,7 @@ impl Vault {
     /// It expects:
     ///  - The [`EntryHead`] of the new entry
     ///  - The [`EntryBody`] of the new entry
-    ///  - The masterkey to decrypt the [`EntryBody`](EntryBody)
+    ///  - The master key to decrypt the [`EntryBody`](EntryBody)
     pub fn insert_entry(
         &mut self,
         entry_head: EntryHead,
@@ -1041,7 +1041,7 @@ mod tests {
 
         let root = vault.get_root_uuid().unwrap();
         let master_key = vault
-            .masterkey
+            .master_key
             .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
             .unwrap();
 

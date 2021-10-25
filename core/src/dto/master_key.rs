@@ -4,7 +4,7 @@
 //! that is stored on disk.
 use getset::Getters;
 use serde::{Deserialize, Serialize};
-/// The encrypted masterkey as a data-transfer-object (dto).
+/// The encrypted master key as a data-transfer-object (dto).
 #[derive(Clone, Debug, Deserialize, Serialize, Getters)]
 pub struct MasterKey {
     /// The salt used to derive the encryption key from the user's password
@@ -16,7 +16,7 @@ pub struct MasterKey {
     #[getset(get = "pub")]
     iv: String,
 
-    /// The encrypted content of the masterkey.
+    /// The encrypted content of the master key.
     #[getset(get = "pub")]
     encrypted_key: String,
 }

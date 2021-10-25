@@ -51,7 +51,7 @@ impl Group {
     ///
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
-    ///  - The masterkey to encrypt the group
+    ///  - The master key to encrypt the group
     pub fn save(&mut self, path: &Path, master_key: &[u8]) -> Result<(), PWDuckCoreError> {
         let group = self.encrypt(master_key)?;
         crate::io::save_group(path, &self.uuid, &group)?;
@@ -59,7 +59,7 @@ impl Group {
         Ok(())
     }
 
-    /// Encrypt this [`Group`](Group) with the given masterkey.
+    /// Encrypt this [`Group`](Group) with the given master key.
     fn encrypt(&self, master_key: &[u8]) -> Result<crate::dto::group::Group, PWDuckCoreError> {
         let iv = generate_aes_iv();
         let mut content = ron::to_string(self)?;
@@ -76,7 +76,7 @@ impl Group {
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The UUID as the identifier of the [`Group`](Group)
-    ///  - The masterkey to decrypt the [`Group`](Group)
+    ///  - The master key to decrypt the [`Group`](Group)
     pub fn load(path: &Path, uuid: &Uuid, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_group(path, uuid)?;
         Self::decrypt(&dto, master_key)
@@ -86,7 +86,7 @@ impl Group {
     ///
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
-    ///  - The masterkey to decrypt the [`Group`](Group)s
+    ///  - The master key to decrypt the [`Group`](Group)s
     pub fn load_all(path: &Path, master_key: &[u8]) -> Result<HashMap<Uuid, Self>, PWDuckCoreError> {
         let dtos = crate::io::load_all_groups(path)?;
 
@@ -100,7 +100,7 @@ impl Group {
         Ok(results)
     }
 
-    /// Decrypt the data-transfer-object (dto) of the [`Group`](Group) with the given masterkey.
+    /// Decrypt the data-transfer-object (dto) of the [`Group`](Group) with the given master key.
     fn decrypt(dto: &crate::dto::group::Group, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let decrypted_content = aes_cbc_decrypt(
             &base64::decode(dto.content())?,

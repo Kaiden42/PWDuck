@@ -66,7 +66,7 @@ impl EntryHead {
     ///
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault).
-    ///  - The masterkey to encrypt the head.
+    ///  - The master key to encrypt the head.
     pub fn save(&mut self, path: &Path, master_key: &[u8]) -> Result<(), PWDuckCoreError> {
         let entry_head = self.encrypt(master_key)?;
         crate::io::save_entry_head(path, &self.uuid, &entry_head)?;
@@ -74,7 +74,7 @@ impl EntryHead {
         Ok(())
     }
 
-    /// Encrypt this [`EntryHead`](EntryHead) with the given masterkey.
+    /// Encrypt this [`EntryHead`](EntryHead) with the given master key.
     fn encrypt(&self, master_key: &[u8]) -> Result<crate::dto::entry::EntryHead, PWDuckCoreError> {
         let iv = generate_aes_iv();
         let mut content = ron::to_string(self)?;
@@ -91,7 +91,7 @@ impl EntryHead {
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The UUID as the identifier of the [`EntryHead`](EntryHead)
-    ///  - The masterkey to decrypt the [`EntryHead`](EntryHead)
+    ///  - The master key to decrypt the [`EntryHead`](EntryHead)
     pub fn load(path: &Path, uuid: &Uuid, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_entry_head(path, uuid)?;
         Self::decrypt(&dto, master_key)
@@ -101,7 +101,7 @@ impl EntryHead {
     ///
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
-    ///  - The masterkey to decrypt the [`EntryHead`](EntryHead)s
+    ///  - The master key to decrypt the [`EntryHead`](EntryHead)s
     pub fn load_all(path: &Path, master_key: &[u8]) -> Result<HashMap<Uuid, Self>, PWDuckCoreError> {
         let dtos = crate::io::load_all_entry_heads(path)?;
 
@@ -115,7 +115,7 @@ impl EntryHead {
         Ok(results)
     }
 
-    /// Decrypt the data-transfer-object (dto) of the [`EntryHead`] with the given masterkey.
+    /// Decrypt the data-transfer-object (dto) of the [`EntryHead`] with the given master key.
     fn decrypt(
         dto: &crate::dto::entry::EntryHead,
         master_key: &[u8],
@@ -194,7 +194,7 @@ impl EntryBody {
         }
     }
 
-    /// Encrypt this [`EntryBody`](EntryBody) with the given masterkey.
+    /// Encrypt this [`EntryBody`](EntryBody) with the given master key.
     pub fn encrypt(
         &self,
         master_key: &[u8],
@@ -217,14 +217,14 @@ impl EntryBody {
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The UUID as the identifier of the [`EntryBody`](EntryBody)
-    ///  - The masterkey to decrypt the [`EntryBody`](EntryBody)
+    ///  - The master key to decrypt the [`EntryBody`](EntryBody)
     pub fn load(path: &Path, uuid: &Uuid, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_entry_body(path, uuid)?;
         let body = Self::decrypt(&dto, master_key)?;
         Ok(body)
     }
 
-    /// Decrypt the data-transfer-object (dto) of the [`EntryBody`](EntryBody) with the given masterkey.
+    /// Decrypt the data-transfer-object (dto) of the [`EntryBody`](EntryBody) with the given master key.
     pub fn decrypt(
         dto: &crate::dto::entry::EntryBody,
         master_key: &[u8],
@@ -289,7 +289,7 @@ struct EncryptedBody {
 }
 
 impl EncryptedBody {
-    /// Encrypt the given [`EntryBody`](EntryBody) with the masterkey.
+    /// Encrypt the given [`EntryBody`](EntryBody) with the master key.
     fn from(body: &EntryBody, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let iv = cryptography::generate_aes_iv();
         Ok(Self {
@@ -301,7 +301,7 @@ impl EncryptedBody {
         })
     }
 
-    /// Decrypt the [`EncryptedBody`](EncryptedBody) with the masterkey.
+    /// Decrypt the [`EncryptedBody`](EncryptedBody) with the master key.
     fn into(self, master_key: &[u8]) -> Result<EntryBody, PWDuckCoreError> {
         Ok(EntryBody {
             uuid: aes_cbc_decrypt(&self.uuid, master_key, &self.iv)?.try_into()?,

@@ -37,12 +37,12 @@ impl MasterKey {
         decrypt_master_key(&dto, password, key_file, key_protection, nonce)
     }
 
-    /// Decrypt the in-memory encrypted masterkey to receive the unprotected key data.
+    /// Decrypt the in-memory encrypted master key to receive the unprotected key data.
     ///
     /// It expects:
     ///  - The [`MemKey`](MemKey) used for the in-memory encryption
     ///  - The salt to derive the key for the encryption from the [`MemKey`](MemKey)
-    ///  - The nonce used to decrypt the masterkey
+    ///  - The nonce used to decrypt the master key
     pub fn as_unprotected(
         &self,
         mem_key: &MemKey,

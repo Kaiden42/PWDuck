@@ -111,7 +111,7 @@ pub fn derive_key(data: &[u8], salt: &[u8]) -> Result<SecVec<u8>, PWDuckCoreErro
     Ok(password_hash)
 }
 
-/// Generate a new masterkey which will be encrypted with the given password after creation.
+/// Generate a new master key which will be encrypted with the given password after creation.
 #[cfg_attr(test, mockable)]
 pub fn generate_master_key(
     password: &str,
@@ -152,7 +152,7 @@ pub fn generate_master_key(
     ))
 }
 
-/// Decrypt a masterkey with the given password and encrypt it with the given memory key.
+/// Decrypt a master key with the given password and encrypt it with the given memory key.
 #[cfg_attr(test, mockable)]
 pub fn decrypt_master_key(
     master_key: &MasterKey,
@@ -185,7 +185,7 @@ pub fn decrypt_master_key(
     Ok(protected_key.into())
 }
 
-/// Protect the masterkey by encrypting it with the given key.
+/// Protect the master key by encrypting it with the given key.
 #[cfg_attr(test, mockable)]
 pub fn protect_master_key(
     master_key: &[u8],
@@ -195,7 +195,7 @@ pub fn protect_master_key(
     chacha20_encrypt(master_key, key_protection, nonce)
 }
 
-/// Unprotect the masterkey by decrypting it with the given key.
+/// Unprotect the master key by decrypting it with the given key.
 #[cfg_attr(test, mockable)]
 pub fn unprotect_master_key(
     master_key: &[u8],
@@ -454,9 +454,9 @@ mod tests {
     #[test]
     fn test_generate_master_key_without_key() {
         let key1 =
-            generate_master_key(PASSWORD, None).expect("Generating masterkey should not fail.");
+            generate_master_key(PASSWORD, None).expect("Generating master key should not fail.");
         let key2 =
-            generate_master_key(PASSWORD, None).expect("Generating masterkey should not fail.");
+            generate_master_key(PASSWORD, None).expect("Generating master key should not fail.");
 
         assert_ne!(key1.salt(), key2.salt());
         assert_ne!(key1.iv(), key2.iv());
@@ -491,7 +491,7 @@ mod tests {
         });
 
         let master_key =
-            generate_master_key(PASSWORD, None).expect("Generating masterkey should not fail.");
+            generate_master_key(PASSWORD, None).expect("Generating master key should not fail.");
 
         let dercypted_key = aes_cbc_decrypt(
             &base64::decode(master_key.encrypted_key()).unwrap(),
@@ -585,7 +585,7 @@ mod tests {
         }
 
         let decrypted_key = decrypt_master_key(&master_key, PASSWORD, None, &key_protection, &nonce)
-            .expect("Decrypting masterkey should not fail.");
+            .expect("Decrypting master key should not fail.");
 
         let unprotected_key =
             unprotect_master_key(decrypted_key.as_slice(), &key_protection, &nonce)
@@ -638,7 +638,7 @@ mod tests {
 
         let unprotected_key =
             unprotect_master_key(decrypted_key.as_slice(), &key_protection, &nonce)
-                .expect("Unprotecting masterkey should not fail");
+                .expect("Unprotecting master key should not fail");
 
         let key_file = crate::model::key_file::KeyFile::load(&path, PASSWORD).unwrap();
 
@@ -669,7 +669,7 @@ mod tests {
         }
 
         let protected_key = protect_master_key(&master_key, &key_protection, &nonce)
-            .expect("Protecting masterkey should not fail");
+            .expect("Protecting master key should not fail");
         assert_eq!(protected_key, vec![84_u8; MASTER_KEY_SIZE]);
     }
 
@@ -689,7 +689,7 @@ mod tests {
         }
 
         let unprotected_key = unprotect_master_key(&master_key, &key_protection, &nonce)
-            .expect("Unprotecting masterkey should not fail");
+            .expect("Unprotecting master key should not fail");
         assert_eq!(unprotected_key, vec![255_u8; MASTER_KEY_SIZE].into())
     }
 
