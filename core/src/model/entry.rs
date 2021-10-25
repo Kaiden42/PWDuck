@@ -67,18 +67,18 @@ impl EntryHead {
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault).
     ///  - The masterkey to encrypt the head.
-    pub fn save(&mut self, path: &Path, masterkey: &[u8]) -> Result<(), PWDuckCoreError> {
-        let entry_head = self.encrypt(masterkey)?;
+    pub fn save(&mut self, path: &Path, master_key: &[u8]) -> Result<(), PWDuckCoreError> {
+        let entry_head = self.encrypt(master_key)?;
         crate::io::save_entry_head(path, &self.uuid, &entry_head)?;
         self.modified = false;
         Ok(())
     }
 
     /// Encrypt this [`EntryHead`](EntryHead) with the given masterkey.
-    fn encrypt(&self, masterkey: &[u8]) -> Result<crate::dto::entry::EntryHead, PWDuckCoreError> {
+    fn encrypt(&self, master_key: &[u8]) -> Result<crate::dto::entry::EntryHead, PWDuckCoreError> {
         let iv = generate_aes_iv();
         let mut content = ron::to_string(self)?;
-        let encrypted_content = aes_cbc_encrypt(content.as_bytes(), masterkey, &iv)?;
+        let encrypted_content = aes_cbc_encrypt(content.as_bytes(), master_key, &iv)?;
         content.zeroize();
         Ok(crate::dto::entry::EntryHead::new(
             base64::encode(iv),
@@ -92,9 +92,9 @@ impl EntryHead {
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The UUID as the identifier of the [`EntryHead`](EntryHead)
     ///  - The masterkey to decrypt the [`EntryHead`](EntryHead)
-    pub fn load(path: &Path, uuid: &Uuid, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
+    pub fn load(path: &Path, uuid: &Uuid, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_entry_head(path, uuid)?;
-        Self::decrypt(&dto, masterkey)
+        Self::decrypt(&dto, master_key)
     }
 
     /// Load all [`EntryHead`](EntryHead)s from disk.
@@ -102,13 +102,13 @@ impl EntryHead {
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The masterkey to decrypt the [`EntryHead`](EntryHead)s
-    pub fn load_all(path: &Path, masterkey: &[u8]) -> Result<HashMap<Uuid, Self>, PWDuckCoreError> {
+    pub fn load_all(path: &Path, master_key: &[u8]) -> Result<HashMap<Uuid, Self>, PWDuckCoreError> {
         let dtos = crate::io::load_all_entry_heads(path)?;
 
         let mut results = HashMap::new();
 
         for dto in dtos {
-            let head = Self::decrypt(&dto, masterkey)?;
+            let head = Self::decrypt(&dto, master_key)?;
             drop(results.insert(head.uuid().clone(), head));
         }
 
@@ -118,11 +118,11 @@ impl EntryHead {
     /// Decrypt the data-transfer-object (dto) of the [`EntryHead`] with the given masterkey.
     fn decrypt(
         dto: &crate::dto::entry::EntryHead,
-        masterkey: &[u8],
+        master_key: &[u8],
     ) -> Result<Self, PWDuckCoreError> {
         let decrypted_content = aes_cbc_decrypt(
             &base64::decode(dto.content())?,
-            masterkey,
+            master_key,
             &base64::decode(dto.iv())?,
         )?;
 
@@ -218,20 +218,20 @@ impl EntryBody {
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The UUID as the identifier of the [`EntryBody`](EntryBody)
     ///  - The masterkey to decrypt the [`EntryBody`](EntryBody)
-    pub fn load(path: &Path, uuid: &Uuid, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
+    pub fn load(path: &Path, uuid: &Uuid, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_entry_body(path, uuid)?;
-        let body = Self::decrypt(&dto, masterkey)?;
+        let body = Self::decrypt(&dto, master_key)?;
         Ok(body)
     }
 
     /// Decrypt the data-transfer-object (dto) of the [`EntryBody`](EntryBody) with the given masterkey.
     pub fn decrypt(
         dto: &crate::dto::entry::EntryBody,
-        masterkey: &[u8],
+        master_key: &[u8],
     ) -> Result<Self, PWDuckCoreError> {
         let decrypted_content = aes_cbc_decrypt(
             &base64::decode(dto.content())?,
-            masterkey,
+            master_key,
             &base64::decode(dto.iv())?,
         )?;
 
@@ -239,7 +239,7 @@ impl EntryBody {
 
         let encrypted_body: EncryptedBody = ron::from_str(&content)?;
 
-        let body = encrypted_body.into(masterkey)?;
+        let body = encrypted_body.into(master_key)?;
 
         Ok(body)
     }
@@ -290,24 +290,24 @@ struct EncryptedBody {
 
 impl EncryptedBody {
     /// Encrypt the given [`EntryBody`](EntryBody) with the masterkey.
-    fn from(body: &EntryBody, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
+    fn from(body: &EntryBody, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let iv = cryptography::generate_aes_iv();
         Ok(Self {
             iv: iv.clone(),
-            uuid: aes_cbc_encrypt(&body.uuid, masterkey, &iv)?,
-            username: aes_cbc_encrypt(body.username.as_bytes(), masterkey, &iv)?,
-            password: aes_cbc_encrypt(body.password.as_bytes(), masterkey, &iv)?,
-            email: aes_cbc_encrypt(body.email.as_bytes(), masterkey, &iv)?,
+            uuid: aes_cbc_encrypt(&body.uuid, master_key, &iv)?,
+            username: aes_cbc_encrypt(body.username.as_bytes(), master_key, &iv)?,
+            password: aes_cbc_encrypt(body.password.as_bytes(), master_key, &iv)?,
+            email: aes_cbc_encrypt(body.email.as_bytes(), master_key, &iv)?,
         })
     }
 
     /// Decrypt the [`EncryptedBody`](EncryptedBody) with the masterkey.
-    fn into(self, masterkey: &[u8]) -> Result<EntryBody, PWDuckCoreError> {
+    fn into(self, master_key: &[u8]) -> Result<EntryBody, PWDuckCoreError> {
         Ok(EntryBody {
-            uuid: aes_cbc_decrypt(&self.uuid, masterkey, &self.iv)?.try_into()?,
-            username: SecString::from_utf8(aes_cbc_decrypt(&self.username, masterkey, &self.iv)?)?,
-            password: SecString::from_utf8(aes_cbc_decrypt(&self.password, masterkey, &self.iv)?)?,
-            email: SecString::from_utf8(aes_cbc_decrypt(&self.email, masterkey, &self.iv)?)?,
+            uuid: aes_cbc_decrypt(&self.uuid, master_key, &self.iv)?.try_into()?,
+            username: SecString::from_utf8(aes_cbc_decrypt(&self.username, master_key, &self.iv)?)?,
+            password: SecString::from_utf8(aes_cbc_decrypt(&self.password, master_key, &self.iv)?)?,
+            email: SecString::from_utf8(aes_cbc_decrypt(&self.email, master_key, &self.iv)?)?,
             modified: false,
         })
     }

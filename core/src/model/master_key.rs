@@ -4,7 +4,7 @@ use std::path::Path;
 use zeroize::Zeroize;
 
 use crate::{
-    cryptography::{decrypt_masterkey, derive_key_protection, unprotect_masterkey},
+    cryptography::{decrypt_master_key, derive_key_protection, unprotect_master_key},
     error::PWDuckCoreError,
     MemKey, SecVec,
 };
@@ -33,8 +33,8 @@ impl MasterKey {
         key_protection: &[u8],
         nonce: &[u8],
     ) -> Result<Self, PWDuckCoreError> {
-        let dto = crate::io::load_masterkey(path)?;
-        decrypt_masterkey(&dto, password, key_file, key_protection, nonce)
+        let dto = crate::io::load_master_key(path)?;
+        decrypt_master_key(&dto, password, key_file, key_protection, nonce)
     }
 
     /// Decrypt the in-memory encrypted masterkey to receive the unprotected key data.
@@ -50,8 +50,8 @@ impl MasterKey {
         nonce: &[u8],
     ) -> Result<SecVec<u8>, PWDuckCoreError> {
         let key_protection = derive_key_protection(mem_key, salt)?;
-        let masterkey = unprotect_masterkey(&self.key, &key_protection, nonce)?;
-        Ok(masterkey)
+        let master_key = unprotect_master_key(&self.key, &key_protection, nonce)?;
+        Ok(master_key)
     }
 }
 
@@ -76,7 +76,7 @@ mod tests {
     use tempfile::tempdir;
 
     use crate::{
-        cryptography::{self, generate_masterkey},
+        cryptography::{self, generate_master_key},
         io::create_new_vault_dir,
         MemKey,
     };
@@ -95,8 +95,8 @@ mod tests {
         });
 
         let password = "This is a totally secret password";
-        let master_key = generate_masterkey(&password, None).unwrap();
-        crate::io::save_masterkey(&path, master_key.clone()).unwrap();
+        let master_key = generate_master_key(&password, None).unwrap();
+        crate::io::save_master_key(&path, master_key.clone()).unwrap();
 
         MemKey::with_length.mock_safe(|len| {
             MockResult::Return(SecBytes::with(len, |buf| buf.fill(255_u8)).into())

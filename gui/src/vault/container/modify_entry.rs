@@ -282,11 +282,11 @@ impl ModifyEntryView {
         mem_key: &MutexGuard<MemKey>,
     ) -> Result<Command<ModifyEntryMessage>, PWDuckGuiError> {
         // TODO async
-        let masterkey = vault
-            .masterkey()
+        let master_key = vault
+            .master_key()
             .as_unprotected(mem_key, vault.salt(), vault.nonce())?;
 
-        vault.insert_entry(self.entry_head.clone(), self.entry_body.clone(), &masterkey)?;
+        vault.insert_entry(self.entry_head.clone(), self.entry_body.clone(), &master_key)?;
 
         Ok(Command::none())
     }

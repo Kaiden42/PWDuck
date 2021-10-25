@@ -5,11 +5,11 @@ use zeroize::Zeroize;
 
 use crate::{
     cryptography::{
-        decrypt_masterkey, derive_key_protection, generate_chacha20_nonce, generate_masterkey,
-        generate_salt, unprotect_masterkey,
+        decrypt_master_key, derive_key_protection, generate_chacha20_nonce, generate_master_key,
+        generate_salt, unprotect_master_key,
     },
     error::PWDuckCoreError,
-    io::{create_new_vault_dir, save_masterkey},
+    io::{create_new_vault_dir, save_master_key},
     mem_protection::MemKey,
     Uuid,
 };
@@ -22,7 +22,7 @@ use getset::{Getters, MutGetters};
 pub struct Vault {
     /// The masterkey used to encrypt the data of this [`Vault`](Vault)
     #[getset(get = "pub")]
-    masterkey: MasterKey,
+    master_key: MasterKey,
 
     /// The salt to derive the key to decrypt the in-memory encrypted masterkey.
     #[getset(get = "pub")]
@@ -82,13 +82,13 @@ impl Vault {
         let key_file = key_file.map(std::convert::Into::into);
         create_new_vault_dir(&path)?;
 
-        let masterkey_dto = generate_masterkey(password, key_file.as_ref().map(|p| p.as_ref()))?;
+        let master_key_dto = generate_master_key(password, key_file.as_ref().map(|p| p.as_ref()))?;
 
         let salt = generate_salt();
         let nonce = generate_chacha20_nonce()?;
 
-        let masterkey = decrypt_masterkey(
-            &masterkey_dto,
+        let master_key = decrypt_master_key(
+            &master_key_dto,
             password,
             key_file.as_ref().map(|p| p.as_ref()),
             &derive_key_protection(mem_key, &salt)?,
@@ -96,7 +96,7 @@ impl Vault {
         )?;
 
         let mut vault = Self {
-            masterkey,
+            master_key,
             salt,
             nonce,
             path,
@@ -117,7 +117,7 @@ impl Vault {
         );
         drop(vault.groups_mut().insert(root.uuid().clone(), root));
 
-        save_masterkey(vault.path(), masterkey_dto)?;
+        save_master_key(vault.path(), master_key_dto)?;
         vault.save(mem_key)?;
 
         Ok(vault)
@@ -129,8 +129,8 @@ impl Vault {
     ///  - The [`MemKey`](MemKey) to decrypt the in-memory encrypted masterkey of the [`Vault`](Vault).
     pub fn save(&mut self, mem_key: &MemKey) -> Result<(), PWDuckCoreError> {
         let path = self.path.clone();
-        let mut masterkey = unprotect_masterkey(
-            self.masterkey.key(),
+        let mut master_key = unprotect_master_key(
+            self.master_key.key(),
             &derive_key_protection(mem_key, &self.salt)?,
             &self.nonce,
         )?;
@@ -147,15 +147,15 @@ impl Vault {
             .groups
             .iter_mut()
             .filter(|(_, group)| group.is_modified())
-            .try_for_each(|(_, group)| group.save(&path, &masterkey));
+            .try_for_each(|(_, group)| group.save(&path, &master_key));
 
         let entry_result: Result<(), PWDuckCoreError> = self
             .entries
             .iter_mut()
             .filter(|(_, entry)| entry.is_modified())
-            .try_for_each(|(_, entry)| entry.save(&path, &masterkey));
+            .try_for_each(|(_, entry)| entry.save(&path, &master_key));
 
-        masterkey.zeroize();
+        master_key.zeroize();
 
         let delete_group_result: Result<(), PWDuckCoreError> = self
             .deleted_groups
@@ -198,7 +198,7 @@ impl Vault {
         let salt = generate_salt();
         let nonce = generate_chacha20_nonce()?;
 
-        let masterkey = MasterKey::load(
+        let master_key = MasterKey::load(
             &path,
             password,
             key_file.as_ref().map(|p| p.as_ref()),
@@ -206,14 +206,14 @@ impl Vault {
             &nonce,
         )?;
 
-        let unprotected_masterkey = unprotect_masterkey(
-            masterkey.key(),
+        let unprotected_master_key = unprotect_master_key(
+            master_key.key(),
             &derive_key_protection(mem_key, &salt)?,
             &nonce,
         )?;
-        let groups = Group::load_all(&path, &unprotected_masterkey)?;
-        let entries = EntryHead::load_all(&path, &unprotected_masterkey)?;
-        drop(unprotected_masterkey);
+        let groups = Group::load_all(&path, &unprotected_master_key)?;
+        let entries = EntryHead::load_all(&path, &unprotected_master_key)?;
+        drop(unprotected_master_key);
 
         let mut children: HashMap<Uuid, Children> = HashMap::new();
 
@@ -239,7 +239,7 @@ impl Vault {
         }
 
         let vault = Self {
-            masterkey,
+            master_key,
             salt,
             nonce,
             path,
@@ -315,7 +315,7 @@ impl Vault {
         &mut self,
         entry_head: EntryHead,
         entry_body: EntryBody,
-        masterkey: &[u8],
+        master_key: &[u8],
     ) -> Result<(), PWDuckCoreError> {
         // Insert into parent's children.
         let _ = self
@@ -327,7 +327,7 @@ impl Vault {
 
         drop(
             self.unsaved_entry_bodies
-                .insert(entry_body.uuid().clone(), entry_body.encrypt(masterkey)?),
+                .insert(entry_body.uuid().clone(), entry_body.encrypt(master_key)?),
         );
         drop(entry_body);
         Ok(())
@@ -534,7 +534,7 @@ mod tests {
 
         let root = vault.get_root_uuid().unwrap();
         let master_key = vault
-            .masterkey
+            .master_key
             .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
             .unwrap();
 
@@ -765,7 +765,7 @@ mod tests {
 
         let root = vault.get_root_uuid().unwrap();
         let master_key = vault
-            .masterkey
+            .master_key
             .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
             .unwrap();
 
@@ -818,7 +818,7 @@ mod tests {
 
         let root = vault.get_root_uuid().unwrap();
         let master_key = vault
-            .masterkey
+            .master_key
             .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
             .unwrap();
 
@@ -907,7 +907,7 @@ mod tests {
 
         let root = vault.get_root_uuid().unwrap();
         let master_key = vault
-            .masterkey
+            .master_key
             .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
             .unwrap();
 
@@ -973,7 +973,7 @@ mod tests {
         let (_dir, mut vault) = clear_vault();
         let root = vault.get_root_uuid().unwrap();
         let master_key = vault
-            .masterkey
+            .master_key
             .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
             .unwrap();
         vault
@@ -1008,7 +1008,7 @@ mod tests {
         let (_dir, mut vault) = clear_vault();
         let root = vault.get_root_uuid().unwrap();
         let master_key = vault
-            .masterkey
+            .master_key
             .as_unprotected(&mem_key, &vault.salt, &vault.nonce)
             .unwrap();
         let head_uuid: Uuid = [42_u8; uuid::SIZE].into();

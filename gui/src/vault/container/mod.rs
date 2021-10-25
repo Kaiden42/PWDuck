@@ -149,15 +149,15 @@ impl VaultContainer {
         mem_key: &MutexGuard<MemKey>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
-        let masterkey = self.vault.masterkey().as_unprotected(
+        let master_key = self.vault.master_key().as_unprotected(
             mem_key,
             self.vault.salt(),
             self.vault.nonce(),
         )?;
 
         let entry_body = self.vault.unsaved_entry_bodies().get(uuid).map_or_else(
-            || pwduck_core::EntryBody::load(self.vault.path(), uuid, &masterkey),
-            |dto| pwduck_core::EntryBody::decrypt(dto, &masterkey),
+            || pwduck_core::EntryBody::load(self.vault.path(), uuid, &master_key),
+            |dto| pwduck_core::EntryBody::decrypt(dto, &master_key),
         )?;
 
         clipboard.write(entry_body.username().to_string());
@@ -173,15 +173,15 @@ impl VaultContainer {
         mem_key: &MutexGuard<MemKey>,
         clipboard: &mut iced::Clipboard,
     ) -> Result<Command<VaultContainerMessage>, PWDuckGuiError> {
-        let masterkey = self.vault.masterkey().as_unprotected(
+        let master_key = self.vault.master_key().as_unprotected(
             mem_key,
             self.vault.salt(),
             self.vault.nonce(),
         )?;
 
         let entry_body = self.vault.unsaved_entry_bodies().get(uuid).map_or_else(
-            || pwduck_core::EntryBody::load(self.vault.path(), uuid, &masterkey),
-            |dto| pwduck_core::EntryBody::decrypt(dto, &masterkey),
+            || pwduck_core::EntryBody::load(self.vault.path(), uuid, &master_key),
+            |dto| pwduck_core::EntryBody::decrypt(dto, &master_key),
         )?;
 
         clipboard.write(entry_body.password().to_string());
@@ -276,7 +276,7 @@ impl VaultContainer {
             .ok_or(PWDuckGuiError::Option)?
             .clone();
 
-        let masterkey = self.vault.masterkey().as_unprotected(
+        let master_key = self.vault.master_key().as_unprotected(
             mem_key,
             self.vault.salt(),
             self.vault.nonce(),
@@ -288,8 +288,8 @@ impl VaultContainer {
             .unsaved_entry_bodies()
             .get(entry_head.body())
             .map_or_else(
-                || pwduck_core::EntryBody::load(self.vault.path(), entry_head.body(), &masterkey),
-                |dto| pwduck_core::EntryBody::decrypt(dto, &masterkey),
+                || pwduck_core::EntryBody::load(self.vault.path(), entry_head.body(), &master_key),
+                |dto| pwduck_core::EntryBody::decrypt(dto, &master_key),
             )?;
 
         self.modify_entry_view = Some(Box::new(ModifyEntryView::with(
@@ -313,7 +313,7 @@ impl VaultContainer {
             .get(uuid)
             .ok_or(PWDuckGuiError::Option)?;
 
-        let masterkey = self.vault.masterkey().as_unprotected(
+        let master_key = self.vault.master_key().as_unprotected(
             mem_key,
             self.vault.salt(),
             self.vault.nonce(),
@@ -324,8 +324,8 @@ impl VaultContainer {
             .unsaved_entry_bodies()
             .get(entry_head.body())
             .map_or_else(
-                || pwduck_core::EntryBody::load(self.vault.path(), entry_head.body(), &masterkey),
-                |dto| pwduck_core::EntryBody::decrypt(dto, &masterkey),
+                || pwduck_core::EntryBody::load(self.vault.path(), entry_head.body(), &master_key),
+                |dto| pwduck_core::EntryBody::decrypt(dto, &master_key),
             )?;
 
         let sequence = AutoTypeSequenceParser::parse_sequence(
@@ -665,7 +665,7 @@ mod tests {
         let mut vault =
             pwduck_core::Vault::generate(PASSWORD, Option::<String>::None, mem_key, &path).unwrap();
         let master_key = vault
-            .masterkey()
+            .master_key()
             .as_unprotected(mem_key, vault.salt(), vault.nonce())
             .unwrap();
         let root = vault.get_root_uuid().unwrap();

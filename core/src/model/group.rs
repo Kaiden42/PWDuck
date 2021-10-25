@@ -52,18 +52,18 @@ impl Group {
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The masterkey to encrypt the group
-    pub fn save(&mut self, path: &Path, masterkey: &[u8]) -> Result<(), PWDuckCoreError> {
-        let group = self.encrypt(masterkey)?;
+    pub fn save(&mut self, path: &Path, master_key: &[u8]) -> Result<(), PWDuckCoreError> {
+        let group = self.encrypt(master_key)?;
         crate::io::save_group(path, &self.uuid, &group)?;
         self.modified = false;
         Ok(())
     }
 
     /// Encrypt this [`Group`](Group) with the given masterkey.
-    fn encrypt(&self, masterkey: &[u8]) -> Result<crate::dto::group::Group, PWDuckCoreError> {
+    fn encrypt(&self, master_key: &[u8]) -> Result<crate::dto::group::Group, PWDuckCoreError> {
         let iv = generate_aes_iv();
         let mut content = ron::to_string(self)?;
-        let encrypted_content = aes_cbc_encrypt(content.as_bytes(), masterkey, &iv)?;
+        let encrypted_content = aes_cbc_encrypt(content.as_bytes(), master_key, &iv)?;
         content.zeroize();
         Ok(crate::dto::group::Group::new(
             base64::encode(iv),
@@ -77,9 +77,9 @@ impl Group {
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The UUID as the identifier of the [`Group`](Group)
     ///  - The masterkey to decrypt the [`Group`](Group)
-    pub fn load(path: &Path, uuid: &Uuid, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
+    pub fn load(path: &Path, uuid: &Uuid, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_group(path, uuid)?;
-        Self::decrypt(&dto, masterkey)
+        Self::decrypt(&dto, master_key)
     }
 
     /// Load all [`Group`](Group)s from disk.
@@ -87,13 +87,13 @@ impl Group {
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The masterkey to decrypt the [`Group`](Group)s
-    pub fn load_all(path: &Path, masterkey: &[u8]) -> Result<HashMap<Uuid, Self>, PWDuckCoreError> {
+    pub fn load_all(path: &Path, master_key: &[u8]) -> Result<HashMap<Uuid, Self>, PWDuckCoreError> {
         let dtos = crate::io::load_all_groups(path)?;
 
         let mut results = HashMap::new();
 
         for dto in dtos {
-            let group = Self::decrypt(&dto, masterkey)?;
+            let group = Self::decrypt(&dto, master_key)?;
             drop(results.insert(group.uuid().clone(), group));
         }
 
@@ -101,10 +101,10 @@ impl Group {
     }
 
     /// Decrypt the data-transfer-object (dto) of the [`Group`](Group) with the given masterkey.
-    fn decrypt(dto: &crate::dto::group::Group, masterkey: &[u8]) -> Result<Self, PWDuckCoreError> {
+    fn decrypt(dto: &crate::dto::group::Group, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let decrypted_content = aes_cbc_decrypt(
             &base64::decode(dto.content())?,
-            masterkey,
+            master_key,
             &base64::decode(dto.iv())?,
         )?;
 

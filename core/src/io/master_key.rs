@@ -10,9 +10,9 @@ use super::MASTERKEY_NAME;
 /// It expects:
 ///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
 ///  - The [`MasterKey`](MasterKey) to save
-pub fn save_masterkey(path: &Path, masterkey: MasterKey) -> Result<(), PWDuckCoreError> {
-    fs::write(path.join(MASTERKEY_NAME), ron::to_string(&masterkey)?)?;
-    drop(masterkey);
+pub fn save_master_key(path: &Path, master_key: MasterKey) -> Result<(), PWDuckCoreError> {
+    fs::write(path.join(MASTERKEY_NAME), ron::to_string(&master_key)?)?;
+    drop(master_key);
     Ok(())
 }
 
@@ -20,7 +20,7 @@ pub fn save_masterkey(path: &Path, masterkey: MasterKey) -> Result<(), PWDuckCor
 ///
 /// It expects:
 ///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
-pub fn load_masterkey(path: &Path) -> Result<MasterKey, PWDuckCoreError> {
+pub fn load_master_key(path: &Path) -> Result<MasterKey, PWDuckCoreError> {
     let content = fs::read_to_string(path.join(MASTERKEY_NAME))?;
     Ok(ron::from_str(&content)?)
 }
@@ -31,19 +31,19 @@ mod tests {
 
     use crate::{dto::master_key::MasterKey, io::create_new_vault_dir};
 
-    use super::{load_masterkey, save_masterkey};
+    use super::{load_master_key, save_master_key};
 
     #[test]
-    fn save_and_load_masterkey() {
+    fn save_and_load_master_key() {
         let dir = tempdir().unwrap();
         let path = dir.path();
         create_new_vault_dir(&path).unwrap();
 
         let master_key = MasterKey::new("SALT".into(), "IV".into(), "ENCRYPTED_KEY".into());
 
-        save_masterkey(&path, master_key.clone()).expect("Saving master key should not fail.");
+        save_master_key(&path, master_key.clone()).expect("Saving master key should not fail.");
 
-        let loaded = load_masterkey(&path).expect("Loading master key should not fail.");
+        let loaded = load_master_key(&path).expect("Loading master key should not fail.");
 
         assert_eq!(master_key.salt(), loaded.salt());
         assert_eq!(master_key.iv(), loaded.iv());

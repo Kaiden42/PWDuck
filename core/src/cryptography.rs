@@ -113,7 +113,7 @@ pub fn derive_key(data: &[u8], salt: &[u8]) -> Result<SecVec<u8>, PWDuckCoreErro
 
 /// Generate a new masterkey which will be encrypted with the given password after creation.
 #[cfg_attr(test, mockable)]
-pub fn generate_masterkey(
+pub fn generate_master_key(
     password: &str,
     key_file: Option<&Path>,
 ) -> Result<MasterKey, PWDuckCoreError> {
@@ -154,14 +154,14 @@ pub fn generate_masterkey(
 
 /// Decrypt a masterkey with the given password and encrypt it with the given memory key.
 #[cfg_attr(test, mockable)]
-pub fn decrypt_masterkey(
-    masterkey: &MasterKey,
+pub fn decrypt_master_key(
+    master_key: &MasterKey,
     password: &str,
     key_file: Option<&Path>,
     key_protection: &[u8],
     nonce: &[u8],
 ) -> Result<crate::model::master_key::MasterKey, PWDuckCoreError> {
-    let salt = base64::decode(masterkey.salt())?;
+    let salt = base64::decode(master_key.salt())?;
     let mut hash = key_file.map_or_else(
         || hash_password(password, &salt),
         |path| {
@@ -170,8 +170,8 @@ pub fn decrypt_masterkey(
         },
     )?;
 
-    let encrypted_key = base64::decode(masterkey.encrypted_key())?;
-    let mut iv = base64::decode(masterkey.iv())?;
+    let encrypted_key = base64::decode(master_key.encrypted_key())?;
+    let mut iv = base64::decode(master_key.iv())?;
 
     // unprotected key
     let mut key = aes_cbc_decrypt(&encrypted_key, &hash, &iv)?;
@@ -179,7 +179,7 @@ pub fn decrypt_masterkey(
     iv.zeroize();
 
     // protect key
-    let protected_key = protect_masterkey(&key, key_protection, nonce)?;
+    let protected_key = protect_master_key(&key, key_protection, nonce)?;
     key.zeroize();
 
     Ok(protected_key.into())
@@ -187,7 +187,7 @@ pub fn decrypt_masterkey(
 
 /// Protect the masterkey by encrypting it with the given key.
 #[cfg_attr(test, mockable)]
-pub fn protect_masterkey(
+pub fn protect_master_key(
     master_key: &[u8],
     key_protection: &[u8],
     nonce: &[u8],
@@ -197,7 +197,7 @@ pub fn protect_masterkey(
 
 /// Unprotect the masterkey by decrypting it with the given key.
 #[cfg_attr(test, mockable)]
-pub fn unprotect_masterkey(
+pub fn unprotect_master_key(
     master_key: &[u8],
     key_protection: &[u8],
     nonce: &[u8],
@@ -328,9 +328,9 @@ mod tests {
 
     use super::{
         aes_cbc_decrypt, aes_cbc_encrypt, chacha20_decrypt, chacha20_encrypt, decrypt_key_file,
-        decrypt_masterkey, derive_key, derive_key_protection, fill_random_bytes, generate_aes_iv,
-        generate_chacha20_nonce, generate_iv, generate_key_file, generate_masterkey, generate_salt,
-        hash_password, protect_masterkey, unprotect_masterkey, AES_IV_LENGTH,
+        decrypt_master_key, derive_key, derive_key_protection, fill_random_bytes, generate_aes_iv,
+        generate_chacha20_nonce, generate_iv, generate_key_file, generate_master_key, generate_salt,
+        hash_password, protect_master_key, unprotect_master_key, AES_IV_LENGTH,
         CHACHA20_NONCE_LENGTH, KEY_FILE_SIZE, MASTER_KEY_SIZE, SALT_LENGTH,
     };
 
@@ -452,11 +452,11 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_masterkey_without_key() {
+    fn test_generate_master_key_without_key() {
         let key1 =
-            generate_masterkey(PASSWORD, None).expect("Generating masterkey should not fail.");
+            generate_master_key(PASSWORD, None).expect("Generating masterkey should not fail.");
         let key2 =
-            generate_masterkey(PASSWORD, None).expect("Generating masterkey should not fail.");
+            generate_master_key(PASSWORD, None).expect("Generating masterkey should not fail.");
 
         assert_ne!(key1.salt(), key2.salt());
         assert_ne!(key1.iv(), key2.iv());
@@ -491,7 +491,7 @@ mod tests {
         });
 
         let master_key =
-            generate_masterkey(PASSWORD, None).expect("Generating masterkey should not fail.");
+            generate_master_key(PASSWORD, None).expect("Generating masterkey should not fail.");
 
         let dercypted_key = aes_cbc_decrypt(
             &base64::decode(master_key.encrypted_key()).unwrap(),
@@ -506,13 +506,13 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_masterkey_with_key() {
+    fn test_generate_master_key_with_key() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("KeyFile.pwdk");
 
         assert!(!path.exists());
 
-        let key = generate_masterkey(PASSWORD, Some(&path))
+        let key = generate_master_key(PASSWORD, Some(&path))
             .expect("Generating master key should not fail.");
 
         assert!(path.exists());
@@ -528,7 +528,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decrypt_masterkey_without_key() {
+    fn test_decrypt_master_key_without_key() {
         generate_salt.mock_safe(|| MockResult::Return(Vec::from(SALT)));
         hash_password.mock_safe(|password, salt| {
             assert_eq!(password, PASSWORD);
@@ -541,7 +541,7 @@ mod tests {
             MockResult::Return(())
         });
 
-        let masterkey = generate_masterkey(PASSWORD, None).unwrap();
+        let master_key = generate_master_key(PASSWORD, None).unwrap();
 
         MemKey::with_length.mock_safe(|length| {
             MockResult::Return(SecBytes::with(length, |buf| buf.fill(21_u8)).into())
@@ -557,7 +557,7 @@ mod tests {
             aes_cbc_decrypt.mock_raw(|encrypted_key, hash, iv| {
                 assert_eq!(
                     encrypted_key,
-                    base64::decode(masterkey.encrypted_key()).unwrap()
+                    base64::decode(master_key.encrypted_key()).unwrap()
                 );
                 assert_eq!(hash, &[42_u8; argon2::Params::DEFAULT_OUTPUT_LEN]);
                 assert_eq!(iv, vec![21_u8; AES_IV_LENGTH]);
@@ -566,14 +566,14 @@ mod tests {
         }
 
         unsafe {
-            protect_masterkey.mock_raw(|key, kp, no| {
+            protect_master_key.mock_raw(|key, kp, no| {
                 assert_eq!(
                     key,
                     aes_cbc_decrypt(
-                        &base64::decode(masterkey.encrypted_key()).unwrap(),
-                        &hash_password(PASSWORD, &base64::decode(masterkey.salt()).unwrap())
+                        &base64::decode(master_key.encrypted_key()).unwrap(),
+                        &hash_password(PASSWORD, &base64::decode(master_key.salt()).unwrap())
                             .unwrap(),
-                        &base64::decode(masterkey.iv()).unwrap(),
+                        &base64::decode(master_key.iv()).unwrap(),
                     )
                     .unwrap()
                     .as_slice(),
@@ -584,26 +584,26 @@ mod tests {
             });
         }
 
-        let decrypted_key = decrypt_masterkey(&masterkey, PASSWORD, None, &key_protection, &nonce)
+        let decrypted_key = decrypt_master_key(&master_key, PASSWORD, None, &key_protection, &nonce)
             .expect("Decrypting masterkey should not fail.");
 
         let unprotected_key =
-            unprotect_masterkey(decrypted_key.as_slice(), &key_protection, &nonce)
-                .expect("Unprotecting masterkey should not fail");
+            unprotect_master_key(decrypted_key.as_slice(), &key_protection, &nonce)
+                .expect("Unprotecting master_key should not fail");
 
         assert_eq!(
             unprotected_key,
             aes_cbc_decrypt(
-                &base64::decode(masterkey.encrypted_key()).unwrap(),
-                &hash_password(PASSWORD, &base64::decode(masterkey.salt()).unwrap()).unwrap(),
-                &base64::decode(masterkey.iv()).unwrap(),
+                &base64::decode(master_key.encrypted_key()).unwrap(),
+                &hash_password(PASSWORD, &base64::decode(master_key.salt()).unwrap()).unwrap(),
+                &base64::decode(master_key.iv()).unwrap(),
             )
             .unwrap(),
         );
     }
 
     #[test]
-    fn test_decrypt_masterkey_with_key() {
+    fn test_decrypt_master_key_with_key() {
         generate_salt.mock_safe(|| MockResult::Return(Vec::from(SALT)));
         hash_password.mock_safe(|password, salt| {
             assert_eq!(password, PASSWORD);
@@ -619,7 +619,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join("KeyFile.pwdk");
 
-        let masterkey = generate_masterkey(PASSWORD, Some(&path)).unwrap();
+        let master_key = generate_master_key(PASSWORD, Some(&path)).unwrap();
 
         MemKey::with_length.mock_safe(|length| {
             MockResult::Return(SecBytes::with(length, |buf| buf.fill(21_u8)).into())
@@ -633,11 +633,11 @@ mod tests {
         let key_protection = derive_key_protection(&mem_key, &salt).unwrap();
 
         let decrypted_key =
-            decrypt_masterkey(&masterkey, PASSWORD, Some(&path), &key_protection, &nonce)
-                .expect("Decrypting masterkey should not fail.");
+            decrypt_master_key(&master_key, PASSWORD, Some(&path), &key_protection, &nonce)
+                .expect("Decrypting master_key should not fail.");
 
         let unprotected_key =
-            unprotect_masterkey(decrypted_key.as_slice(), &key_protection, &nonce)
+            unprotect_master_key(decrypted_key.as_slice(), &key_protection, &nonce)
                 .expect("Unprotecting masterkey should not fail");
 
         let key_file = crate::model::key_file::KeyFile::load(&path, PASSWORD).unwrap();
@@ -645,16 +645,16 @@ mod tests {
         assert_eq!(
             unprotected_key,
             aes_cbc_decrypt(
-                &base64::decode(masterkey.encrypted_key()).unwrap(),
-                &derive_key(&key_file, &base64::decode(masterkey.salt()).unwrap()).unwrap(),
-                &base64::decode(masterkey.iv()).unwrap(),
+                &base64::decode(master_key.encrypted_key()).unwrap(),
+                &derive_key(&key_file, &base64::decode(master_key.salt()).unwrap()).unwrap(),
+                &base64::decode(master_key.iv()).unwrap(),
             )
             .unwrap(),
         );
     }
 
     #[test]
-    fn test_protect_masterkey() {
+    fn test_protect_master_key() {
         let master_key = [255_u8; MASTER_KEY_SIZE];
         let key_protection = [42u8; argon2::Params::DEFAULT_OUTPUT_LEN];
         let nonce = [21_u8; CHACHA20_NONCE_LENGTH];
@@ -668,13 +668,13 @@ mod tests {
             });
         }
 
-        let protected_key = protect_masterkey(&master_key, &key_protection, &nonce)
+        let protected_key = protect_master_key(&master_key, &key_protection, &nonce)
             .expect("Protecting masterkey should not fail");
         assert_eq!(protected_key, vec![84_u8; MASTER_KEY_SIZE]);
     }
 
     #[test]
-    fn test_unprotect_masterkey() {
+    fn test_unprotect_master_key() {
         let master_key = [84_u8; MASTER_KEY_SIZE];
         let key_protection = [42_u8; argon2::Params::DEFAULT_OUTPUT_LEN];
         let nonce = [21_u8; CHACHA20_NONCE_LENGTH];
@@ -688,7 +688,7 @@ mod tests {
             });
         }
 
-        let unprotected_key = unprotect_masterkey(&master_key, &key_protection, &nonce)
+        let unprotected_key = unprotect_master_key(&master_key, &key_protection, &nonce)
             .expect("Unprotecting masterkey should not fail");
         assert_eq!(unprotected_key, vec![255_u8; MASTER_KEY_SIZE].into())
     }

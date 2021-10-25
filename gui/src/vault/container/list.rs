@@ -714,7 +714,7 @@ mod tests {
         let mut vault =
             pwduck_core::Vault::generate(PASSWORD, Option::<String>::None, mem_key, &path).unwrap();
         let master_key = vault
-            .masterkey()
+            .master_key()
             .as_unprotected(mem_key, vault.salt(), vault.nonce())
             .unwrap();
         let root = vault.get_root_uuid().unwrap();
@@ -873,7 +873,7 @@ mod tests {
         }
 
         let master_key = vault
-            .masterkey()
+            .master_key()
             .as_unprotected(&mem_key, vault.salt(), vault.nonce())
             .unwrap();
         // Add entries to some group
