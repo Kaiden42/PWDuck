@@ -63,10 +63,7 @@ mod desktop {
     use enigo::KeyboardControllable;
     use rfd::AsyncFileDialog;
 
-    use pwduck_gui::{
-        error::{NfdError, PWDuckGuiError},
-        Platform, Sequence,
-    };
+    use pwduck_gui::{Platform, Sequence, error::{NfdError, PWDuckGuiError}};
 
     /// An empty placeholder struct to implement the [`Platform`](Platform) trait for.
     #[derive(Default)]
@@ -134,13 +131,8 @@ mod desktop {
                 enigo.set_delay(25);
 
                 // Check if xdotools is available
-                // TODO: maybe replace this by `get_program` in the future.
-                // <https://doc.rust-lang.org/std/process/struct.Command.html#method.get_program>
-                drop(
-                    std::process::Command::new("xdotool")
-                        .output()
-                        .map_err(|_err| PWDuckGuiError::XDOToolsMissing)?,
-                );
+                drop(which::which("xdotool")
+                    .map_err(|err| PWDuckGuiError::String(format!("xdotool could not be found. Maybe it is not installed on your system? ({})", err)))?);
             }
 
             for part in sequence.iter() {

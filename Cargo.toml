@@ -18,3 +18,9 @@ dirs = "4.0.0"
 opener = "0.5.0"
 enigo = "0.0.14"
 async-std = "1.9.0"
+which = "4.2.2"
+
+# Target dependencies are somehow not always working
+# see: https://users.rust-lang.org/t/struggling-with-target-cfg-blah-dependencies-in-cargo-toml/47675/4
+#[target.'cfg(linux)'.dependencies]
+#which = "4.2.2"
