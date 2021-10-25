@@ -19,7 +19,7 @@ pub const HEAD: &str = "head";
 pub const BODY: &str = "body";
 
 /// The file name of the master key
-pub const MASTERKEY_NAME: &str = "master_key.pwduck";
+pub const MASTER_KEY_NAME: &str = "master_key.pwduck";
 
 /// The directory name of the application settings.
 pub const APPLICATION_SETTINGS_DIR: &str = "PWDuck";

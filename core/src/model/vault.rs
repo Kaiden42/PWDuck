@@ -506,7 +506,7 @@ mod tests {
             .expect("Creating new vault should not fail.");
 
         assert!(path.exists());
-        assert!(path.join(crate::io::MASTERKEY_NAME).exists());
+        assert!(path.join(crate::io::MASTER_KEY_NAME).exists());
         assert_eq!(vault.groups.len(), 1);
         for (uuid, group) in &vault.groups {
             assert!(group.is_root());

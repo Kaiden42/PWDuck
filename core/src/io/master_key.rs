@@ -3,7 +3,7 @@ use std::{fs, path::Path};
 
 use crate::{dto::master_key::MasterKey, PWDuckCoreError};
 
-use super::MASTERKEY_NAME;
+use super::MASTER_KEY_NAME;
 
 /// Save the [`MasterKey`](MasterKey) to disk.
 ///
@@ -11,7 +11,7 @@ use super::MASTERKEY_NAME;
 ///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
 ///  - The [`MasterKey`](MasterKey) to save
 pub fn save_master_key(path: &Path, master_key: MasterKey) -> Result<(), PWDuckCoreError> {
-    fs::write(path.join(MASTERKEY_NAME), ron::to_string(&master_key)?)?;
+    fs::write(path.join(MASTER_KEY_NAME), ron::to_string(&master_key)?)?;
     drop(master_key);
     Ok(())
 }
@@ -21,7 +21,7 @@ pub fn save_master_key(path: &Path, master_key: MasterKey) -> Result<(), PWDuckC
 /// It expects:
 ///  - The [`Path`](Path) as the location of the [`Vault`](Vault)
 pub fn load_master_key(path: &Path) -> Result<MasterKey, PWDuckCoreError> {
-    let content = fs::read_to_string(path.join(MASTERKEY_NAME))?;
+    let content = fs::read_to_string(path.join(MASTER_KEY_NAME))?;
     Ok(ron::from_str(&content)?)
 }
 
