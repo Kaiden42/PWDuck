@@ -329,8 +329,8 @@ mod tests {
     use super::{
         aes_cbc_decrypt, aes_cbc_encrypt, chacha20_decrypt, chacha20_encrypt, decrypt_key_file,
         decrypt_master_key, derive_key, derive_key_protection, fill_random_bytes, generate_aes_iv,
-        generate_chacha20_nonce, generate_iv, generate_key_file, generate_master_key, generate_salt,
-        hash_password, protect_master_key, unprotect_master_key, AES_IV_LENGTH,
+        generate_chacha20_nonce, generate_iv, generate_key_file, generate_master_key,
+        generate_salt, hash_password, protect_master_key, unprotect_master_key, AES_IV_LENGTH,
         CHACHA20_NONCE_LENGTH, KEY_FILE_SIZE, MASTER_KEY_SIZE, SALT_LENGTH,
     };
 
@@ -584,8 +584,9 @@ mod tests {
             });
         }
 
-        let decrypted_key = decrypt_master_key(&master_key, PASSWORD, None, &key_protection, &nonce)
-            .expect("Decrypting master key should not fail.");
+        let decrypted_key =
+            decrypt_master_key(&master_key, PASSWORD, None, &key_protection, &nonce)
+                .expect("Decrypting master key should not fail.");
 
         let unprotected_key =
             unprotect_master_key(decrypted_key.as_slice(), &key_protection, &nonce)

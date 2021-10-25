@@ -102,7 +102,10 @@ impl EntryHead {
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The master key to decrypt the [`EntryHead`](EntryHead)s
-    pub fn load_all(path: &Path, master_key: &[u8]) -> Result<HashMap<Uuid, Self>, PWDuckCoreError> {
+    pub fn load_all(
+        path: &Path,
+        master_key: &[u8],
+    ) -> Result<HashMap<Uuid, Self>, PWDuckCoreError> {
         let dtos = crate::io::load_all_entry_heads(path)?;
 
         let mut results = HashMap::new();

@@ -286,7 +286,11 @@ impl ModifyEntryView {
             .master_key()
             .as_unprotected(mem_key, vault.salt(), vault.nonce())?;
 
-        vault.insert_entry(self.entry_head.clone(), self.entry_body.clone(), &master_key)?;
+        vault.insert_entry(
+            self.entry_head.clone(),
+            self.entry_body.clone(),
+            &master_key,
+        )?;
 
         Ok(Command::none())
     }
