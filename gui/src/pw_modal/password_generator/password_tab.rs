@@ -216,7 +216,7 @@ impl PasswordTabState {
             symbols.append(&Symbols::SPECIAL);
         }
 
-        pwduck_core::generate_password(self.length, &symbols).unwrap()
+        pwduck_core::generate_password(self.length, &symbols)
     }
 }
 

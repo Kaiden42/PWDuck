@@ -67,6 +67,13 @@ impl EntryHead {
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault).
     ///  - The master key to encrypt the head.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - The serialization of the [`EntryHead`](EntryHead) fails.
+    /// - The [`EntryHead`](EntryHead) can't be encrypted.
+    /// - Writing the encrypted [`EntryHead`](EntryHead) to disk failed.
     pub fn save(&mut self, path: &Path, master_key: &[u8]) -> Result<(), PWDuckCoreError> {
         let entry_head = self.encrypt(master_key)?;
         crate::io::save_entry_head(path, &self.uuid, &entry_head)?;
@@ -92,6 +99,14 @@ impl EntryHead {
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The UUID as the identifier of the [`EntryHead`](EntryHead)
     ///  - The master key to decrypt the [`EntryHead`](EntryHead)
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - Reading the encrypted [`EntryHead`](EntryHead) fails.
+    /// - The de-serialization of the [`EntryHead`](EntryHead) fails.
+    /// - The [`EntryHead`](EntryHead) can't be decrypted.
+    /// - The base64 encoded data can't be decoded.
     pub fn load(path: &Path, uuid: &Uuid, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_entry_head(path, uuid)?;
         Self::decrypt(&dto, master_key)
@@ -102,6 +117,14 @@ impl EntryHead {
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The master key to decrypt the [`EntryHead`](EntryHead)s
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - Reading the encrypted [`EntryHead`](EntryHead)s fails.
+    /// - The de-serialization of the [`EntryHead`](EntryHead)s fails.
+    /// - The [`EntryHead`](EntryHead)s can't be decrypted.
+    /// - The base64 encoded data can't be decoded.
     pub fn load_all(
         path: &Path,
         master_key: &[u8],
@@ -198,6 +221,12 @@ impl EntryBody {
     }
 
     /// Encrypt this [`EntryBody`](EntryBody) with the given master key.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - The [`EntryBody`](EntryBody) can't be encrypted.
+    /// - The serialization of the [`EntryBody`](EntryBody) fails.
     pub fn encrypt(
         &self,
         master_key: &[u8],
@@ -221,6 +250,14 @@ impl EntryBody {
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The UUID as the identifier of the [`EntryBody`](EntryBody)
     ///  - The master key to decrypt the [`EntryBody`](EntryBody)
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - Reading the encrypted [`EntryBody`](EntryBody) fails.
+    /// - The de-serialization of the [`EntryBody`](EntryBody) fails.
+    /// - The [`EntryBody`](EntryBody) can't be decrypted.
+    /// - The base64 encoded data can't be decoded.
     pub fn load(path: &Path, uuid: &Uuid, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_entry_body(path, uuid)?;
         let body = Self::decrypt(&dto, master_key)?;
@@ -228,6 +265,14 @@ impl EntryBody {
     }
 
     /// Decrypt the data-transfer-object (dto) of the [`EntryBody`](EntryBody) with the given master key.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - The [`EntryBody`](EntryBody) can't be decrypted.
+    /// - The decrypted data is not a valid UTF-8 string.
+    /// - The de-serialization of the [`EntryBody`](EntryBody) fails.
+    /// - The base64 encoded data can't be decoded.
     pub fn decrypt(
         dto: &crate::dto::entry::EntryBody,
         master_key: &[u8],

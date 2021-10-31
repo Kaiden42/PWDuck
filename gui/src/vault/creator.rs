@@ -182,7 +182,7 @@ impl VaultCreator {
                     None
                 };
                 async move {
-                    let mem_key = crate::MEM_KEY.lock().unwrap();
+                    let mem_key = crate::MEM_KEY.lock()?;
                     let mut vault =
                         pwduck_core::Vault::generate(&password, key_file, &mem_key, path)?;
 

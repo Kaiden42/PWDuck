@@ -163,6 +163,10 @@ impl SecString {
 
     /// Create a new [`SecString`](SecString) from a [`SecVec`](SecVec) containing
     /// UTF-8 encoded text.
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if the given byte vector is not a valid UTF-8 sequence.
     pub fn from_utf8(v: SecVec<u8>) -> Result<Self, PWDuckCoreError> {
         let raw = v.to_vec();
         drop(v);
@@ -228,6 +232,10 @@ impl From<SecString> for String {
 
 /// This function tries to configure the process to prevent the creation of a core dump once this process crashes.
 /// This should work on all Unix/Linux systems. On windows this will just silently fail.
+///
+/// # Errors
+///
+/// Returns `Err` if the rlimit can't be set on the system.
 #[cfg_attr(coverage, no_coverage)]
 pub fn try_to_prevent_core_dump() -> Result<(), PWDuckCoreError> {
     #[cfg(not(windows))]

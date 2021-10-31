@@ -19,6 +19,11 @@ impl AutoTypeSequenceParser {
     }
 
     /// Parse the sequence and return the gathered information for the autotype.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - The `sequence` is not valid and can't be parsed.
     pub fn parse_sequence<'a>(
         sequence: &'a str,
         entry_head: &'a EntryHead,

@@ -26,6 +26,15 @@ impl MasterKey {
     ///  - The password to decrypt the [`MasterKey`](MasterKey).
     ///  - The key protection to protect the [`MasterKey`](MasterKey) in memory.
     ///  - The nonce used to encrypt the [`MasterKey`](MasterKey) in memory.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - Reading the encrypted [`MasterKey`](MasterKey) fails.
+    /// - The de-serialization of the [`MasterKey`](MasterKey) fails.
+    /// - The [`MasterKey`](MasterKey) can't be decrypted.
+    /// - The base64 encoded data can't be decoded.
+    /// - The plain key can't be encrypted in-memory.
     pub fn load(
         path: &Path,
         password: &str,
@@ -43,6 +52,12 @@ impl MasterKey {
     ///  - The [`MemKey`](MemKey) used for the in-memory encryption
     ///  - The salt to derive the key for the encryption from the [`MemKey`](MemKey)
     ///  - The nonce used to decrypt the master key
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - The decryption key can't be derived.
+    /// - The master key can't be decrypted.
     pub fn as_unprotected(
         &self,
         mem_key: &MemKey,

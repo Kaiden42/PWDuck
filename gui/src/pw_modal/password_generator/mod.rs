@@ -113,7 +113,7 @@ impl PasswordGeneratorState {
         modal_state: &mut iced_aw::modal::State<crate::ModalState>,
     ) -> iced::Command<PasswordGeneratorMessage> {
         let mut password_generator_state = Self::new();
-        password_generator_state.set_target(match message {
+        let _ = password_generator_state.set_target(match message {
             crate::Message::VaultTab(
                 _,
                 VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(_)),
@@ -223,12 +223,13 @@ impl PasswordGeneratorState {
         &mut self,
         message: &PasswordTabMessage,
     ) -> Command<PasswordGeneratorMessage> {
-        self.password_tab_state
+        let cmd = self
+            .password_tab_state
             .update(message)
             .map(PasswordGeneratorMessage::PasswordTabMessage);
         self.generate_and_update_password();
 
-        self.estimate_password_strength()
+        Command::batch([cmd, self.estimate_password_strength()])
     }
 
     /// Update the passphrase tab with the given message.
@@ -236,12 +237,13 @@ impl PasswordGeneratorState {
         &mut self,
         message: &PassphraseTabMessage,
     ) -> Result<Command<PasswordGeneratorMessage>, PWDuckGuiError> {
-        self.passphrase_tab_state
+        let cmd = self
+            .passphrase_tab_state
             .update(message)
             .map(|cmd| cmd.map(PasswordGeneratorMessage::PassphraseTabMessage))?;
         self.generate_and_update_password();
 
-        Ok(self.estimate_password_strength())
+        Ok(Command::batch([cmd, self.estimate_password_strength()]))
     }
 
     /// Update the [`PasswordGeneratorState`](PasswordGeneratorState) with the given message.

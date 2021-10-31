@@ -123,7 +123,7 @@ impl ModifyGroupView {
 
     /// Update the title and replace it with the given value.
     fn update_title(&mut self, title: String) -> Command<ModifyGroupMessage> {
-        self.group.set_title(title);
+        let _ = self.group.set_title(title);
         self.is_modified = true;
         Command::none()
     }
@@ -206,8 +206,10 @@ impl ModifyGroupView {
                     .ok_or(PWDuckGuiError::Option)?
                     .clone();
 
-                let _cmd = self.delete_group(vault);
-                Ok(self.close_modal(modal_state))
+                Ok(Command::batch([
+                    self.delete_group(vault),
+                    self.close_modal(modal_state),
+                ]))
             }
         }
     }

@@ -244,7 +244,7 @@ pub fn vertical_space(factor: u16) -> Space {
 pub async fn estimate_password_strength(
     password: pwduck_core::SecString,
 ) -> Result<pwduck_core::PasswordInfo, pwduck_core::PWDuckCoreError> {
-    pwduck_core::password_entropy(&password)
+    Ok(pwduck_core::password_entropy(&password))
 }
 
 /// Shortcut trait to create `Some(value)` or `None` based on a condition.

@@ -3,7 +3,7 @@
 //! It uses the [core](pwduck_core) module internally to manage the passwords of the user.
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
-//#![deny(unused_results)]
+#![deny(unused_results)]
 #![cfg_attr(not(test), forbid(unsafe_code))]
 #![cfg_attr(coverage, feature(no_coverage))]
 #![warn(
@@ -34,7 +34,7 @@
     clippy::unimplemented,
     clippy::unneeded_field_pattern,
     clippy::unwrap_in_result,
-    //clippy::unwrap_used,
+    clippy::unwrap_used,
     clippy::use_debug,
 )]
 #![allow(
@@ -42,10 +42,7 @@
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
     clippy::cast_possible_wrap,
-    clippy::module_name_repetitions,
-
-    // TODO: remove
-    clippy::missing_errors_doc,
+    clippy::module_name_repetitions
 )]
 
 use std::{marker::PhantomData, path::PathBuf};
@@ -181,6 +178,12 @@ pub struct Viewport {
 #[cfg_attr(test, mockable)]
 impl<P: Platform + 'static> PWDuckGui<P> {
     /// Start the gui application.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - The core dump prevention fails.
+    /// - The application can't be started.
     #[cfg_attr(coverage, no_coverage)]
     pub fn start() -> Result<(), PWDuckGuiError> {
         pwduck_core::try_to_prevent_core_dump()?;
@@ -260,7 +263,7 @@ impl<P: Platform + 'static> PWDuckGui<P> {
         if self.tabs[index].contains_unsaved_changes() {
             Err(PWDuckGuiError::VaultContainsUnsavedChanges)
         } else {
-            self.tabs.remove(index);
+            drop(self.tabs.remove(index));
 
             self.tabs.select(if self.tabs.is_empty() {
                 0
@@ -295,10 +298,11 @@ impl<P: Platform + 'static> PWDuckGui<P> {
     /// Open the settings tab.
     fn open_settings(&mut self) -> Command<Message> {
         let mut settings_tab = VaultTab::new(());
-        settings_tab.change_to_settings_state();
+        let cmd = settings_tab.change_to_settings_state();
         self.tabs.push(settings_tab);
         self.tabs.select(self.tabs.len() - 1);
-        Command::none()
+        let selected = self.tabs.selected();
+        cmd.map(move |msg| Message::VaultTab(selected, msg))
     }
 }
 

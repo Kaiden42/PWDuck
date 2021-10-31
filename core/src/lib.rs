@@ -41,10 +41,7 @@
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
     clippy::cast_possible_wrap,
-    clippy::module_name_repetitions,
-
-    // TODO: remove
-    clippy::missing_errors_doc,
+    clippy::module_name_repetitions
 )]
 
 #[macro_use]

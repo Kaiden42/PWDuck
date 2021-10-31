@@ -52,6 +52,13 @@ impl Group {
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The master key to encrypt the group
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - The serialization of the [`Group`](Group) fails.
+    /// - The [`Group`](Group) can't be encrypted.
+    /// - Writing the encrypted [`Group`](Group) to disk failed.
     pub fn save(&mut self, path: &Path, master_key: &[u8]) -> Result<(), PWDuckCoreError> {
         let group = self.encrypt(master_key)?;
         crate::io::save_group(path, &self.uuid, &group)?;
@@ -77,6 +84,14 @@ impl Group {
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The UUID as the identifier of the [`Group`](Group)
     ///  - The master key to decrypt the [`Group`](Group)
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - Reading the encrypted [`Group`](Group) fails.
+    /// - The de-serialization of the [`Group`](Group) fails.
+    /// - The [`Group`](Group) can't be decrypted.
+    /// - The base64 encoded data can't be decoded.
     pub fn load(path: &Path, uuid: &Uuid, master_key: &[u8]) -> Result<Self, PWDuckCoreError> {
         let dto = crate::io::load_group(path, uuid)?;
         Self::decrypt(&dto, master_key)
@@ -87,6 +102,14 @@ impl Group {
     /// It expects:
     ///  - The [`Path`](Path) as the location of the [`Vault`](crate::Vault)
     ///  - The master key to decrypt the [`Group`](Group)s
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - Reading the encrypted [`Group`](Group)s fails.
+    /// - The de-serialization of the [`Group`](Group)s fails.
+    /// - The [`Group`](Group)s can't be decrypted.
+    /// - The base64 encoded data can't be decoded.
     pub fn load_all(
         path: &Path,
         master_key: &[u8],

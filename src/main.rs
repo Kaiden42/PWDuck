@@ -63,7 +63,10 @@ mod desktop {
     use enigo::KeyboardControllable;
     use rfd::AsyncFileDialog;
 
-    use pwduck_gui::{Platform, Sequence, error::{NfdError, PWDuckGuiError}};
+    use pwduck_gui::{
+        error::{NfdError, PWDuckGuiError},
+        Platform, Sequence,
+    };
 
     /// An empty placeholder struct to implement the [`Platform`](Platform) trait for.
     #[derive(Default)]

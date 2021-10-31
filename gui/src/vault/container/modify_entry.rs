@@ -193,14 +193,14 @@ impl ModifyEntryView {
 
     /// Update the title and replace it with the given value.
     fn update_title(&mut self, title: String) -> Command<ModifyEntryMessage> {
-        self.entry_head_mut().set_title(title);
+        let _ = self.entry_head_mut().set_title(title);
         self.is_modified = true;
         Command::none()
     }
 
     /// Update the username and replace it with the given value.
     fn update_username(&mut self, username: String) -> Command<ModifyEntryMessage> {
-        self.entry_body_mut().set_username(username);
+        let _ = self.entry_body_mut().set_username(username);
         self.is_modified = true;
         Command::none()
     }
@@ -213,14 +213,14 @@ impl ModifyEntryView {
 
     /// Update the password and replace it with the given value.
     fn update_password(&mut self, password: String) -> Command<ModifyEntryMessage> {
-        self.entry_body_mut().set_password(password);
+        let _ = self.entry_body_mut().set_password(password);
         self.is_modified = true;
         self.estimate_password_strength()
     }
 
     /// Update the web address and replace it with the given value.
     fn update_web_address(&mut self, web_address: String) -> Command<ModifyEntryMessage> {
-        self.entry_head_mut().set_web_address(web_address);
+        let _ = self.entry_head_mut().set_web_address(web_address);
         self.is_modified = true;
         Command::none()
     }
@@ -235,7 +235,7 @@ impl ModifyEntryView {
 
     /// Update the email and replace it with the given value.
     fn update_email(&mut self, email: String) -> Command<ModifyEntryMessage> {
-        self.entry_body_mut().set_email(email);
+        let _ = self.entry_body_mut().set_email(email);
         self.is_modified = true;
         Command::none()
     }
@@ -313,7 +313,8 @@ impl ModifyEntryView {
         &mut self,
         auto_type_sequence: String,
     ) -> Command<ModifyEntryMessage> {
-        self.entry_head
+        let _ = self
+            .entry_head
             .set_auto_type_sequence(auto_type_sequence.into());
         self.is_modified = true;
         Command::none()
@@ -359,8 +360,7 @@ impl ModifyEntryView {
         match message {
             ModifyEntryModalMessage::Close => self.close_modal(modal_state),
             ModifyEntryModalMessage::SubmitDelete => {
-                let _cmd1 = self.delete_entry(vault);
-                self.close_modal(modal_state)
+                Command::batch([self.delete_entry(vault), self.close_modal(modal_state)])
             }
         }
     }

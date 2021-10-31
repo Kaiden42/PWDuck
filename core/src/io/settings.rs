@@ -9,6 +9,11 @@ use super::{APPLICATION_SETTINGS_DIR, APPLICATION_SETTINGS_NAME};
 use mocktopus::macros::*;
 
 /// Save the [`ApplicationSettings`](ApplicationSettings) to disk.
+///
+/// # Errors
+///
+/// Will return `Err` if the serialization of the [`ApplicationSettings`](ApplicationSettings) fails
+/// or the config dir was not specified on the system.
 pub fn save_application_settings(
     application_settings: &ApplicationSettings,
 ) -> Result<(), PWDuckCoreError> {
@@ -20,6 +25,11 @@ pub fn save_application_settings(
 }
 
 /// Load the [`ApplicationSettings`](ApplicationSettings) from disk.
+///
+/// # Errors
+///
+/// Will return `Err` if the de-serialization of the [`ApplicationSettings`](ApplicationSettings) fails
+/// or the config dir was not specified on the system.
 pub fn load_application_settings() -> Result<ApplicationSettings, PWDuckCoreError> {
     let path = get_settings_dir()?.join(APPLICATION_SETTINGS_NAME);
 

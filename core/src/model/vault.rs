@@ -68,6 +68,15 @@ impl Vault {
     ///  - The location of the optional key file.
     ///  - The memory key to protect the new generated master key of the new [`Vault`](Vault)
     ///  - The path as the location of the new [`Vault`](Vault)
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - The vault dir can't be created on the filesystem.
+    /// - The master key can't be generated.
+    /// - There nonce can't be generated.
+    /// - The master key can't be decrypted with the user password.
+    /// - The master key or vault data can't be stored on disk.
     pub fn generate<P1, P2>(
         password: &str,
         key_file: Option<P1>,
@@ -127,6 +136,16 @@ impl Vault {
     ///
     /// It expects:
     ///  - The [`MemKey`](MemKey) to decrypt the in-memory encrypted master key of the [`Vault`](Vault).
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - The key to decrypt the master key can't be derived.
+    /// - The master key can't be decrypted.
+    /// - The [`EntryBody`](EntryBody)s can't be stored on disk.
+    /// - The [`Group`](Group)s can't be stored on disk.
+    /// - The [`EntryHead`](EntryHead)s can't be stored on disk.
+    /// - The entries and groups that are marked for removing can't be removed from disk.
     pub fn save(&mut self, mem_key: &MemKey) -> Result<(), PWDuckCoreError> {
         let path = self.path.clone();
         let mut master_key = unprotect_master_key(
@@ -183,6 +202,16 @@ impl Vault {
     ///  - The password to decrypt the master key of the [`Vault`](Vault)
     ///  - The [`MemKey`] to re-encrypt the decrypted master key in memory
     ///  - The path as the location of the vault
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - The nonce can't be generated.
+    /// - Deriving the key for the memory protection of the master key failed.
+    /// - Loading the master key failed.
+    /// - The master key can't be decrypted.
+    /// - Loading the [`Group`](Group)s failed.
+    /// - Loading the [`EntryHead`](EntryHead)s failed.
     pub fn load<P1, P2>(
         password: &str,
         key_file: Option<P1>,
@@ -311,6 +340,11 @@ impl Vault {
     ///  - The [`EntryHead`] of the new entry
     ///  - The [`EntryBody`] of the new entry
     ///  - The master key to decrypt the [`EntryBody`](EntryBody)
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if:
+    /// - The [`EntryBody`](EntryBody) can't be encrypted.
     pub fn insert_entry(
         &mut self,
         entry_head: EntryHead,

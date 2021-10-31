@@ -26,7 +26,7 @@ impl Settings {
         application_settings: &mut ApplicationSettings,
         theme: pwduck_core::theme::Theme,
     ) -> Command<SettingsMessage> {
-        application_settings.set_theme(theme);
+        let _ = application_settings.set_theme(theme);
         Command::none()
     }
 

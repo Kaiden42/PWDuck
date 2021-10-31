@@ -2,8 +2,6 @@
 use rand::prelude::{Distribution, SliceRandom};
 use rand_core::SeedableRng;
 
-use crate::PWDuckCoreError;
-
 /// Character pool for password generation.
 #[derive(Debug, Default)]
 pub struct Symbols(Vec<char>);
@@ -57,7 +55,8 @@ impl Distribution<char> for Symbols {
 }
 
 /// Generate a new password based on the given character pool of symbols with the specified length.
-pub fn generate_password(length: u8, symbols: &Symbols) -> Result<String, PWDuckCoreError> {
+#[must_use]
+pub fn generate_password(length: u8, symbols: &Symbols) -> String {
     use rand::Rng;
     use rand_chacha::ChaCha20Rng;
 
@@ -69,13 +68,14 @@ pub fn generate_password(length: u8, symbols: &Symbols) -> Result<String, PWDuck
         .take(length as usize)
         .collect();
 
-    Ok(password)
+    password
 }
 
 /// Calculate the entropy of the given password.
 #[cfg_attr(coverage, no_coverage)]
-pub fn password_entropy(password: &str) -> Result<pw_entropy::PasswordInfo, PWDuckCoreError> {
-    Ok(pw_entropy::PasswordInfo::for_password(password))
+#[must_use]
+pub fn password_entropy(password: &str) -> pw_entropy::PasswordInfo {
+    pw_entropy::PasswordInfo::for_password(password)
 }
 
 #[cfg(test)]

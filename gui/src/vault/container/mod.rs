@@ -211,7 +211,7 @@ impl VaultContainer {
 
     /// Update the search and replace it with the given value. The [`ListView`](ListView) will be resized.
     fn update_search(&mut self, search: String) -> Command<VaultContainerMessage> {
-        self.list_view.set_search(search);
+        let _ = self.list_view.set_search(search);
         self.list_view.resize(&self.vault);
         Command::none()
     }
@@ -225,7 +225,7 @@ impl VaultContainer {
             .ok_or(PWDuckGuiError::Option)?;
 
         if let Some(group_uuid) = group.parent() {
-            self.list_view.set_selected_group_uuid(group_uuid.clone());
+            let _ = self.list_view.set_selected_group_uuid(group_uuid.clone());
             self.list_view.resize(&self.vault);
         }
         Ok(Command::none())
@@ -256,7 +256,7 @@ impl VaultContainer {
 
     /// Select the group identified by the UUID.
     fn select_group(&mut self, uuid: Uuid) -> Command<VaultContainerMessage> {
-        self.list_view.set_selected_group_uuid(uuid);
+        let _ = self.list_view.set_selected_group_uuid(uuid);
         self.list_view.search_mut().clear();
         self.list_view.resize(&self.vault);
         Command::none()
@@ -358,7 +358,7 @@ impl VaultContainer {
                 self.list_view.group_tree_mut().update(message, &self.vault)
             }
             list::GroupTreeMessage::GroupSelected(uuid) => {
-                self.list_view.set_selected_group_uuid(uuid);
+                let _ = self.list_view.set_selected_group_uuid(uuid);
                 self.list_view.resize(&self.vault);
                 Ok(Command::none())
             }
