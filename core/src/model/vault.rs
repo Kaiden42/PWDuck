@@ -91,7 +91,7 @@ impl Vault {
         let key_file = key_file.map(std::convert::Into::into);
         create_new_vault_dir(&path)?;
 
-        let master_key_dto = generate_master_key(password, key_file.as_ref().map(|p| p.as_ref()))?;
+        let master_key_dto = generate_master_key(password, key_file.as_ref().map(std::convert::AsRef::as_ref))?;
 
         let salt = generate_salt();
         let nonce = generate_chacha20_nonce()?;
@@ -99,7 +99,7 @@ impl Vault {
         let master_key = decrypt_master_key(
             &master_key_dto,
             password,
-            key_file.as_ref().map(|p| p.as_ref()),
+            key_file.as_ref().map(std::convert::AsRef::as_ref),
             &derive_key_protection(mem_key, &salt)?,
             &nonce,
         )?;
@@ -230,7 +230,7 @@ impl Vault {
         let master_key = MasterKey::load(
             &path,
             password,
-            key_file.as_ref().map(|p| p.as_ref()),
+            key_file.as_ref().map(std::convert::AsRef::as_ref),
             &derive_key_protection(mem_key, &salt)?,
             &nonce,
         )?;
