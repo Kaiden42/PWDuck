@@ -123,8 +123,7 @@ mod tests {
 
         symbols.append(&Symbols::LOWER_ALPHA);
 
-        let password =
-            generate_password(32, &symbols).expect("Password generation should not fail.");
+        let password = generate_password(32, &symbols);
         assert_eq!(password.len(), 32);
 
         assert!(password.chars().into_iter().all(|c| symbols.contains(&c)));
@@ -145,8 +144,7 @@ mod tests {
         symbols.append(&Symbols::NUMBERS);
         symbols.append(&Symbols::SPECIAL);
 
-        let password =
-            generate_password(64, &symbols).expect("Password generation should not fail.");
+        let password = generate_password(64, &symbols);
         assert_eq!(password.len(), 64);
 
         assert!(password.chars().into_iter().all(|c| symbols.contains(&c)));

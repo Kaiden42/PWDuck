@@ -513,7 +513,9 @@ impl Component for VaultContainer {
     type ConstructorParam = Box<Vault>;
 
     fn new(vault: Self::ConstructorParam) -> Self {
-        let root_uuid = vault.get_root_uuid().unwrap();
+        let root_uuid = vault
+            .get_root_uuid()
+            .expect("There should always be a root uuid.");
         let list_view = ListView::new(root_uuid, &vault);
 
         Self {

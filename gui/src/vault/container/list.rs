@@ -172,7 +172,7 @@ impl ListView {
                 } else {
                     self.split_state.divider_position().map_or_else(
                         || viewport.width / 2,
-                        |position| viewport.width - u32::from(position),
+                        |position| viewport.width - u32::from(position).min(viewport.width),
                     )
                 },
                 height: viewport.height,
@@ -197,6 +197,8 @@ impl ListView {
             )
             .style(theme.split())
             .padding(0.0)
+            .min_size_first(100)
+            .min_size_second(300)
             .into()
         };
 

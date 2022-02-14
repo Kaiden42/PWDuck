@@ -3,7 +3,7 @@
 //! It uses the [core](pwduck_core) module internally to manage the passwords of the user.
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
-#![deny(unused_results)]
+#![cfg_attr(not(test), deny(unused_results))]
 #![cfg_attr(not(test), forbid(unsafe_code))]
 #![cfg_attr(coverage, feature(no_coverage))]
 #![warn(

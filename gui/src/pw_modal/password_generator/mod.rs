@@ -118,7 +118,9 @@ impl PasswordGeneratorState {
                 _,
                 VaultTabMessage::Container(VaultContainerMessage::ModifyEntry(_)),
             ) => Target::EntryModifier,
-            crate::Message::VaultTab(_, VaultTabMessage::Creator(_)) => todo!(),
+            crate::Message::VaultTab(_, VaultTabMessage::Creator(_)) => {
+                unimplemented!("Maybe add the generator to the vault creator too")
+            }
             _ => Target::None,
         });
 

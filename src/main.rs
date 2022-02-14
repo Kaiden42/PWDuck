@@ -63,10 +63,7 @@ mod desktop {
     use enigo::KeyboardControllable;
     use rfd::AsyncFileDialog;
 
-    use pwduck_gui::{
-        error::{NfdError, PWDuckGuiError},
-        Platform, Sequence,
-    };
+    use pwduck_gui::{error::NfdError, Platform, Sequence};
 
     /// An empty placeholder struct to implement the [`Platform`](Platform) trait for.
     #[derive(Default)]
@@ -126,7 +123,7 @@ mod desktop {
         }
 
         async fn auto_type(sequence: Sequence) -> Result<(), pwduck_gui::error::PWDuckGuiError> {
-            async_std::task::sleep(std::time::Duration::from_millis(1000)).await;
+            async_std::task::sleep(std::time::Duration::from_millis(5000)).await;
 
             let mut enigo = enigo::Enigo::new();
             #[cfg(target_os = "linux")]
@@ -135,7 +132,7 @@ mod desktop {
 
                 // Check if xdotools is available
                 drop(which::which("xdotool")
-                    .map_err(|err| PWDuckGuiError::String(format!("xdotool could not be found. Maybe it is not installed on your system? ({})", err)))?);
+                    .map_err(|err| pwduck_gui::error::PWDuckGuiError::String(format!("xdotool could not be found. Maybe it is not installed on your system? ({})", err)))?);
             }
 
             for part in sequence.iter() {
