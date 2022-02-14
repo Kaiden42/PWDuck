@@ -3,6 +3,7 @@ name = "pwduck_gui"
 version = "0.1.0"
 authors = ["Kaiden42 <gitlab@tinysn.com>"]
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 pwduck_core = {path = "../core"}
