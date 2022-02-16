@@ -2,7 +2,7 @@
 
 A little duck 🦆 protecting your passwords. The passwords are stored in a folder, acting as a _Vault_, locally on your filesystem. The vault contains multiple files. Each file represents one passwords. With this file based storing, the passwords can be easily synchronized between multiple devices using a synchronization of your choice.
 
-> :warning: This application was developed by an amateur (me). There is no guarantee that your passwords are safe and secure and there was never done an audit from a third person! Don't use this with real data and use this on your own risk!
+> :warning: This application was developed by an amateur (me). There is no guarantee that your passwords are safe and secure and there was never done an audit from a third party! Don't use this with real data and use this on your own risk!
 
 <center>
 
