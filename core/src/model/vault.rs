@@ -91,7 +91,8 @@ impl Vault {
         let key_file = key_file.map(std::convert::Into::into);
         create_new_vault_dir(&path)?;
 
-        let master_key_dto = generate_master_key(password, key_file.as_ref().map(std::convert::AsRef::as_ref))?;
+        let master_key_dto =
+            generate_master_key(password, key_file.as_ref().map(std::convert::AsRef::as_ref))?;
 
         let salt = generate_salt();
         let nonce = generate_chacha20_nonce()?;
@@ -304,18 +305,21 @@ impl Vault {
 
     /// Insert a new [`Group`](Group) into this [`Vault`](Vault).
     pub fn insert_group(&mut self, group: Group) {
-        // Insert into parent's children.
-        let _ = group
-            .parent()
-            .as_ref()
-            .and_then(|parent| self.children.get_mut(parent))
-            .filter(|parent| !parent.groups().contains(group.uuid())) // TODO: find better way
-            .map(|parent| parent.groups_mut().push(group.uuid().clone()));
-        // Add own children.
-        drop(
-            self.children
-                .insert(group.uuid().clone(), Children::default()),
-        );
+        if !self.groups().contains_key(group.uuid()) {
+            // Insert into parent's children.
+            let _ = group
+                .parent()
+                .as_ref()
+                .and_then(|parent| self.children.get_mut(parent))
+                .filter(|parent| !parent.groups().contains(group.uuid())) // TODO: find better way
+                .map(|parent| parent.groups_mut().push(group.uuid().clone()));
+            // Add own children.
+            drop(
+                self.children
+                    .insert(group.uuid().clone(), Children::default()),
+            );
+        }
+
         drop(self.groups.insert(group.uuid().clone(), group));
     }
 
